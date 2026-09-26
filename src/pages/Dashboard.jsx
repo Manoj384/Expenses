@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [totalDebt, setTotalDebt] = useState(0)
   const [recentTxns, setRecentTxns] = useState([])
   const [upcomingSips, setUpcomingSips] = useState([])
+  const [debtsList, setDebtsList] = useState([])
   const [paymentBreakdown, setPaymentBreakdown] = useState([])
   const [showCashflowModal, setShowCashflowModal] = useState(false)
   const [mfList, setMfList] = useState(savedGrowwData)
@@ -66,7 +67,7 @@ export default function Dashboard() {
 
         supabase
           .from('debts')
-          .select('outstanding')
+          .select('outstanding, emi, status')
           .eq('user_id', user.id),
 
         supabase
@@ -118,7 +119,8 @@ export default function Dashboard() {
       setMonthIncome(income)
       setMonthExpense(expense)
       setActiveSips(sipRes.count !== null && sipRes.count > 0 ? sipRes.count : defaultSips.length)
-      setTotalDebt((debtRes.data || []).reduce((s, d) => s + Number(d.outstanding), 0))
+      setDebtsList(debtRes.data || [])
+      setTotalDebt((debtRes.data || []).reduce((s, d) => s + Number(d.outstanding || 0), 0))
       setRecentTxns(recentRes.data || [])
       setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
@@ -474,7 +476,7 @@ export default function Dashboard() {
         isOpen={showCashflowModal}
         onClose={() => setShowCashflowModal(false)}
         sips={upcomingSips}
-        debts={[]}
+        debts={debtsList}
       />
     </Layout>
   )

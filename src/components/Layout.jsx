@@ -112,7 +112,11 @@ export default function Layout({ children, title }) {
         </main>
       </div>
 
-      <BottomNav onOpenAi={() => setShowAiModal(true)} />
+      <BottomNav
+        onOpenAi={() => setShowAiModal(true)}
+        onOpenAdmin={() => setShowAdminModal(true)}
+        onOpenBackup={() => setShowBackupModal(true)}
+      />
 
       {/* Global Modals & Command Palette */}
       <CommandPalette />

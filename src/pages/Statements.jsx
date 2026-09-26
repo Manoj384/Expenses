@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import {
   FileSpreadsheet,
@@ -18,6 +20,8 @@ import {
   RefreshCw,
   Plus,
   Eye,
+  Database,
+  Save,
 } from 'lucide-react'
 import { formatCurrency } from '../utils/formatCurrency'
 import { parseStatementWithAi, getGeminiApiKey, setGeminiApiKey, getAiModel, setAiModel } from '../utils/aiService'
@@ -26,12 +30,14 @@ import { useToast } from '../context/ToastContext'
 const STORAGE_KEY = 'ft_statement_transactions'
 
 export default function Statements() {
+  const { user } = useAuth()
   const { addToast } = useToast()
   const fileInputRef = useRef(null)
 
   const [statementData, setStatementData] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY)
+      const key = user?.id ? `ft_statement_transactions_${user.id}` : STORAGE_KEY
+      const saved = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEY)
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
@@ -42,17 +48,32 @@ export default function Statements() {
   const [selectedFileSize, setSelectedFileSize] = useState('')
   const [filePreview, setFilePreview] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isSavingToDb, setIsSavingToDb] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [showApiKeyModal, setShowApiKeyModal] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState(getGeminiApiKey())
   const [selectedModel, setSelectedModel] = useState(getAiModel())
 
+  // Re-sync storage when user changes
   useEffect(() => {
+    const key = user?.id ? `ft_statement_transactions_${user.id}` : STORAGE_KEY
     try {
+      const saved = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        setStatementData(JSON.parse(saved))
+      }
+    } catch {}
+  }, [user])
+
+  // Save to active local storage
+  useEffect(() => {
+    const key = user?.id ? `ft_statement_transactions_${user.id}` : STORAGE_KEY
+    try {
+      localStorage.setItem(key, JSON.stringify(statementData))
       localStorage.setItem(STORAGE_KEY, JSON.stringify(statementData))
     } catch {}
-  }, [statementData])
+  }, [statementData, user])
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -228,6 +249,62 @@ export default function Statements() {
     addToast('Statement exported to CSV successfully!', 'success')
   }
 
+  const handleSaveAllToTransactions = async () => {
+    if (!user) {
+      addToast('Please log in to save transactions to your cloud database.', 'warning')
+      return
+    }
+    if (statementData.length === 0) {
+      addToast('No statement transactions to save.', 'info')
+      return
+    }
+
+    setIsSavingToDb(true)
+    try {
+      // 1. Fetch user categories & payment methods
+      const [catsRes, pmsRes] = await Promise.all([
+        supabase.from('categories').select('id, name, type').eq('user_id', user.id),
+        supabase.from('payment_methods').select('id, name').eq('user_id', user.id),
+      ])
+
+      const categories = catsRes.data || []
+      const paymentMethods = pmsRes.data || []
+
+      const getCategoryId = (catName, type) => {
+        const match = categories.find(
+          (c) => c.name.toLowerCase() === (catName || '').toLowerCase() && c.type === (type === 'credit' ? 'income' : 'expense')
+        )
+        if (match) return match.id
+        const fallback = categories.find((c) => c.type === (type === 'credit' ? 'income' : 'expense'))
+        return fallback?.id || null
+      }
+
+      const getPaymentMethodId = (methodName) => {
+        const match = paymentMethods.find((p) => p.name.toLowerCase().includes((methodName || '').toLowerCase()))
+        return match?.id || paymentMethods[0]?.id || null
+      }
+
+      const rowsToInsert = statementData.map((row) => ({
+        user_id: user.id,
+        date: row.date || new Date().toISOString().slice(0, 10),
+        amount: Number(row.amount) || 0,
+        type: row.type === 'credit' ? 'income' : 'expense',
+        note: `${row.description || 'Statement Txn'}${row.source_file ? ` [${row.source_file}]` : ''}`,
+        category_id: getCategoryId(row.category, row.type),
+        payment_method_id: getPaymentMethodId(row.payment_method),
+      }))
+
+      const { error: insertErr } = await supabase.from('transactions').insert(rowsToInsert)
+      if (insertErr) throw insertErr
+
+      addToast(`🎉 Successfully saved all ${rowsToInsert.length} transactions to your Main Dashboard & Database!`, 'success')
+    } catch (err) {
+      addToast(err?.message || 'Failed to save transactions to cloud database.', 'error')
+    } finally {
+      setIsSavingToDb(false)
+    }
+  }
+
   // Filtered list
   const filteredData = statementData.filter((item) => {
     const matchesSearch =
@@ -266,25 +343,43 @@ export default function Statements() {
               <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
                 Upload monthly card statements or bank PDFs & receipts. AI automatically detects dates, merchants, categories, and amounts, organizing them into an interactive standalone table.
               </p>
+              {statementData.length > 0 && (
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-400/30 mt-1">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>{statementData.length} records saved & persisted</span>
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               <button
                 onClick={() => setShowApiKeyModal(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/20 transition-all shadow-sm"
+                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/20 transition-all shadow-sm"
               >
                 <Key className="h-4 w-4 text-amber-300" />
                 <span>{getGeminiApiKey() ? 'API Key Active (Gemini Free)' : 'Set Gemini Free Key'}</span>
               </button>
 
               {statementData.length > 0 && (
-                <button
-                  onClick={handleExportCSV}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all shadow-md"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Export CSV</span>
-                </button>
+                <>
+                  <button
+                    onClick={handleSaveAllToTransactions}
+                    disabled={isSavingToDb}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-bold text-white transition-all shadow-md"
+                    title="Save all extracted statement transactions into your main Transactions table"
+                  >
+                    <Database className="h-4 w-4 text-indigo-200" />
+                    <span>{isSavingToDb ? 'Saving to DB...' : 'Save to Main Dashboard'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleExportCSV}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all shadow-md"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Export CSV</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
