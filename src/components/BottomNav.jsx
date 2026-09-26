@@ -13,6 +13,7 @@ import {
   Landmark,
   Target,
   Zap,
+  FileSpreadsheet,
   X,
 } from 'lucide-react'
 
@@ -25,6 +26,7 @@ const primaryNavItems = [
 ]
 
 const moreMenuItems = [
+  { to: '/statements',    label: 'Statements (AI)', desc: 'Bank & OneCard bill OCR',    icon: FileSpreadsheet, color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50' },
   { to: '/net-worth',     label: 'Net Worth',     desc: 'Total assets & liabilities', icon: Landmark, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' },
   { to: '/goals',         label: 'Wealth Goals',  desc: 'Target milestone tracking',  icon: Target, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50' },
   { to: '/budgets',       label: 'Budget Caps',   desc: 'Category spend limits',      icon: Zap, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50' },

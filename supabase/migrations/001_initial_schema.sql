@@ -326,3 +326,10 @@ GRANT EXECUTE ON FUNCTION mark_sip_paid(uuid) TO authenticated;
     DO $$ BEGIN
       CREATE POLICY "mutual_funds_delete" ON mutual_funds FOR DELETE USING (auth.uid() = user_id);
     EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+        ALTER TABLE debts ADD COLUMN IF NOT EXISTS notes TEXT;
+    ALTER TABLE debts ADD COLUMN IF NOT EXISTS person_name TEXT;
+    ALTER TABLE debts ADD COLUMN IF NOT EXISTS debt_type TEXT DEFAULT 'personal';
+    ALTER TABLE debts ADD COLUMN IF NOT EXISTS target_date DATE;
+    ALTER TABLE debts ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+    ALTER TABLE debts ADD COLUMN IF NOT EXISTS cleared_at TIMESTAMPTZ;

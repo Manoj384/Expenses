@@ -11,8 +11,6 @@ export default function CashflowForecastModal({ isOpen, onClose, sips = [], debt
   const [salDay, setSalDay] = useState('1')
   const [dSpend, setDSpend] = useState('600')
 
-  if (!isOpen) return null
-
   const sipTot = sips.filter(s => s.active !== false).reduce((sum, s) => sum + parseFloat(s.amount || 0), 0)
   const emiTot = debts.filter(d => d.status !== 'cleared').reduce((sum, d) => sum + parseFloat(d.emi || 0), 0)
 

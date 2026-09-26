@@ -17,6 +17,7 @@ import {
   Landmark,
   Target,
   Zap,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAdmin } from '../context/AdminContext'
@@ -32,6 +33,7 @@ const navItems = [
   { to: '/sips',          label: 'SIPs',              icon: TrendingUp },
   { to: '/past-expenses', label: 'Past Expenses',     icon: History },
   { to: '/debts',         label: 'Debts',             icon: CreditCard },
+  { to: '/statements',    label: 'Statements',        icon: FileSpreadsheet },
   { to: '/reports',       label: 'Reports & Visuals', icon: BarChart2 },
 ]
 

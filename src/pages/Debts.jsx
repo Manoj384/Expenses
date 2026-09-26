@@ -4,16 +4,25 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import Layout from '../components/Layout'
 import DebtCard from '../components/DebtCard'
+import DebtDetailsModal from '../components/DebtDetailsModal'
 import Modal from '../components/Modal'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import SplitBillModal from '../components/SplitBillModal'
-import { formatCurrency } from '../utils/formatCurrency'
+import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import {
   Plus,
   Users,
   AlertCircle,
   CreditCard,
+  Building,
+  User,
+  ArrowUpRight,
+  Calendar,
+  FileText,
+  DollarSign,
+  HelpCircle,
+  CheckCircle2,
 } from 'lucide-react'
 
 const emptyForm = {
@@ -28,6 +37,37 @@ const emptyForm = {
   notes: '',
 }
 
+const DEBT_TYPES = [
+  {
+    id: 'personal',
+    label: 'Friends & Family Borrowing',
+    desc: 'Money borrowed from relatives or friends',
+    icon: User,
+    color: 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300',
+  },
+  {
+    id: 'lent',
+    label: 'Money Lent (To Collect)',
+    desc: 'Money given to friends to collect back',
+    icon: ArrowUpRight,
+    color: 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300',
+  },
+  {
+    id: 'card',
+    label: 'Credit Card EMI',
+    desc: 'Credit card installments or balance',
+    icon: CreditCard,
+    color: 'border-purple-500 bg-purple-50/70 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300',
+  },
+  {
+    id: 'bank',
+    label: 'Bank / Personal Loan',
+    desc: 'Personal, auto, education, or home loan',
+    icon: Building,
+    color: 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
+  },
+]
+
 export default function Debts() {
   const { user } = useAuth()
   const { success: toastSuccess, error: toastError } = useToast()
@@ -38,6 +78,7 @@ export default function Debts() {
 
   const [showModal, setShowModal] = useState(false)
   const [showSplitModal, setShowSplitModal] = useState(false)
+  const [detailsTarget, setDetailsTarget] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -56,12 +97,20 @@ export default function Debts() {
       if (fetchErr) throw fetchErr
 
       // Normalize records if database has basic schema
-      const normalized = (data || []).map(d => {
-        let type = d.debt_type || 'personal'
-        let pName = d.person_name || ''
+      const normalized = (data || []).map((d) => {
+        let extra = {}
+        try {
+          const raw = localStorage.getItem(`ft_debt_extra_${d.id}`) || localStorage.getItem(`ft_debt_extra_${d.name}`)
+          if (raw) extra = JSON.parse(raw)
+        } catch {}
+
+        let type = d.debt_type || extra.debt_type || 'personal'
+        let pName = d.person_name || extra.person_name || ''
+        let notes = d.notes || extra.notes || ''
+        let target_date = d.target_date || extra.target_date || null
         const name = d.name || ''
 
-        if (!d.debt_type) {
+        if (!d.debt_type && !extra.debt_type) {
           if (name.includes('💸') || name.toLowerCase().includes('lent') || name.toLowerCase().includes('lend')) type = 'lent'
           else if (name.includes('💳') || name.toLowerCase().includes('card') || name.toLowerCase().includes('emi')) type = 'card'
           else if (name.includes('🏦') || name.toLowerCase().includes('bank') || name.toLowerCase().includes('loan')) type = 'bank'
@@ -74,6 +123,8 @@ export default function Debts() {
           ...d,
           debt_type: type,
           person_name: pName,
+          notes,
+          target_date,
           status,
         }
       })
@@ -95,14 +146,19 @@ export default function Debts() {
     setForm((prev) => ({
       ...prev,
       [name]: value,
-      outstanding: (name === 'principal' && !editTarget && prev.outstanding === '') ? value : (name === 'outstanding' ? value : prev.outstanding),
+      outstanding:
+        name === 'principal' && !editTarget && prev.outstanding === ''
+          ? value
+          : name === 'outstanding'
+          ? value
+          : prev.outstanding,
     }))
   }
 
   const validate = () => {
-    if (!form.name.trim()) return 'Record name is required.'
-    if (form.principal === '' || Number(form.principal) <= 0) return 'Principal amount must be > 0.'
-    if (form.outstanding === '' || Number(form.outstanding) < 0) return 'Outstanding must be ≥ 0.'
+    if (!form.name.trim()) return 'Please enter a title / name for this record.'
+    if (form.principal === '' || Number(form.principal) <= 0) return 'Principal amount must be greater than 0.'
+    if (form.outstanding === '' || Number(form.outstanding) < 0) return 'Outstanding balance must be 0 or more.'
     return null
   }
 
@@ -135,15 +191,11 @@ export default function Debts() {
         ? await supabase.from('debts').update(fullPayload).eq('id', editTarget.id)
         : await supabase.from('debts').insert(fullPayload)
 
-      // If database doesn't have extended columns, gracefully fallback to basic schema
-      if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column'))) {
-        const typePrefix = form.debt_type === 'personal' ? '🤝 ' : form.debt_type === 'lent' ? '💸 ' : form.debt_type === 'card' ? '💳 ' : ''
-        const personSuffix = form.person_name ? ` (${form.person_name.trim()})` : ''
-        const cleanName = `${typePrefix}${form.name.trim()}${personSuffix}`
-
+      // Fallback for basic schema (if remote DB doesn't have extended columns like notes/person_name)
+      if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column') || res.error.message?.includes('schema cache'))) {
         const basicPayload = {
           user_id: user.id,
-          name: cleanName,
+          name: form.name.trim(),
           principal: Number(form.principal),
           outstanding: Number(form.outstanding),
           emi: Number(form.emi) || 0,
@@ -152,12 +204,23 @@ export default function Debts() {
 
         res = editTarget?.id
           ? await supabase.from('debts').update(basicPayload).eq('id', editTarget.id)
-          : await supabase.from('debts').insert(basicPayload)
+          : await supabase.from('debts').insert(basicPayload).select()
       }
 
       if (res.error) throw res.error
 
-      toastSuccess(editTarget ? 'Debt details updated!' : 'New borrowing / debt recorded!')
+      // Save rich metadata to local storage cache so notes/person are always visible
+      const savedId = editTarget?.id || res.data?.[0]?.id || form.name.trim()
+      try {
+        localStorage.setItem(`ft_debt_extra_${savedId}`, JSON.stringify({
+          notes: form.notes.trim(),
+          person_name: form.person_name.trim(),
+          debt_type: form.debt_type,
+          target_date: form.target_date,
+        }))
+      } catch {}
+
+      toastSuccess(editTarget ? 'Borrowing / debt record updated!' : 'New borrowing / loan recorded!')
       setShowModal(false)
       setEditTarget(null)
       setForm(emptyForm)
@@ -172,13 +235,13 @@ export default function Debts() {
   const openEdit = (debt) => {
     setEditTarget(debt)
     setForm({
-      name: debt.name.replace(/^[🤝💸💳🏦]\s*/, '').replace(/\s*\([^)]*\)$/, ''),
+      name: debt.name || '',
       debt_type: debt.debt_type || 'personal',
       person_name: debt.person_name || '',
-      principal: String(debt.principal),
-      outstanding: String(debt.outstanding),
+      principal: String(debt.principal || ''),
+      outstanding: String(debt.outstanding || ''),
       emi: String(debt.emi || 0),
-      due_day: debt.due_day !== null ? String(debt.due_day) : '',
+      due_day: debt.due_day !== null && debt.due_day !== undefined ? String(debt.due_day) : '',
       target_date: debt.target_date || '',
       notes: debt.notes || '',
     })
@@ -231,7 +294,11 @@ export default function Debts() {
         })
       }
 
-      toastSuccess(isNowCleared ? `🎉 "${debtName}" has been fully settled and cleared!` : `Recorded payment of ${formatCurrency(repayAmt)}!`)
+      toastSuccess(
+        isNowCleared
+          ? `🎉 "${debtName}" has been fully settled and cleared!`
+          : `Recorded payment of ${formatCurrency(repayAmt)}!`
+      )
       fetchDebts()
     } catch {
       toastError('Failed to record repayment.')
@@ -254,14 +321,13 @@ export default function Debts() {
         status: 'active',
       }
       let res = await supabase.from('debts').insert(payload)
-      if (res?.error && res.error.code === 'PGRST204') {
+      if (res?.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column') || res.error.message?.includes('schema cache'))) {
         await supabase.from('debts').insert({
           user_id: user.id,
           name: `💸 Split: ${desc || 'Shared Bill'} (${f.name})`,
           principal: amt,
           outstanding: amt,
           emi: 0,
-          notes: `Split bill with ${f.name} (Phone: ${f.phone || 'N/A'})`,
         })
       }
     }
@@ -284,11 +350,15 @@ export default function Debts() {
   })
 
   // Totals
-  const activeBorrowings = debts.filter((d) => (d.status !== 'cleared' && Number(d.outstanding) > 0 && d.debt_type !== 'lent'))
+  const activeBorrowings = debts.filter(
+    (d) => d.status !== 'cleared' && Number(d.outstanding) > 0 && d.debt_type !== 'lent'
+  )
   const totalOutstanding = activeBorrowings.reduce((s, d) => s + Number(d.outstanding), 0)
   const totalEmi = activeBorrowings.reduce((s, d) => s + Number(d.emi || 0), 0)
 
-  const moneyLentList = debts.filter((d) => d.debt_type === 'lent' && d.status !== 'cleared' && Number(d.outstanding) > 0)
+  const moneyLentList = debts.filter(
+    (d) => d.debt_type === 'lent' && d.status !== 'cleared' && Number(d.outstanding) > 0
+  )
   const totalToCollect = moneyLentList.reduce((s, d) => s + Number(d.outstanding), 0)
 
   const clearedCount = debts.filter((d) => d.status === 'cleared' || Number(d.outstanding) <= 0).length
@@ -306,7 +376,9 @@ export default function Debts() {
         {/* Total Outstanding Liabilities */}
         <div className="card bg-gradient-to-r from-rose-950 via-slate-900 to-slate-900 text-white p-4 border-none shadow-md flex flex-col justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-rose-300 tracking-wider block">Total Outstanding Debt</span>
+            <span className="text-[10px] uppercase font-bold text-rose-300 tracking-wider block">
+              Total Outstanding Debt
+            </span>
             <p className="text-2xl font-black text-rose-400 mt-1">{formatCurrency(totalOutstanding)}</p>
             <p className="text-[11px] text-slate-400 mt-0.5">{activeBorrowings.length} Active Borrowings</p>
           </div>
@@ -315,7 +387,9 @@ export default function Debts() {
         {/* Monthly EMI Outflow */}
         <div className="card bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 text-white p-4 border-none shadow-md flex flex-col justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider block">Monthly EMI Commitment</span>
+            <span className="text-[10px] uppercase font-bold text-indigo-300 tracking-wider block">
+              Monthly EMI Commitment
+            </span>
             <p className="text-2xl font-black text-indigo-300 mt-1">{formatCurrency(totalEmi)}/mo</p>
             <p className="text-[11px] text-slate-400 mt-0.5">Recurring loan payments</p>
           </div>
@@ -324,7 +398,9 @@ export default function Debts() {
         {/* Money Lent to Collect */}
         <div className="card bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 text-white p-4 border-none shadow-md flex flex-col justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider block">Money Lent (To Collect)</span>
+            <span className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider block">
+              Money Lent (To Collect)
+            </span>
             <p className="text-2xl font-black text-emerald-400 mt-1">{formatCurrency(totalToCollect)}</p>
             <p className="text-[11px] text-slate-400 mt-0.5">{moneyLentList.length} Pending Collections</p>
           </div>
@@ -333,7 +409,9 @@ export default function Debts() {
         {/* Cleared / Settled Debts */}
         <div className="card bg-gradient-to-r from-teal-950 via-slate-900 to-slate-900 text-white p-4 border-none shadow-md flex flex-col justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold text-teal-300 tracking-wider block">Settled & Cleared</span>
+            <span className="text-[10px] uppercase font-bold text-teal-300 tracking-wider block">
+              Settled & Cleared
+            </span>
             <p className="text-2xl font-black text-teal-300 mt-1">{clearedCount} Paid Off</p>
             <p className="text-[11px] text-slate-400 mt-0.5">100% Repaid history</p>
           </div>
@@ -342,38 +420,46 @@ export default function Debts() {
 
       {/* Action Bar & Filter Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold">
+        <div className="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-semibold overflow-x-auto">
           <button
             onClick={() => setTabFilter('active')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all ${
-              tabFilter === 'active' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-800'
+            className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              tabFilter === 'active'
+                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-800'
             }`}
           >
             Active Debts ({activeBorrowings.length})
           </button>
           <button
             onClick={() => setTabFilter('lent')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all ${
-              tabFilter === 'lent' ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-xs' : 'text-gray-500 hover:text-gray-800'
+            className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              tabFilter === 'lent'
+                ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-xs'
+                : 'text-gray-500 hover:text-gray-800'
             }`}
           >
             💸 Money Lent ({moneyLentList.length})
           </button>
           <button
             onClick={() => setTabFilter('cleared')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all ${
-              tabFilter === 'cleared' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-800'
+            className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              tabFilter === 'cleared'
+                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-800'
             }`}
           >
             ✓ Settled & Cleared ({clearedCount})
           </button>
           <button
             onClick={() => setTabFilter('all')}
-            className={`px-3.5 py-1.5 rounded-lg transition-all ${
-              tabFilter === 'all' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-xs' : 'text-gray-500 hover:text-gray-800'
+            className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+              tabFilter === 'all'
+                ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-xs'
+                : 'text-gray-500 hover:text-gray-800'
             }`}
           >
-            All Records ({debts.length})
+            All ({debts.length})
           </button>
         </div>
 
@@ -405,7 +491,13 @@ export default function Debts() {
       ) : filteredDebts.length === 0 ? (
         <EmptyState
           icon={CreditCard}
-          title={tabFilter === 'cleared' ? 'No Cleared Debts Yet' : tabFilter === 'lent' ? 'No Money Lent to Collect' : 'No Active Debts'}
+          title={
+            tabFilter === 'cleared'
+              ? 'No Cleared Debts Yet'
+              : tabFilter === 'lent'
+              ? 'No Money Lent to Collect'
+              : 'No Active Debts'
+          }
           message={
             tabFilter === 'cleared'
               ? 'When you repay your debts or borrowings from friends, click "Settle" to move them here!'
@@ -418,6 +510,7 @@ export default function Debts() {
             <DebtCard
               key={debt.id}
               debt={debt}
+              onViewDetails={(d) => setDetailsTarget(d)}
               onEdit={openEdit}
               onDelete={handleDelete}
               onUpdateOutstanding={handleUpdateOutstanding}
@@ -427,66 +520,109 @@ export default function Debts() {
         </div>
       )}
 
-      {/* Add / Edit Modal */}
+      {/* Redesigned Spacious Create / Edit Modal */}
       {showModal && (
         <Modal
           isOpen={showModal}
           onClose={() => setShowModal(false)}
           title={editTarget ? 'Edit Borrowing / Debt Record' : 'Record New Borrowing / Loan'}
         >
-          <form onSubmit={handleSave} className="space-y-4 text-xs">
+          <form onSubmit={handleSave} className="space-y-5 text-gray-800 dark:text-slate-100">
             {formErr && (
-              <div className="bg-red-50 text-red-700 p-2.5 rounded-lg flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
+              <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 p-3 rounded-xl flex items-center gap-2 text-xs font-medium">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span>{formErr}</span>
               </div>
             )}
 
+            {/* Step 1: Debt Type Selector Cards */}
             <div>
-              <label className="label">Type of Record</label>
-              <select
-                name="debt_type"
-                value={form.debt_type}
-                onChange={handleChange}
-                className="input text-xs"
-              >
-                <option value="personal">🤝 Borrowed from Friend / Family</option>
-                <option value="lent">💸 Money Lent to Friend / Family (To Collect)</option>
-                <option value="bank">🏦 Bank Loan (Personal / Auto / Home)</option>
-                <option value="card">💳 Credit Card EMI / Overdraft</option>
-              </select>
+              <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 block mb-2">
+                Select Record Category
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {DEBT_TYPES.map((t) => {
+                  const Icon = t.icon
+                  const isSelected = form.debt_type === t.id
+                  return (
+                    <button
+                      type="button"
+                      key={t.id}
+                      onClick={() => setForm({ ...form, debt_type: t.id })}
+                      className={`p-3 rounded-2xl border-2 text-left flex items-start gap-3 transition-all ${
+                        isSelected
+                          ? `${t.color} ring-2 ring-blue-500/20 shadow-xs font-semibold`
+                          : 'border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/80 shadow-xs mt-0.5">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold">{t.label}</h4>
+                        <p className="text-[10px] text-gray-500 dark:text-slate-400 leading-tight mt-0.5">
+                          {t.desc}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Step 2: Title & Person Name */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">Title / Name</label>
+                <label className="text-xs font-bold text-gray-700 dark:text-slate-200 block mb-1">
+                  Title / Record Name <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="name"
-                  placeholder="e.g. Borrowed from Rahul, HDFC Car Loan"
+                  placeholder={
+                    form.debt_type === 'personal'
+                      ? 'e.g. Borrowed for Emergency'
+                      : form.debt_type === 'lent'
+                      ? 'e.g. Road Trip Advance'
+                      : form.debt_type === 'card'
+                      ? 'e.g. iPhone 16 Credit Card EMI'
+                      : 'e.g. HDFC Home Loan'
+                  }
                   value={form.name}
                   onChange={handleChange}
-                  className="input text-xs"
+                  className="input-field text-sm font-medium py-2.5"
                   required
                 />
               </div>
 
               <div>
-                <label className="label">Contact / Person Name (Optional)</label>
+                <label className="text-xs font-bold text-gray-700 dark:text-slate-200 block mb-1">
+                  Person / Counterparty (Optional)
+                </label>
                 <input
                   type="text"
                   name="person_name"
-                  placeholder="e.g. Rahul Sharma, Dad, Brother"
+                  placeholder="e.g. Rahul Sharma, Dad, Landlord"
                   value={form.person_name}
                   onChange={handleChange}
-                  className="input text-xs"
+                  className="input-field text-sm font-medium py-2.5"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Step 3: Principal & Outstanding Balance with Live Short INR Preview */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-gray-100 dark:border-slate-800">
               <div>
-                <label className="label">Original Principal (₹)</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold text-gray-700 dark:text-slate-200">
+                    Original Principal (₹) <span className="text-rose-500">*</span>
+                  </label>
+                  {form.principal && !isNaN(form.principal) && Number(form.principal) > 0 && (
+                    <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded">
+                      {formatCurrencyShort(form.principal)}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="number"
                   name="principal"
@@ -494,13 +630,22 @@ export default function Debts() {
                   placeholder="e.g. 50000"
                   value={form.principal}
                   onChange={handleChange}
-                  className="input text-xs"
+                  className="input-field text-base font-bold py-2"
                   required
                 />
               </div>
 
               <div>
-                <label className="label">Current Outstanding Balance (₹)</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-xs font-bold text-gray-700 dark:text-slate-200">
+                    Current Outstanding (₹) <span className="text-rose-500">*</span>
+                  </label>
+                  {form.outstanding && !isNaN(form.outstanding) && Number(form.outstanding) >= 0 && (
+                    <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950 px-2 py-0.5 rounded">
+                      {formatCurrencyShort(form.outstanding)}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="number"
                   name="outstanding"
@@ -508,15 +653,18 @@ export default function Debts() {
                   placeholder="e.g. 50000"
                   value={form.outstanding}
                   onChange={handleChange}
-                  className="input text-xs"
+                  className="input-field text-base font-bold py-2"
                   required
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Step 4: Schedule / EMI or Target Return Date */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">Monthly EMI (₹) (Optional)</label>
+                <label className="text-xs font-bold text-gray-700 dark:text-slate-200 block mb-1">
+                  Monthly EMI (₹) <span className="text-gray-400 font-normal">(Optional)</span>
+                </label>
                 <input
                   type="number"
                   name="emi"
@@ -524,52 +672,93 @@ export default function Debts() {
                   placeholder="0"
                   value={form.emi}
                   onChange={handleChange}
-                  className="input text-xs"
+                  className="input-field text-sm py-2"
                 />
               </div>
 
               <div>
-                <label className="label">Target Return Date (Optional)</label>
-                <input
-                  type="date"
-                  name="target_date"
-                  value={form.target_date}
-                  onChange={handleChange}
-                  className="input text-xs"
-                />
+                <label className="text-xs font-bold text-gray-700 dark:text-slate-200 block mb-1">
+                  {form.debt_type === 'card' || form.debt_type === 'bank'
+                    ? 'Due Day of Month (1-31)'
+                    : 'Target Return Date (Optional)'}
+                </label>
+                {form.debt_type === 'card' || form.debt_type === 'bank' ? (
+                  <select
+                    name="due_day"
+                    value={form.due_day}
+                    onChange={handleChange}
+                    className="input-field text-sm py-2"
+                  >
+                    <option value="">— Select Due Day —</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={d}>
+                        {d}th of every month
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="date"
+                    name="target_date"
+                    value={form.target_date}
+                    onChange={handleChange}
+                    className="input-field text-sm py-2"
+                  />
+                )}
               </div>
             </div>
 
+            {/* Step 5: Spacious Notes Textarea */}
             <div>
-              <label className="label">Notes / Purpose (Optional)</label>
-              <input
-                type="text"
+              <label className="text-xs font-bold text-gray-700 dark:text-slate-200 block mb-1">
+                Notes, Agreement Remarks & Terms
+              </label>
+              <textarea
                 name="notes"
-                placeholder="e.g. For laptop purchase, will return on next salary"
+                rows={3}
+                placeholder="e.g. 0% interest, promised to repay by next bonus, or reference invoice ID..."
                 value={form.notes}
                 onChange={handleChange}
-                className="input text-xs"
+                className="input-field text-sm py-2.5 resize-none leading-relaxed"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="btn btn-secondary text-xs"
+                className="btn-secondary text-sm py-2.5 px-5"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="btn btn-primary text-xs"
+                className="btn-primary text-sm py-2.5 px-6 font-bold shadow-md shadow-blue-600/20"
               >
-                {saving ? 'Saving...' : editTarget ? 'Update Record' : 'Save Record'}
+                {saving ? 'Saving...' : editTarget ? 'Update Record' : 'Save Borrowing / Debt'}
               </button>
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* Debt Details Modal */}
+      {detailsTarget && (
+        <DebtDetailsModal
+          isOpen={!!detailsTarget}
+          onClose={() => setDetailsTarget(null)}
+          debt={detailsTarget}
+          onEdit={(d) => {
+            setDetailsTarget(null)
+            openEdit(d)
+          }}
+          onOpenSettle={(d) => {
+            setDetailsTarget(null)
+            handleSettleDebt(d.id, Number(d.outstanding), true)
+          }}
+        />
       )}
 
       {/* Split Bill Modal */}

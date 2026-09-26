@@ -24,7 +24,7 @@ import {
 
 const DEFAULT_GOALS = [
   {
-    id: 'def-1',
+    id: 'goal-seed-1',
     name: '🛡️ 6-Month Emergency Fund',
     target_amount: 300000,
     current_amount: 112340,
@@ -33,7 +33,7 @@ const DEFAULT_GOALS = [
     notes: 'Liquid reserve for unexpected life expenses',
   },
   {
-    id: 'def-2',
+    id: 'goal-seed-2',
     name: '🚗 New Car Down Payment',
     target_amount: 400000,
     current_amount: 75000,
@@ -42,7 +42,7 @@ const DEFAULT_GOALS = [
     notes: 'Down payment for family car',
   },
   {
-    id: 'def-3',
+    id: 'goal-seed-3',
     name: '🏖️ International Vacation',
     target_amount: 150000,
     current_amount: 45000,
@@ -54,8 +54,25 @@ const DEFAULT_GOALS = [
 
 export default function Goals() {
   const { user } = useAuth()
-  const [goals, setGoals] = useState([])
-  const [loading, setLoading] = useState(true)
+  const storageKey = `ft_financial_goals_${user?.id || 'guest'}`
+  const seededKey = `ft_goals_seeded_${user?.id || 'guest'}`
+
+  const [goals, setGoals] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey)
+      if (saved) return JSON.parse(saved)
+      if (!localStorage.getItem(seededKey)) {
+        localStorage.setItem(seededKey, 'true')
+        localStorage.setItem(storageKey, JSON.stringify(DEFAULT_GOALS))
+        return DEFAULT_GOALS
+      }
+      return []
+    } catch {
+      return DEFAULT_GOALS
+    }
+  })
+
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -77,14 +94,16 @@ export default function Goals() {
     notes: '',
   })
 
+  // Sync to local storage
+  const saveGoalsToCache = (newGoals) => {
+    setGoals(newGoals)
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(newGoals))
+    } catch {}
+  }
+
   const fetchGoals = useCallback(async () => {
-    if (!user) {
-      setGoals(DEFAULT_GOALS)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError('')
+    if (!user) return
     try {
       const { data, error: fetchErr } = await supabase
         .from('goals')
@@ -92,30 +111,11 @@ export default function Goals() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (fetchErr) throw fetchErr
-
-      if (!data || data.length === 0) {
-        // Seed default starter goals
-        const toInsert = DEFAULT_GOALS.map(g => ({
-          user_id: user.id,
-          name: g.name,
-          target_amount: g.target_amount,
-          current_amount: g.current_amount,
-          target_date: g.target_date,
-          category: g.category,
-          notes: g.notes,
-        }))
-        const { data: seeded } = await supabase.from('goals').insert(toInsert).select()
-        setGoals(seeded && seeded.length > 0 ? seeded : DEFAULT_GOALS)
-      } else {
-        setGoals(data)
+      if (!fetchErr && data && data.length > 0) {
+        saveGoalsToCache(data)
       }
-    } catch {
-      setGoals(DEFAULT_GOALS)
-    } finally {
-      setLoading(false)
-    }
-  }, [user])
+    } catch {}
+  }, [user, storageKey])
 
   useEffect(() => {
     fetchGoals()
@@ -141,30 +141,83 @@ export default function Goals() {
     setSaving(true)
     setError('')
     try {
-      const payload = {
-        user_id: user?.id,
-        name: form.name.trim(),
-        target_amount: parseFloat(form.target_amount) || 0,
-        current_amount: parseFloat(form.current_amount) || 0,
-        target_date: form.target_date || null,
-        category: form.category || 'Savings',
-        notes: form.notes.trim() || null,
-      }
+      const targetAmt = parseFloat(form.target_amount) || 0
+      const currentAmt = parseFloat(form.current_amount) || 0
 
-      if (editTarget?.id && !String(editTarget.id).startsWith('def-')) {
-        const { error: updErr } = await supabase.from('goals').update(payload).eq('id', editTarget.id)
-        if (updErr) throw updErr
-      } else if (user) {
-        const { error: insErr } = await supabase.from('goals').insert(payload)
-        if (insErr) throw insErr
+      if (editTarget?.id) {
+        // Edit existing
+        const updated = goals.map((g) =>
+          g.id === editTarget.id
+            ? {
+                ...g,
+                name: form.name.trim(),
+                target_amount: targetAmt,
+                current_amount: currentAmt,
+                target_date: form.target_date || null,
+                category: form.category || 'Savings',
+                notes: form.notes.trim() || '',
+              }
+            : g
+        )
+        saveGoalsToCache(updated)
+
+        // Background Supabase update
+        if (user && !String(editTarget.id).startsWith('goal-seed-') && !String(editTarget.id).startsWith('local_')) {
+          try {
+            await supabase.from('goals').update({
+              name: form.name.trim(),
+              target_amount: targetAmt,
+              current_amount: currentAmt,
+              target_date: form.target_date || null,
+              category: form.category || 'Savings',
+              notes: form.notes.trim() || null,
+            }).eq('id', editTarget.id)
+          } catch {}
+        }
+
+        flash('Financial Goal updated!')
       } else {
-        setGoals(prev => [payload, ...prev])
+        // Create new
+        const newGoal = {
+          id: `local_goal_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          user_id: user?.id,
+          name: form.name.trim(),
+          target_amount: targetAmt,
+          current_amount: currentAmt,
+          target_date: form.target_date || null,
+          category: form.category || 'Savings',
+          notes: form.notes.trim() || '',
+          created_at: new Date().toISOString(),
+        }
+
+        const updated = [newGoal, ...goals]
+        saveGoalsToCache(updated)
+
+        // Background Supabase insert
+        if (user) {
+          try {
+            const { data: insData } = await supabase.from('goals').insert({
+              user_id: user.id,
+              name: newGoal.name,
+              target_amount: newGoal.target_amount,
+              current_amount: newGoal.current_amount,
+              target_date: newGoal.target_date,
+              category: newGoal.category,
+              notes: newGoal.notes || null,
+            }).select()
+
+            if (insData?.[0]?.id) {
+              const withRemoteId = updated.map((g) => (g.id === newGoal.id ? { ...g, id: insData[0].id } : g))
+              saveGoalsToCache(withRemoteId)
+            }
+          } catch {}
+        }
+
+        flash('New Financial Goal created!')
       }
 
-      flash('Financial Goal saved!')
       setShowAddModal(false)
       setEditTarget(null)
-      fetchGoals()
     } catch (err) {
       setError('Unable to save goal.')
     } finally {
@@ -180,17 +233,22 @@ export default function Goals() {
     setSaving(true)
     try {
       const newAmt = parseFloat(activeGoal.current_amount || 0) + amt
-      if (activeGoal.id && !String(activeGoal.id).startsWith('def-') && user) {
-        await supabase.from('goals').update({ current_amount: newAmt }).eq('id', activeGoal.id)
-      } else {
-        setGoals(prev => prev.map(g => g.id === activeGoal.id ? { ...g, current_amount: newAmt } : g))
+      const updated = goals.map((g) =>
+        g.id === activeGoal.id ? { ...g, current_amount: newAmt } : g
+      )
+      saveGoalsToCache(updated)
+
+      // Background Supabase update
+      if (user && !String(activeGoal.id).startsWith('goal-seed-') && !String(activeGoal.id).startsWith('local_')) {
+        try {
+          await supabase.from('goals').update({ current_amount: newAmt }).eq('id', activeGoal.id)
+        } catch {}
       }
 
       flash(`Added ${formatCurrency(amt)} towards ${activeGoal.name}!`)
       setShowContributeModal(false)
       setActiveGoal(null)
       setContributeAmount('')
-      fetchGoals()
     } catch {
       setError('Failed to record contribution.')
     } finally {
@@ -201,11 +259,17 @@ export default function Goals() {
   const handleDeleteGoal = async () => {
     if (!deleteTarget?.id) return
     try {
-      if (!String(deleteTarget.id).startsWith('def-') && user) {
-        await supabase.from('goals').delete().eq('id', deleteTarget.id)
+      const updated = goals.filter((g) => g.id !== deleteTarget.id)
+      saveGoalsToCache(updated)
+
+      // Background Supabase delete
+      if (user && !String(deleteTarget.id).startsWith('goal-seed-') && !String(deleteTarget.id).startsWith('local_')) {
+        try {
+          await supabase.from('goals').delete().eq('id', deleteTarget.id)
+        } catch {}
       }
-      setGoals(prev => prev.filter(g => g.id !== deleteTarget.id))
-      flash('Goal removed.')
+
+      flash(`"${deleteTarget.name}" removed.`)
       setDeleteTarget(null)
     } catch {
       setError('Unable to delete goal.')

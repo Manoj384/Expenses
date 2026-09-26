@@ -6,15 +6,17 @@ import NetworkStatusIndicator from './NetworkStatusIndicator'
 import CommandPalette from './CommandPalette'
 import DataBackupModal from './DataBackupModal'
 import NotificationCenter from './NotificationCenter'
+import AiFinancialAdvisorModal from './AiFinancialAdvisorModal'
 import { useAdmin } from '../context/AdminContext'
 import { useTheme } from '../context/ThemeContext'
-import { ShieldCheck, Shield, Database, Search, Moon, Sun } from 'lucide-react'
+import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles } from 'lucide-react'
 
 export default function Layout({ children, title }) {
   const { isAdmin } = useAdmin()
   const { isDark, toggleTheme } = useTheme()
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
+  const [showAiModal, setShowAiModal] = useState(false)
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 transition-colors duration-200">
@@ -41,6 +43,16 @@ export default function Layout({ children, title }) {
               aria-label="Toggle Theme"
             >
               {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+            </button>
+
+            {/* Ask AI Copilot Header Trigger */}
+            <button
+              onClick={() => setShowAiModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs shadow-blue-500/20 transition-all scale-100 hover:scale-[1.02] active:scale-95"
+              title="Ask AI Financial Advisor & Wealth Copilot"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+              <span>Ask AI</span>
             </button>
 
             {/* Quick Command Palette Launcher */}
@@ -104,6 +116,11 @@ export default function Layout({ children, title }) {
 
       {/* Global Modals & Command Palette */}
       <CommandPalette />
+
+      <AiFinancialAdvisorModal
+        isOpen={showAiModal}
+        onClose={() => setShowAiModal(false)}
+      />
 
       <AdminLockModal
         isOpen={showAdminModal}

@@ -19,6 +19,7 @@ const Goals        = lazy(() => import('./pages/Goals'))
 const Budgets      = lazy(() => import('./pages/Budgets'))
 const SIPs         = lazy(() => import('./pages/SIPs'))
 const Debts        = lazy(() => import('./pages/Debts'))
+const Statements   = lazy(() => import('./pages/Statements'))
 const Reports      = lazy(() => import('./pages/Reports'))
 
 function ProtectedRoute({ children }) {
@@ -65,6 +66,7 @@ function AppRoutes() {
         <Route path="/past-expenses" element={<ProtectedRoute><PastExpenses /></ProtectedRoute>} />
         <Route path="/sips"          element={<ProtectedRoute><SIPs /></ProtectedRoute>} />
         <Route path="/debts"         element={<ProtectedRoute><Debts /></ProtectedRoute>} />
+        <Route path="/statements"    element={<ProtectedRoute><Statements /></ProtectedRoute>} />
         <Route path="/reports"       element={<ProtectedRoute><Reports /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -27,7 +27,7 @@ const TYPE_CONFIG = {
   lent: { label: 'Money Lent (To Collect)', icon: ArrowUpRight, color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200' },
 }
 
-export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, onSettleDebt }) {
+export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, onSettleDebt, onViewDetails }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -98,10 +98,14 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
           </span>
         </div>
 
-        {/* Title & Person */}
+        {/* Title & Person (Clickable for Details) */}
         <div className="flex items-start justify-between gap-3 mb-3">
-          <div>
-            <h3 className={`font-bold text-base ${isCleared ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>
+          <div
+            onClick={() => onViewDetails && onViewDetails(debt)}
+            className="cursor-pointer group flex-1"
+            title="Click to view full details"
+          >
+            <h3 className={`font-bold text-base transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400 ${isCleared ? 'text-gray-500 dark:text-gray-400 line-through' : 'text-gray-900 dark:text-white'}`}>
               {debt.name}
             </h3>
             {debt.person_name && (
@@ -110,7 +114,7 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
               </p>
             )}
             {debt.notes && (
-              <p className="text-xs text-gray-500 mt-1 italic">"{debt.notes}"</p>
+              <p className="text-xs text-gray-500 mt-1 italic line-clamp-2">"{debt.notes}"</p>
             )}
           </div>
 

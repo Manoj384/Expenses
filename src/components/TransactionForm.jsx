@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { today } from '../utils/dateUtils'
+import { Paperclip, FileText, Image as ImageIcon, X, UploadCloud, Camera, Sparkles } from 'lucide-react'
+import AiReceiptScannerModal from './AiReceiptScannerModal'
 
 const TRANSACTION_TYPES = [
   { value: 'expense', label: 'Expense' },
@@ -11,12 +13,14 @@ const TRANSACTION_TYPES = [
 
 export default function TransactionForm({ onSuccess, onCancel, editData = null }) {
   const { user } = useAuth()
+  const fileInputRef = useRef(null)
   const [categories, setCategories] = useState([])
   const [paymentMethods, setPaymentMethods] = useState([])
   const [loadingCats, setLoadingCats] = useState(false)
   const [loadingMethods, setLoadingMethods] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showAiScanner, setShowAiScanner] = useState(false)
 
   const [form, setForm] = useState({
     type:              editData?.type              ?? 'expense',
@@ -26,6 +30,10 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
     note:              editData?.note              ?? '',
     date:              editData?.date              ?? today(),
   })
+
+  const [file, setFile] = useState(null)
+  const [fileName, setFileName] = useState(editData?.receipt_url ? 'Attached Document' : '')
+  const [previewUrl, setPreviewUrl] = useState(editData?.receipt_url ?? '')
 
   // Load categories and payment methods
   useEffect(() => {
@@ -68,6 +76,65 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
     }))
   }
 
+  const handleFileSelect = (e) => {
+    const selected = e.target.files?.[0]
+    if (!selected) return
+
+    // 5MB limit
+    if (selected.size > 5 * 1024 * 1024) {
+      setError('Receipt file size must be less than 5MB.')
+      return
+    }
+
+    setError('')
+    setFile(selected)
+    setFileName(selected.name)
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setPreviewUrl(reader.result)
+    }
+    reader.readAsDataURL(selected)
+  }
+
+  const handleApplyExtracted = ({ amount, date, note, category, payment_method, previewUrl: scannedUrl, file: scannedFile }) => {
+    // Attempt auto category matching
+    let matchedCatId = form.category_id
+    if (category && categories.length > 0) {
+      const match = categories.find((c) => c.name.toLowerCase().includes(category.toLowerCase()) || category.toLowerCase().includes(c.name.toLowerCase()))
+      if (match) matchedCatId = match.id
+    }
+
+    // Attempt auto payment method matching
+    let matchedPmId = form.payment_method_id
+    if (payment_method && paymentMethods.length > 0) {
+      const match = paymentMethods.find((pm) => pm.name.toLowerCase().includes(payment_method.toLowerCase()) || pm.type.toLowerCase().includes(payment_method.toLowerCase()))
+      if (match) matchedPmId = match.id
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      amount: amount ? String(amount) : prev.amount,
+      date: date || prev.date,
+      note: note || prev.note,
+      category_id: matchedCatId,
+      payment_method_id: matchedPmId,
+    }))
+
+    if (scannedUrl) setPreviewUrl(scannedUrl)
+    if (scannedFile) {
+      setFile(scannedFile)
+      setFileName(scannedFile.name)
+    }
+  }
+
+  const handleRemoveFile = () => {
+    setFile(null)
+    setFileName('')
+    setPreviewUrl('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   const validate = () => {
     if (!form.type) return 'Type is required.'
     if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) return 'Amount must be greater than 0.'
@@ -86,23 +153,68 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
 
     setSaving(true)
     try {
-      const payload = {
+      let finalReceiptUrl = previewUrl
+
+      // Upload to Supabase Storage if file is attached
+      if (file && user) {
+        try {
+          const ext = file.name.split('.').pop()
+          const filePath = `${user.id}/${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from('receipts')
+            .upload(filePath, file)
+
+          if (!uploadErr && uploadData) {
+            const { data: pubData } = supabase.storage.from('receipts').getPublicUrl(filePath)
+            if (pubData?.publicUrl) finalReceiptUrl = pubData.publicUrl
+          }
+        } catch {
+          // Fallback to data URL
+        }
+      }
+
+      const fullPayload = {
         user_id:           user.id,
         type:              form.type,
         amount:            Number(form.amount),
         category_id:       form.category_id || null,
         payment_method_id: form.payment_method_id || null,
         note:              form.note.trim() || null,
+        receipt_url:       finalReceiptUrl || null,
         date:              form.date,
       }
 
-      if (editData?.id) {
-        const { error } = await supabase.from('transactions').update(payload).eq('id', editData.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('transactions').insert(payload)
-        if (error) throw error
+      let res = editData?.id
+        ? await supabase.from('transactions').update(fullPayload).eq('id', editData.id)
+        : await supabase.from('transactions').insert(fullPayload).select()
+
+      // Fallback if receipt_url column is not in remote schema yet
+      if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column') || res.error.message?.includes('schema cache'))) {
+        const basicPayload = {
+          user_id:           user.id,
+          type:              form.type,
+          amount:            Number(form.amount),
+          category_id:       form.category_id || null,
+          payment_method_id: form.payment_method_id || null,
+          note:              form.note.trim() || null,
+          date:              form.date,
+        }
+
+        res = editData?.id
+          ? await supabase.from('transactions').update(basicPayload).eq('id', editData.id)
+          : await supabase.from('transactions').insert(basicPayload).select()
       }
+
+      if (res.error) throw res.error
+
+      // Cache receipt URL in local storage shadow cache
+      const savedId = editData?.id || res.data?.[0]?.id
+      if (savedId && finalReceiptUrl) {
+        try {
+          localStorage.setItem(`ft_receipt_${savedId}`, finalReceiptUrl)
+        } catch {}
+      }
+
       onSuccess()
     } catch (err) {
       setError(err?.message || 'Unable to save transaction. Please try again.')
@@ -111,17 +223,22 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
     }
   }
 
+  const isPdf =
+    fileName.toLowerCase().endsWith('.pdf') ||
+    previewUrl.startsWith('data:application/pdf') ||
+    previewUrl.includes('.pdf')
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg" role="alert">
+        <div className="bg-red-50 dark:bg-rose-950/40 border border-red-200 dark:border-rose-800 text-red-700 dark:text-rose-300 text-xs px-4 py-3 rounded-xl font-medium" role="alert">
           {error}
         </div>
       )}
 
       {/* Type */}
       <div>
-        <label className="label" htmlFor="type">Type</label>
+        <label className="label" htmlFor="type">Transaction Type</label>
         <select id="type" name="type" className="input-field" value={form.type} onChange={handleChange}>
           {TRANSACTION_TYPES.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
@@ -138,7 +255,7 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
           type="number"
           min="0.01"
           step="0.01"
-          className="input-field text-lg font-semibold"
+          className="input-field text-lg font-bold"
           value={form.amount}
           onChange={handleChange}
           placeholder="0.00"
@@ -157,9 +274,6 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
-        {categories.length === 0 && !loadingCats && (
-          <p className="text-xs text-gray-400 mt-1">No categories configured. Add them in Categories Manager.</p>
-        )}
       </div>
 
       {/* Payment Method */}
@@ -181,9 +295,6 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
             </option>
           ))}
         </select>
-        {paymentMethods.length === 0 && !loadingMethods && (
-          <p className="text-xs text-gray-400 mt-1">No payment methods configured. Add them in Payment Methods.</p>
-        )}
       </div>
 
       {/* Date */}
@@ -194,7 +305,7 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
 
       {/* Note */}
       <div>
-        <label className="label" htmlFor="note">Note (optional)</label>
+        <label className="label" htmlFor="note">Note / Description (optional)</label>
         <input
           id="note"
           name="note"
@@ -207,16 +318,97 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
         />
       </div>
 
-      <div className="flex gap-3 pt-2">
-        <button type="submit" className="btn-primary flex-1" disabled={saving}>
+      {/* Bill Image / PDF Attachment Upload */}
+      <div>
+        <label className="label flex items-center justify-between">
+          <span className="flex items-center gap-1.5 font-bold">
+            <Paperclip className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+            <span>Attach Bill / Invoice (Image or PDF)</span>
+          </span>
+          <span className="text-[10px] text-gray-400 font-normal">Max 5MB (PNG, JPG, PDF)</span>
+        </label>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*,application/pdf"
+          onChange={handleFileSelect}
+          className="hidden"
+          id="billFileInput"
+        />
+
+        {previewUrl ? (
+          <div className="p-3 bg-blue-50/60 dark:bg-slate-800/60 border border-blue-200 dark:border-slate-700 rounded-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              {isPdf ? (
+                <div className="p-2 bg-rose-100 dark:bg-rose-950 text-rose-600 rounded-lg flex-shrink-0">
+                  <FileText className="h-5 w-5" />
+                </div>
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt="Bill Preview"
+                  className="h-10 w-10 object-cover rounded-lg border border-gray-200 dark:border-slate-700 flex-shrink-0"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-gray-800 dark:text-slate-100 truncate">
+                  {fileName || 'Attached Receipt'}
+                </p>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                  Ready to attach
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleRemoveFile}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-700 transition-colors"
+              title="Remove file"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAiScanner(true)}
+              className="border border-blue-300 dark:border-blue-700/60 bg-blue-50/60 dark:bg-blue-950/40 hover:bg-blue-100/70 rounded-xl p-3 flex items-center justify-center gap-2 text-xs font-bold text-blue-700 dark:text-blue-300 transition-colors shadow-xs"
+            >
+              <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span>AI Auto-Scan Bill</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="border border-gray-200 dark:border-slate-700 hover:border-gray-300 rounded-xl p-3 flex items-center justify-center gap-2 text-xs font-semibold text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
+            >
+              <UploadCloud className="h-4 w-4 text-gray-500" />
+              <span>Attach File Manually</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+        <button type="submit" className="btn-primary flex-1 py-2.5 font-bold" disabled={saving}>
           {saving ? 'Saving...' : editData ? 'Update Transaction' : 'Add Transaction'}
         </button>
         {onCancel && (
-          <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>
+          <button type="button" className="btn-secondary py-2.5" onClick={onCancel} disabled={saving}>
             Cancel
           </button>
         )}
       </div>
+
+      <AiReceiptScannerModal
+        isOpen={showAiScanner}
+        onClose={() => setShowAiScanner(false)}
+        onApplyExtracted={handleApplyExtracted}
+      />
     </form>
   )
 }

@@ -37,21 +37,21 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
       />
 
       {/* Modal panel */}
-      <div className={`relative bg-white rounded-2xl shadow-xl w-full ${maxWidth} max-h-[90vh] flex flex-col`}>
+      <div className={`relative bg-white dark:bg-slate-900 dark:border dark:border-slate-800 text-gray-900 dark:text-slate-100 rounded-3xl sm:rounded-2xl shadow-2xl w-full ${maxWidth} max-h-[92vh] sm:max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
             aria-label="Close modal"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 px-6 py-4">
+        <div className="overflow-y-auto flex-1 px-5 sm:px-6 py-4 sm:py-5">
           {children}
         </div>
       </div>
