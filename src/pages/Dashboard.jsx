@@ -12,10 +12,12 @@ import { frequencyLabel } from '../utils/sipUtils'
 import pastData from '../data/past_expenses.json'
 import defaultSips from '../data/default_sips.json'
 import savedGrowwData from '../data/groww_holdings.json'
+import CashflowForecastModal from '../components/CashflowForecastModal'
 import {
   TrendingUp, TrendingDown, PiggyBank, Wallet, CreditCard,
   ArrowDownRight, Clock, AlertCircle, BarChart3,
-  History, ArrowRight, Database, LineChart, Landmark, Target, Zap, Sparkles, ShieldCheck
+  ArrowRight, Target, Sparkles, CalendarDays,
+  Landmark, Zap, LineChart
 } from 'lucide-react'
 
 const TYPE_STYLES = {
@@ -36,6 +38,7 @@ export default function Dashboard() {
   const [recentTxns, setRecentTxns] = useState([])
   const [upcomingSips, setUpcomingSips] = useState([])
   const [paymentBreakdown, setPaymentBreakdown] = useState([])
+  const [showCashflowModal, setShowCashflowModal] = useState(false)
 
   const fetchData = useCallback(async () => {
     if (!user) return
@@ -148,6 +151,21 @@ export default function Dashboard() {
           {error}
         </div>
       )}
+
+      {/* Top Section Header */}
+      <div className="flex justify-between items-center mb-4">
+        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Financial Cockpit
+        </span>
+        <button
+          onClick={() => setShowCashflowModal(true)}
+          className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-xs"
+          title="Predict bank balances and cash position 30, 60, and 90 days out"
+        >
+          <CalendarDays className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+          <span>90-Day Cashflow Forecast</span>
+        </button>
+      </div>
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 mb-6">
@@ -397,6 +415,14 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Cashflow Forecast Modal */}
+      <CashflowForecastModal
+        isOpen={showCashflowModal}
+        onClose={() => setShowCashflowModal(false)}
+        sips={upcomingSips}
+        debts={[]}
+      />
     </Layout>
   )
 }

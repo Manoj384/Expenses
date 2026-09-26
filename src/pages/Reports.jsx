@@ -9,9 +9,9 @@ import {
   PaymentMethodPieChart,
   DailySpendingAreaChart,
 } from '../components/Charts'
-import { lastNMonths, monthLabel, formatDate } from '../utils/dateUtils'
+import { lastNMonths, monthLabel } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
-import { TrendingUp, TrendingDown, PiggyBank, CreditCard, Tag } from 'lucide-react'
+import { TrendingUp, TrendingDown, PiggyBank, Tag, Printer, Download, FileSpreadsheet } from 'lucide-react'
 
 const PERIOD_OPTIONS = [3, 6, 12]
 
@@ -138,6 +138,24 @@ export default function Reports() {
     fetchData()
   }, [fetchData])
 
+  const handleExportCsv = () => {
+    let csv = 'Month,Inflow (Income),Outflow (Expense),Net Savings\n'
+    barData.forEach((row) => {
+      csv += `"${row.month}",${row.income},${row.expense},${row.income - row.expense}\n`
+    })
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Financial_Report_${period}_Months.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handlePrintReport = () => {
+    window.print()
+  }
+
   return (
     <Layout title="Analytics & Visual Reports">
       {error && (
@@ -146,7 +164,7 @@ export default function Reports() {
         </div>
       )}
 
-      {/* Period selector */}
+      {/* Period selector & Export Actions */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500 font-medium">Reporting Range:</span>
@@ -156,13 +174,32 @@ export default function Reports() {
               onClick={() => setPeriod(p)}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 period === p
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-700 hover:bg-gray-50'
               }`}
             >
               Last {p} Months
             </button>
           ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+            title="Download CSV statement of monthly totals"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Export CSV</span>
+          </button>
+          <button
+            onClick={handlePrintReport}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+            title="Print or save as PDF"
+          >
+            <Printer className="h-3.5 w-3.5 text-blue-600" />
+            <span>Print Report</span>
+          </button>
         </div>
       </div>
 

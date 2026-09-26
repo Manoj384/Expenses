@@ -1,11 +1,10 @@
-import * as XLSX from 'xlsx'
-
 /**
  * Parse Groww Excel (.xlsx / .xls) file binary buffer or ArrayBuffer
  */
-export function parseGrowwExcel(arrayBuffer) {
+export async function parseGrowwExcel(arrayBuffer) {
   if (!arrayBuffer) return []
   try {
+    const XLSX = await import('xlsx')
     const workbook = XLSX.read(arrayBuffer, { type: 'array' })
     const sheetName = workbook.SheetNames.find(s => s.toLowerCase().includes('holding')) || workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
@@ -155,3 +154,4 @@ export function parseGrowwCsv(csvText) {
 
   return results
 }
+

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTheme } from '../context/ThemeContext'
 import {
   Search,
   LayoutDashboard,
@@ -12,24 +13,26 @@ import {
   Landmark,
   Target,
   Zap,
-  Sparkles,
-  Download,
-  Plus,
-  Shield,
-  X,
+  Calculator,
+  Users,
+  CalendarDays,
+  Sun,
+  Moon,
 } from 'lucide-react'
 
 const ACTIONS = [
-  { id: 'dash', label: 'Go to Dashboard', category: 'Navigation', icon: LayoutDashboard, path: '/' },
-  { id: 'mf', label: 'Go to Mutual Funds & Live NAVs', category: 'Navigation', icon: LineChart, path: '/mutual-funds' },
-  { id: 'networth', label: 'Go to Consolidated Net Worth', category: 'Navigation', icon: Landmark, path: '/net-worth' },
-  { id: 'goals', label: 'Go to Financial Goals Tracker', category: 'Navigation', icon: Target, path: '/goals' },
-  { id: 'budgets', label: 'Go to Budget Caps & Alerts', category: 'Navigation', icon: Zap, path: '/budgets' },
-  { id: 'past', label: 'Go to Past Expenses (2024–2026)', category: 'Navigation', icon: History, path: '/past-expenses' },
-  { id: 'txns', label: 'Go to Transactions', category: 'Navigation', icon: ArrowLeftRight, path: '/transactions' },
-  { id: 'sips', label: 'Go to SIP Manager', category: 'Navigation', icon: TrendingUp, path: '/sips' },
-  { id: 'debts', label: 'Go to Debts & EMIs', category: 'Navigation', icon: CreditCard, path: '/debts' },
-  { id: 'reports', label: 'Go to Reports & Visuals', category: 'Navigation', icon: BarChart2, path: '/reports' },
+  { id: 'dash', label: 'Dashboard & Cockpit', category: 'Navigation', icon: LayoutDashboard, path: '/' },
+  { id: 'mf', label: 'Mutual Funds & Live AMFI NAVs', category: 'Portfolio', icon: LineChart, path: '/mutual-funds' },
+  { id: 'tax', label: 'Tax & Capital Gains Estimator (LTCG / STCG)', category: 'Tools', icon: Calculator, path: '/mutual-funds' },
+  { id: 'networth', label: 'Consolidated Net Worth Hub', category: 'Wealth', icon: Landmark, path: '/net-worth' },
+  { id: 'goals', label: 'Financial Goals & Target Trackers', category: 'Planning', icon: Target, path: '/goals' },
+  { id: 'budgets', label: 'Budget Caps & Overspend Alerts', category: 'Budgeting', icon: Zap, path: '/budgets' },
+  { id: 'split', label: 'Split Bill with Friends & WhatsApp Link', category: 'Tools', icon: Users, path: '/debts' },
+  { id: 'debts', label: 'Debts, EMIs & Money Lent', category: 'Liabilities', icon: CreditCard, path: '/debts' },
+  { id: 'sips', label: 'SIP Recurring Schedules', category: 'Investments', icon: TrendingUp, path: '/sips' },
+  { id: 'past', label: 'Past Expenses (2024–2026 Archive)', category: 'History', icon: History, path: '/past-expenses' },
+  { id: 'txns', label: 'All Transactions & Bank Statement Import', category: 'Records', icon: ArrowLeftRight, path: '/transactions' },
+  { id: 'reports', label: 'Analytics Reports & PDF Statements', category: 'Analytics', icon: BarChart2, path: '/reports' },
 ]
 
 export default function CommandPalette() {
@@ -37,6 +40,7 @@ export default function CommandPalette() {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const navigate = useNavigate()
+  const { toggleTheme, isDark } = useTheme()
   const inputRef = useRef(null)
 
   // Listen for Ctrl+K or Cmd+K

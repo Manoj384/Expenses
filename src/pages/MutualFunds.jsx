@@ -12,29 +12,23 @@ import { parseGrowwCsv, parseGrowwExcel } from '../utils/growwParser'
 import savedGrowwData from '../data/groww_holdings.json'
 import GrowwPortfolioGrowthChart from '../components/GrowwPortfolioGrowthChart'
 import PortfolioHealthModal from '../components/PortfolioHealthModal'
+import CapitalGainsModal from '../components/CapitalGainsModal'
 import {
   TrendingUp,
   TrendingDown,
   RefreshCw,
   Plus,
-  FileSpreadsheet,
   Trash2,
   Pencil,
   Search,
   Sparkles,
   CheckCircle2,
-  DollarSign,
   PieChart as PieIcon,
-  BarChart3,
-  Layers,
   ArrowUpRight,
-  ArrowDownRight,
   Upload,
-  Percent,
-  ListFilter,
-  Wrench,
   ShieldCheck,
   Activity,
+  Calculator,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -56,6 +50,7 @@ export default function MutualFunds() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showHealthModal, setShowHealthModal] = useState(false)
+  const [showTaxModal, setShowTaxModal] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
@@ -421,10 +416,10 @@ export default function MutualFunds() {
     const fileName = file.name.toLowerCase()
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
       const reader = new FileReader()
-      reader.onload = (evt) => {
+      reader.onload = async (evt) => {
         const buffer = evt.target?.result
         if (buffer) {
-          const parsed = parseGrowwExcel(buffer)
+          const parsed = await parseGrowwExcel(buffer)
           setParsedPreview(parsed)
         }
       }
@@ -566,6 +561,14 @@ export default function MutualFunds() {
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => setShowTaxModal(true)}
+              className="bg-blue-700/80 hover:bg-blue-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-blue-500/30"
+              title="Estimate Long-Term & Short-Term Capital Gains Tax"
+            >
+              <Calculator className="h-4 w-4 text-blue-300" />
+              Tax & LTCG
+            </button>
             <button
               onClick={() => setShowHealthModal(true)}
               className="bg-teal-700/80 hover:bg-teal-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-teal-500/30"
@@ -1006,6 +1009,12 @@ export default function MutualFunds() {
       <PortfolioHealthModal
         isOpen={showHealthModal}
         onClose={() => setShowHealthModal(false)}
+        funds={rawFunds}
+      />
+      {/* Capital Gains & Tax Estimator Modal */}
+      <CapitalGainsModal
+        isOpen={showTaxModal}
+        onClose={() => setShowTaxModal(false)}
         funds={rawFunds}
       />
     </Layout>

@@ -7,20 +7,13 @@ import DebtCard from '../components/DebtCard'
 import Modal from '../components/Modal'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
-import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
+import SplitBillModal from '../components/SplitBillModal'
+import { formatCurrency } from '../utils/formatCurrency'
 import {
   Plus,
-  CreditCard,
-  Building,
-  User,
-  CheckCircle2,
+  Users,
   AlertCircle,
-  Clock,
-  Sparkles,
-  ArrowUpRight,
-  ArrowDownLeft,
-  Filter,
-  ListFilter,
+  CreditCard,
 } from 'lucide-react'
 
 const emptyForm = {
@@ -44,6 +37,7 @@ export default function Debts() {
   const [tabFilter, setTabFilter] = useState('active') // 'active', 'cleared', 'lent', 'all'
 
   const [showModal, setShowModal] = useState(false)
+  const [showSplitModal, setShowSplitModal] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
@@ -244,6 +238,37 @@ export default function Debts() {
     }
   }
 
+  const handleSaveSplits = async (validFriends, desc) => {
+    if (!user) return
+    for (const f of validFriends) {
+      const amt = parseFloat(f.amount)
+      const payload = {
+        user_id: user.id,
+        name: `💸 Split: ${desc || 'Shared Bill'} (${f.name})`,
+        debt_type: 'lent',
+        person_name: f.name,
+        principal: amt,
+        outstanding: amt,
+        emi: 0,
+        notes: `Split bill with ${f.name} (Phone: ${f.phone || 'N/A'})`,
+        status: 'active',
+      }
+      let res = await supabase.from('debts').insert(payload)
+      if (res?.error && res.error.code === 'PGRST204') {
+        await supabase.from('debts').insert({
+          user_id: user.id,
+          name: `💸 Split: ${desc || 'Shared Bill'} (${f.name})`,
+          principal: amt,
+          outstanding: amt,
+          emi: 0,
+          notes: `Split bill with ${f.name} (Phone: ${f.phone || 'N/A'})`,
+        })
+      }
+    }
+    toastSuccess(`Saved ${validFriends.length} split shares as lent debts!`)
+    fetchDebts()
+  }
+
   const handleSettleDebt = async (id, fullAmt, logTxn) => {
     const targetDebt = debts.find((d) => d.id === id)
     await handleUpdateOutstanding(id, 0, fullAmt, logTxn, targetDebt?.name || 'Debt')
@@ -352,17 +377,26 @@ export default function Debts() {
           </button>
         </div>
 
-        <button
-          onClick={() => {
-            setEditTarget(null)
-            setForm(emptyForm)
-            setFormErr('')
-            setShowModal(true)
-          }}
-          className="btn btn-primary text-xs flex items-center gap-1.5 py-2"
-        >
-          <Plus className="h-4 w-4" /> Add Borrowing / Debt
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSplitModal(true)}
+            className="btn-secondary text-xs flex items-center gap-1.5 py-2"
+            title="Split an expense among friends & send WhatsApp payment links"
+          >
+            <Users className="h-4 w-4 text-emerald-600" /> Split Bill
+          </button>
+          <button
+            onClick={() => {
+              setEditTarget(null)
+              setForm(emptyForm)
+              setFormErr('')
+              setShowModal(true)
+            }}
+            className="btn-primary text-xs flex items-center gap-1.5 py-2"
+          >
+            <Plus className="h-4 w-4" /> Add Borrowing / Debt
+          </button>
+        </div>
       </div>
 
       {/* Main Debts Grid */}
@@ -537,6 +571,13 @@ export default function Debts() {
           </form>
         </Modal>
       )}
+
+      {/* Split Bill Modal */}
+      <SplitBillModal
+        isOpen={showSplitModal}
+        onClose={() => setShowSplitModal(false)}
+        onSaveSplits={handleSaveSplits}
+      />
     </Layout>
   )
 }

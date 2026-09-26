@@ -5,16 +5,19 @@ import AdminLockModal from './AdminLockModal'
 import NetworkStatusIndicator from './NetworkStatusIndicator'
 import CommandPalette from './CommandPalette'
 import DataBackupModal from './DataBackupModal'
+import NotificationCenter from './NotificationCenter'
 import { useAdmin } from '../context/AdminContext'
-import { ShieldCheck, Shield, Database, Search, Sparkles } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
+import { ShieldCheck, Shield, Database, Search, Moon, Sun } from 'lucide-react'
 
 export default function Layout({ children, title }) {
   const { isAdmin } = useAdmin()
+  const { isDark, toggleTheme } = useTheme()
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
+    <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 transition-colors duration-200">
       <Sidebar />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -27,6 +30,19 @@ export default function Layout({ children, title }) {
 
           {/* Header Action Badges */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Notification Center Bell & Due Date Alerts */}
+            <NotificationCenter />
+
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 border border-gray-200 dark:border-slate-700 transition-colors"
+              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle Theme"
+            >
+              {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+            </button>
+
             {/* Quick Command Palette Launcher */}
             <button
               onClick={() => {
@@ -49,7 +65,7 @@ export default function Layout({ children, title }) {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 dark:bg-slate-800 dark:text-indigo-300 dark:border-slate-700 transition-all"
               title="1-Click JSON Backup & Disaster Recovery"
             >
-              <Database className="h-3.5 w-3.5 text-indigo-600" />
+              <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
               <span className="hidden sm:inline">Backup</span>
             </button>
 
@@ -58,14 +74,14 @@ export default function Layout({ children, title }) {
               onClick={() => setShowAdminModal(true)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                 isAdmin
-                  ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-xs'
-                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700 shadow-xs'
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700'
               }`}
               title={isAdmin ? 'Admin Mode active - Click to lock' : 'Click to enter Admin PIN'}
             >
               {isAdmin ? (
                 <>
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                   <span>Admin Mode</span>
                 </>
               ) : (
@@ -101,3 +117,4 @@ export default function Layout({ children, title }) {
     </div>
   )
 }
+

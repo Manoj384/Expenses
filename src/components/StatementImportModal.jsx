@@ -27,10 +27,10 @@ export default function StatementImportModal({ isOpen, onClose, onImportSuccess,
     setError('')
 
     const reader = new FileReader()
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const buffer = evt.target?.result
       if (buffer) {
-        const txns = parseBankStatementFile(buffer)
+        const txns = await parseBankStatementFile(buffer)
         if (txns.length === 0) {
           setError('Could not detect transactions in this file. Please check format.')
         } else {

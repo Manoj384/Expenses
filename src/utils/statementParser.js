@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx'
-
 // Auto-categorization merchant keyword mapping
 const CATEGORY_MAP = [
   { match: ['swiggy', 'zomato', 'mcdonald', 'kfc', 'domino', 'starbucks', 'cafe', 'restaurant', 'food', 'hotel', 'eats', 'blinkit', 'zepto', 'instamart'], category: 'Food & Dining' },
@@ -25,9 +23,10 @@ export function guessCategory(description = '', amount = 0) {
 /**
  * Parse Bank/Card Excel or CSV Buffer
  */
-export function parseBankStatementFile(arrayBuffer) {
+export async function parseBankStatementFile(arrayBuffer) {
   if (!arrayBuffer) return []
   try {
+    const XLSX = await import('xlsx')
     const workbook = XLSX.read(arrayBuffer, { type: 'array' })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]

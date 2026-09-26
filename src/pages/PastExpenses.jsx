@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Layout from '../components/Layout'
 import pastData from '../data/past_expenses.json'
 import { formatCurrency } from '../utils/formatCurrency'
@@ -6,20 +6,11 @@ import { formatDate } from '../utils/dateUtils'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import {
-  Calendar,
-  CreditCard,
-  Tag,
   Search,
-  SlidersHorizontal,
-  TrendingDown,
   CloudUpload,
   CheckCircle2,
   AlertCircle,
   Database,
-  ArrowUpDown,
-  History,
-  Smartphone,
-  Banknote,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -42,7 +33,7 @@ export default function PastExpenses() {
   const [liveDbCount, setLiveDbCount] = useState(null)
 
   // Check live Supabase records
-  const checkLiveDb = async () => {
+  const checkLiveDb = useCallback(async () => {
     if (!user) return
     try {
       const { count, error } = await supabase
@@ -51,11 +42,11 @@ export default function PastExpenses() {
         .eq('user_id', user.id)
       if (!error) setLiveDbCount(count ?? 0)
     } catch {}
-  }
+  }, [user])
 
   useEffect(() => {
     checkLiveDb()
-  }, [user])
+  }, [checkLiveDb])
 
   // Import / Sync all Excel data into Supabase live DB
   const handleSyncToSupabase = async () => {
