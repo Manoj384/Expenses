@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAdmin } from '../context/AdminContext'
+import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -18,8 +19,7 @@ import {
   ShieldCheck,
   Shield,
   Database,
-  Lock,
-  Unlock,
+  LogOut,
   X,
 } from 'lucide-react'
 
@@ -43,7 +43,14 @@ const moreMenuItems = [
 export default function BottomNav({ onOpenAi, onOpenAdmin, onOpenBackup }) {
   const [showMoreSheet, setShowMoreSheet] = useState(false)
   const { isAdmin } = useAdmin()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    setShowMoreSheet(false)
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <>
@@ -172,9 +179,27 @@ export default function BottomNav({ onOpenAi, onOpenAdmin, onOpenBackup }) {
                 )
               })}
             </div>
+
+            {/* Logout Section */}
+            <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+              <p className="text-[10px] text-gray-400 dark:text-slate-500 px-1 mb-1.5 truncate">{user?.email}</p>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/60 transition-colors text-left"
+              >
+                <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/40">
+                  <LogOut className="h-4 w-4 text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold">Log Out</h4>
+                  <p className="text-[10px] text-red-400 dark:text-red-500">Clears session & refreshes data on next login</p>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       )}
+
 
       {/* Main Bottom Nav Bar: Home | Txns | Mutual Funds | Debts & EMI | More */}
       <nav

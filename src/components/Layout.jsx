@@ -8,15 +8,21 @@ import DataBackupModal from './DataBackupModal'
 import NotificationCenter from './NotificationCenter'
 import AiFinancialAdvisorModal from './AiFinancialAdvisorModal'
 import { useAdmin } from '../context/AdminContext'
+import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles } from 'lucide-react'
+import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut } from 'lucide-react'
 
 export default function Layout({ children, title }) {
   const { isAdmin } = useAdmin()
   const { isDark, toggleTheme } = useTheme()
+  const { logout } = useAuth()
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
+
+  const handleLogout = async () => {
+    await logout()
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 transition-colors duration-200">
@@ -53,6 +59,17 @@ export default function Layout({ children, title }) {
               aria-label="Toggle Theme"
             >
               {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+            </button>
+
+            {/* Logout Button — always visible */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900/40 transition-colors"
+              title="Log Out"
+              aria-label="Log Out"
+            >
+              <LogOut className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">Log Out</span>
             </button>
 
             {/* Quick Command Palette Launcher */}
