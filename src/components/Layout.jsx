@@ -20,8 +20,8 @@ export default function Layout({ children, title }) {
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
 
-  const handleLogout = async () => {
-    await logout()
+  const handleLogout = () => {
+    logout()
   }
 
   return (

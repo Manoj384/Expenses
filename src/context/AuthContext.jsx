@@ -10,14 +10,35 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Get current session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Corrupted/expired session — wipe it so user gets clean login
+        console.warn('[Auth] getSession error, clearing session:', error.message)
+        supabase.auth.signOut()
+        setSession(null)
+        setUser(null)
+      } else {
+        setSession(session)
+        setUser(session?.user ?? null)
+      }
       setLoading(false)
     })
 
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Subscribe to auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // TOKEN_REFRESHED_FAILED fires when the 400 refresh_token error happens
+      if (event === 'TOKEN_REFRESHED_FAILED' || event === 'SIGNED_OUT') {
+        // Clear the bad session from storage
+        supabase.auth.signOut().catch(() => {})
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+        // Redirect to login — window.location for hard navigation clears all component state
+        if (event === 'TOKEN_REFRESHED_FAILED') {
+          window.location.href = '/login'
+        }
+        return
+      }
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
@@ -39,8 +60,12 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    // Clear any bad stored tokens first
+    try { await supabase.auth.signOut() } catch {}
+    setSession(null)
+    setUser(null)
+    // Hard navigation to /login ensures all component state + service worker data is fresh
+    window.location.href = '/login'
   }
 
   return (

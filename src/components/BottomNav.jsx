@@ -46,10 +46,9 @@ export default function BottomNav({ onOpenAi, onOpenAdmin, onOpenBackup }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setShowMoreSheet(false)
-    await logout()
-    navigate('/login', { replace: true })
+    logout()
   }
 
   return (
