@@ -1,5 +1,5 @@
 -- =============================================
--- Personal Finance Tracker - Initial Schema
+-- Personal Finance Tracker - Complete Initial Schema
 -- =============================================
 
 -- Enable UUID extension
@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS transactions (
   date              date NOT NULL DEFAULT current_date,
   created_at        timestamptz DEFAULT now()
 );
+
+-- Ensure payment_method_id is present even if transactions table pre-existed
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method_id uuid REFERENCES payment_methods(id) ON DELETE SET NULL;
 
 -- =============================================
 -- TABLE: sips
