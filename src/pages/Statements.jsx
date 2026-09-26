@@ -29,20 +29,17 @@ import { useToast } from '../context/ToastContext'
 
 const STORAGE_KEY = 'ft_statement_transactions'
 
+// Helper: get local cache key per user
+const localKey = (userId) => userId ? `ft_stmt_${userId}` : STORAGE_KEY
+
 export default function Statements() {
   const { user } = useAuth()
   const { addToast } = useToast()
   const fileInputRef = useRef(null)
 
-  const [statementData, setStatementData] = useState(() => {
-    try {
-      const key = user?.id ? `ft_statement_transactions_${user.id}` : STORAGE_KEY
-      const saved = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEY)
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
+  // Start with empty — Supabase is the source of truth
+  const [statementData, setStatementData] = useState([])
+  const [isLoadingData, setIsLoadingData] = useState(false)
 
   const [selectedFileName, setSelectedFileName] = useState('')
   const [selectedFileSize, setSelectedFileSize] = useState('')
@@ -55,25 +52,79 @@ export default function Statements() {
   const [apiKeyInput, setApiKeyInput] = useState(getGeminiApiKey())
   const [selectedModel, setSelectedModel] = useState(getAiModel())
 
-  // Re-sync storage when user changes
-  useEffect(() => {
-    const key = user?.id ? `ft_statement_transactions_${user.id}` : STORAGE_KEY
+  // ─── FETCH from Supabase on login ────────────────────────────────────────
+  const fetchStatements = async () => {
+    if (!user) return
+    setIsLoadingData(true)
     try {
-      const saved = localStorage.getItem(key) || localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        setStatementData(JSON.parse(saved))
+      const { data, error } = await supabase
+        .from('statement_records')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (!error && data && data.length > 0) {
+        setStatementData(data)
+        // Mirror to localStorage as offline cache
+        try { localStorage.setItem(localKey(user.id), JSON.stringify(data)) } catch {}
+      } else if (error?.code === '42P01') {
+        // Table doesn't exist yet — fall back to localStorage cache
+        try {
+          const cached = localStorage.getItem(localKey(user.id))
+          if (cached) setStatementData(JSON.parse(cached))
+        } catch {}
+      } else {
+        // Any other error — use local cache
+        try {
+          const cached = localStorage.getItem(localKey(user.id))
+          if (cached) setStatementData(JSON.parse(cached))
+        } catch {}
       }
-    } catch {}
+    } catch {
+      try {
+        const cached = localStorage.getItem(localKey(user.id))
+        if (cached) setStatementData(JSON.parse(cached))
+      } catch {}
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchStatements()
   }, [user])
 
-  // Save to active local storage
-  useEffect(() => {
-    const key = user?.id ? `ft_statement_transactions_${user.id}` : STORAGE_KEY
+  // ─── SAVE rows to Supabase statement_records table ───────────────────────
+  const persistRows = async (rows) => {
+    if (!user || !rows.length) return
     try {
-      localStorage.setItem(key, JSON.stringify(statementData))
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(statementData))
-    } catch {}
-  }, [statementData, user])
+      await supabase.from('statement_records').upsert(
+        rows.map((r) => ({
+          id: r.id,
+          user_id: user.id,
+          date: r.date,
+          description: r.description,
+          category: r.category,
+          amount: r.amount,
+          type: r.type,
+          payment_method: r.payment_method,
+          source_file: r.source_file,
+        })),
+        { onConflict: 'id' }
+      )
+    } catch {
+      // Silent — data still cached locally
+    }
+    // Always mirror to localStorage
+    try { localStorage.setItem(localKey(user.id), JSON.stringify(rows)) } catch {}
+  }
+
+  // ─── UPDATE state + persist together ─────────────────────────────────────
+  const saveStatementData = (newRows) => {
+    setStatementData(newRows)
+    persistRows(newRows)
+  }
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
@@ -105,7 +156,6 @@ export default function Statements() {
             source_file: file.name,
           }))
 
-          // Smart Deduplication Key: date + amount + description snippet
           const existingKeys = new Set(
             statementData.map((r) => `${r.date}_${r.amount}_${(r.description || '').trim().toLowerCase().slice(0, 25)}`)
           )
@@ -115,15 +165,16 @@ export default function Statements() {
           )
 
           if (newUniqueRows.length > 0) {
-            setStatementData((prev) => [...newUniqueRows, ...prev])
+            const merged = [...newUniqueRows, ...statementData]
+            saveStatementData(merged)
             const skipped = formatted.length - newUniqueRows.length
             if (skipped > 0) {
-              addToast(`Extracted ${formatted.length} transactions (${newUniqueRows.length} new added, ${skipped} existing duplicates skipped)!`, 'success')
+              addToast(`Extracted ${formatted.length} transactions (${newUniqueRows.length} new added, ${skipped} duplicates skipped)!`, 'success')
             } else {
-              addToast(`Successfully extracted all ${formatted.length} transactions from ${file.name}!`, 'success')
+              addToast(`✅ All ${formatted.length} transactions extracted and auto-saved from ${file.name}!`, 'success')
             }
           } else {
-            addToast(`All ${formatted.length} transactions from this statement are already present in your table. No duplicates added.`, 'info')
+            addToast(`All ${formatted.length} transactions from this statement are already in your table.`, 'info')
           }
         } else {
           addToast('Could not find transactions in this document. Try a clearer image or PDF.', 'warning')
@@ -131,7 +182,7 @@ export default function Statements() {
       } catch (err) {
         if (err?.message?.includes('MISSING_API_KEY')) {
           setShowApiKeyModal(true)
-          addToast('Please enter your Gemini API Key to enable AI statement parsing on this domain.', 'warning')
+          addToast('Please enter your Gemini API Key to enable AI statement parsing.', 'warning')
         } else {
           addToast(err?.message || 'Failed to parse statement. Check API key or format.', 'error')
         }
@@ -176,8 +227,9 @@ export default function Statements() {
         )
 
         if (newUniqueRows.length > 0) {
-          setStatementData((prev) => [...newUniqueRows, ...prev])
-          addToast(`Extracted ${newUniqueRows.length} additional transactions!`, 'success')
+          const merged = [...newUniqueRows, ...statementData]
+          saveStatementData(merged)
+          addToast(`Extracted ${newUniqueRows.length} additional transactions and auto-saved!`, 'success')
         } else {
           addToast('No new transactions found in subsequent pages.', 'info')
         }
@@ -185,7 +237,7 @@ export default function Statements() {
     } catch (err) {
       if (err?.message?.includes('MISSING_API_KEY')) {
         setShowApiKeyModal(true)
-        addToast('Please enter your Gemini API Key to continue AI extraction.', 'warning')
+        addToast('Please enter your Gemini API Key to continue extraction.', 'warning')
       } else {
         addToast(err?.message || 'Failed to continue extraction.', 'error')
       }
@@ -194,17 +246,28 @@ export default function Statements() {
     }
   }
 
-  const handleDeleteRow = (id) => {
-    setStatementData((prev) => prev.filter((item) => item.id !== id))
+  const handleDeleteRow = async (id) => {
+    const updated = statementData.filter((item) => item.id !== id)
+    setStatementData(updated)
+    persistRows(updated)
+    // Delete from Supabase too
+    if (user) {
+      try { await supabase.from('statement_records').delete().eq('id', id) } catch {}
+    }
     addToast('Transaction removed from statement table', 'info')
   }
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (window.confirm('Are you sure you want to clear all extracted statement transactions?')) {
       setStatementData([])
       setSelectedFileName('')
       setFilePreview(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
+      // Clear from Supabase
+      if (user) {
+        try { await supabase.from('statement_records').delete().eq('user_id', user.id) } catch {}
+      }
+      try { localStorage.removeItem(localKey(user?.id)) } catch {}
       addToast('Statement records cleared', 'info')
     }
   }
@@ -261,7 +324,6 @@ export default function Statements() {
 
     setIsSavingToDb(true)
     try {
-      // 1. Fetch user categories & payment methods
       const [catsRes, pmsRes] = await Promise.all([
         supabase.from('categories').select('id, name, type').eq('user_id', user.id),
         supabase.from('payment_methods').select('id, name').eq('user_id', user.id),
@@ -343,12 +405,18 @@ export default function Statements() {
               <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
                 Upload monthly card statements or bank PDFs & receipts. AI automatically detects dates, merchants, categories, and amounts, organizing them into an interactive standalone table.
               </p>
-              {statementData.length > 0 && (
+              {isLoadingData ? (
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-500/20 text-slate-300 text-xs font-medium border border-slate-400/30 mt-1">
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  <span>Loading your statements...</span>
+                </div>
+              ) : statementData.length > 0 ? (
                 <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-400/30 mt-1">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>{statementData.length} records saved & persisted</span>
+                  <span>{statementData.length} records saved & synced to cloud</span>
                 </div>
-              )}
+              ) : null}
+
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">

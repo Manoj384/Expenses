@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Finance Tracker</title>
+    <script>
+      // SPA fallback: preserve the current path and redirect to root with a query param
+      // The main app reads this and navigates to the correct route
+      var path = window.location.pathname;
+      var search = window.location.search;
+      var hash = window.location.hash;
+      // Encode the full path into sessionStorage and redirect to /
+      sessionStorage.setItem('spa_redirect', path + search + hash);
+      window.location.replace('/');
+    </script>
+  </head>
+  <body>
+    <noscript>Please enable JavaScript to use this app.</noscript>
+  </body>
+</html>
