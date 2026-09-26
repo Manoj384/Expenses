@@ -3,6 +3,8 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  LineChart,
+  History,
   TrendingUp,
   CreditCard,
   BarChart2,
@@ -12,22 +14,30 @@ import {
   Shield,
   Lock,
   Unlock,
+  Landmark,
+  Target,
+  Zap,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAdmin } from '../context/AdminContext'
 import AdminLockModal from './AdminLockModal'
 
 const navItems = [
-  { to: '/',             label: 'Dashboard',    icon: LayoutDashboard },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
-  { to: '/sips',         label: 'SIPs',         icon: TrendingUp },
-  { to: '/debts',        label: 'Debts',        icon: CreditCard },
-  { to: '/reports',      label: 'Reports & Visuals', icon: BarChart2 },
+  { to: '/',              label: 'Dashboard',         icon: LayoutDashboard },
+  { to: '/transactions',  label: 'Transactions',      icon: ArrowLeftRight },
+  { to: '/mutual-funds',  label: 'Mutual Funds',      icon: LineChart },
+  { to: '/net-worth',     label: 'Net Worth',         icon: Landmark },
+  { to: '/goals',         label: 'Goals',             icon: Target },
+  { to: '/budgets',       label: 'Budgets & Alerts',  icon: Zap },
+  { to: '/sips',          label: 'SIPs',              icon: TrendingUp },
+  { to: '/past-expenses', label: 'Past Expenses',     icon: History },
+  { to: '/debts',         label: 'Debts',             icon: CreditCard },
+  { to: '/reports',       label: 'Reports & Visuals', icon: BarChart2 },
 ]
 
 export default function Sidebar() {
   const { user, logout } = useAuth()
-  const { isAdmin, exitAdmin } = useAdmin()
+  const { isAdmin } = useAdmin()
   const [showAdminModal, setShowAdminModal] = useState(false)
 
   const handleLogout = async () => {
@@ -60,7 +70,7 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-50'
+                    ? 'bg-blue-50 text-blue-700 shadow-sm shadow-blue-50 font-semibold'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`
               }

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "sip_motilal",
+    "name": "Motilal Oswal Midcap Fund Direct Growth",
+    "amount": 1000,
+    "frequency": "monthly",
+    "start_date": "2026-01-05",
+    "next_due_date": "2026-10-05",
+    "active": true,
+    "scheme_name": "Motilal Oswal Midcap Fund Direct Growth",
+    "scheme_code": "127042",
+    "folio_number": "91079582275",
+    "current_nav": 116.70,
+    "current_value": 20358.50
+  },
+  {
+    "id": "sip_quant",
+    "name": "Quant Small Cap Fund Direct Plan Growth",
+    "amount": 1000,
+    "frequency": "monthly",
+    "start_date": "2026-01-05",
+    "next_due_date": "2026-10-05",
+    "active": true,
+    "scheme_name": "Quant Small Cap Fund Direct Plan Growth",
+    "scheme_code": "120828",
+    "folio_number": "51090630663",
+    "current_nav": 318.94,
+    "current_value": 22522.87
+  },
+  {
+    "id": "sip_nippon",
+    "name": "Nippon India Growth Mid Cap Fund Direct Growth",
+    "amount": 500,
+    "frequency": "monthly",
+    "start_date": "2026-01-05",
+    "next_due_date": "2026-10-05",
+    "active": true,
+    "scheme_name": "Nippon India Growth Mid Cap Fund Direct Growth",
+    "scheme_code": "120503",
+    "folio_number": "477343976252",
+    "current_nav": 4886.58,
+    "current_value": 14337.23
+  }
+]

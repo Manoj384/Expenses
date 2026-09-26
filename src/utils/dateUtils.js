@@ -1,9 +1,30 @@
 /**
+ * Format a Date object to YYYY-MM-DD using local calendar date (time-zone safe)
+ */
+export function toLocalDateString(d) {
+  if (!d) return ''
+  const date = typeof d === 'string' ? parseLocalDate(d) : new Date(d)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Parse a YYYY-MM-DD string into a local Date object safely
+ */
+export function parseLocalDate(dateStr) {
+  if (!dateStr) return new Date()
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+/**
  * Format a date string (YYYY-MM-DD) to a readable format
  */
 export function formatDate(dateStr) {
   if (!dateStr) return ''
-  const date = new Date(dateStr + 'T00:00:00')
+  const date = parseLocalDate(dateStr)
   return date.toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -16,37 +37,38 @@ export function formatDate(dateStr) {
  */
 export function toInputDate(date) {
   if (!date) return ''
-  const d = new Date(date)
-  return d.toISOString().split('T')[0]
+  return toLocalDateString(date)
 }
 
 /**
- * Get the first day of the current month as YYYY-MM-DD
+ * Get the first day of the given month as YYYY-MM-DD
  */
 export function startOfMonth(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+  const d = typeof date === 'string' ? parseLocalDate(date) : new Date(date)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
 }
 
 /**
- * Get the last day of the current month as YYYY-MM-DD
+ * Get the last day of the given month as YYYY-MM-DD
  */
 export function endOfMonth(date = new Date()) {
-  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-  return toInputDate(lastDay)
+  const d = typeof date === 'string' ? parseLocalDate(date) : new Date(date)
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+  return toLocalDateString(lastDay)
 }
 
 /**
  * Get today's date as YYYY-MM-DD
  */
 export function today() {
-  return toInputDate(new Date())
+  return toLocalDateString(new Date())
 }
 
 /**
  * Get month label e.g. "Sep 2026"
  */
 export function monthLabel(year, month) {
-  return new Date(year, month - 1, 1).toLocaleDateString('en-IN', {
+  return new Date(year, month - 1, 1).toLocaleDateString('en-US', {
     month: 'short',
     year: 'numeric',
   })
@@ -70,7 +92,7 @@ export function lastNMonths(n = 6) {
  */
 export function isOverdue(dateStr) {
   if (!dateStr) return false
-  return new Date(dateStr) < new Date(today())
+  return parseLocalDate(dateStr) < parseLocalDate(today())
 }
 
 /**
@@ -78,6 +100,6 @@ export function isOverdue(dateStr) {
  */
 export function daysUntil(dateStr) {
   if (!dateStr) return null
-  const diff = new Date(dateStr) - new Date(today())
+  const diff = parseLocalDate(dateStr) - parseLocalDate(today())
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }

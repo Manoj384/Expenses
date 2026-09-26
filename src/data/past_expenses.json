@@ -1,0 +1,3852 @@
+[
+  {
+    "date": "2024-08-05",
+    "amount": 455.0,
+    "type": "expense",
+    "raw_reason": "Amma currency",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-06",
+    "amount": 20.0,
+    "type": "expense",
+    "raw_reason": "Medicine",
+    "category": "Pharmacy & Medicines",
+    "raw_payment": "cash",
+    "payment_method": "Cash",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-07",
+    "amount": 666.0,
+    "type": "expense",
+    "raw_reason": "Currency",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-08",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "cred",
+    "payment_method": "CRED UPI",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-10",
+    "amount": 4711.0,
+    "type": "expense",
+    "raw_reason": "Birthday party(Vidya Mandir)",
+    "category": "Movies & Events",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-10",
+    "amount": 110.0,
+    "type": "expense",
+    "raw_reason": "lunch(panner fried rice)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "cash",
+    "payment_method": "Cash",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-10",
+    "amount": 100.0,
+    "type": "expense",
+    "raw_reason": "Badminton court",
+    "category": "Gym & Fitness",
+    "raw_payment": "online(phone pay)",
+    "payment_method": "PhonePe",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-11",
+    "amount": 320.0,
+    "type": "expense",
+    "raw_reason": "Birthday party(Kencha)",
+    "category": "Movies & Events",
+    "raw_payment": "online(cred)",
+    "payment_method": "CRED UPI",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-11",
+    "amount": 62.0,
+    "type": "expense",
+    "raw_reason": "Badminton court(shuttle)",
+    "category": "Gym & Fitness",
+    "raw_payment": "online(phone pay)",
+    "payment_method": "PhonePe",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-12",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "pani puri",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "cash",
+    "payment_method": "Cash",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-13",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online(cred)",
+    "payment_method": "CRED UPI",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-14",
+    "amount": 75.0,
+    "type": "expense",
+    "raw_reason": "Badminton court",
+    "category": "Gym & Fitness",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-15",
+    "amount": 70.0,
+    "type": "expense",
+    "raw_reason": "Fried rice",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-18",
+    "amount": 70.0,
+    "type": "expense",
+    "raw_reason": "Magicpin(food)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-19",
+    "amount": 2600.0,
+    "type": "expense",
+    "raw_reason": "Food(rakhi)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-23",
+    "amount": 2750.0,
+    "type": "expense",
+    "raw_reason": "Stocks",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-24",
+    "amount": 120.0,
+    "type": "expense",
+    "raw_reason": "Metro(stories)",
+    "category": "Metro & Bus",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-24",
+    "amount": 1500.0,
+    "type": "expense",
+    "raw_reason": "Bike(battery)",
+    "category": "Travel & Commute",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-25",
+    "amount": 115.0,
+    "type": "expense",
+    "raw_reason": "Badminton",
+    "category": "Gym & Fitness",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-26",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "Ganesha Habba(sister gift)",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-08-28",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "Chicken Manchuri",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online(one card)",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-01",
+    "amount": 2000.0,
+    "type": "expense",
+    "raw_reason": "Ankel(twist)",
+    "category": "Other Expense",
+    "raw_payment": "Cash(Amma)",
+    "payment_method": "Cash",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-02",
+    "amount": 500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-03",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-05",
+    "amount": 2100.0,
+    "type": "expense",
+    "raw_reason": "Party(bosch)",
+    "category": "Movies & Events",
+    "raw_payment": "card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-07",
+    "amount": 135.0,
+    "type": "expense",
+    "raw_reason": "Dhanush(Badminton + old balance)",
+    "category": "Gym & Fitness",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-14",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "Barath Birthday",
+    "category": "Movies & Events",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-20",
+    "amount": 4800.0,
+    "type": "expense",
+    "raw_reason": "Gokarana Trip",
+    "category": "Movies & Events",
+    "raw_payment": "online and Cash",
+    "payment_method": "Cash",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-09-27",
+    "amount": 834.0,
+    "type": "expense",
+    "raw_reason": "Goa Trip(Train Ticket)",
+    "category": "Train / IRCTC",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-04",
+    "amount": 1500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-05",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "Badminton  + breakfast",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-09",
+    "amount": 2600.0,
+    "type": "expense",
+    "raw_reason": "Stay _ GOA",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-15",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "AUTO",
+    "category": "Uber / Ola / Rapido",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-16",
+    "amount": 400.0,
+    "type": "expense",
+    "raw_reason": "Bike Clutch",
+    "category": "Travel & Commute",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-17",
+    "amount": 95.0,
+    "type": "expense",
+    "raw_reason": "Dinner(BGSW)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-18",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "Dinner(BGSW)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-19",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "Metro",
+    "category": "Metro & Bus",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-22",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-23",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "Ice Cream",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-26",
+    "amount": 50.0,
+    "type": "expense",
+    "raw_reason": "Badminton",
+    "category": "Gym & Fitness",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-27",
+    "amount": 100.0,
+    "type": "expense",
+    "raw_reason": "Lunch",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-29",
+    "amount": 15.0,
+    "type": "expense",
+    "raw_reason": "Metro",
+    "category": "Metro & Bus",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-30",
+    "amount": 2550.0,
+    "type": "expense",
+    "raw_reason": "Goa Trip",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-10-31",
+    "amount": 608.0,
+    "type": "expense",
+    "raw_reason": "Goa Trip",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-01",
+    "amount": 2995.0,
+    "type": "expense",
+    "raw_reason": "Goa Trip",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-02",
+    "amount": 570.0,
+    "type": "expense",
+    "raw_reason": "Goa Trip",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-03",
+    "amount": 140.0,
+    "type": "expense",
+    "raw_reason": "Metro + icecream",
+    "category": "Metro & Bus",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-04",
+    "amount": 1000.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-06",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-07",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "",
+    "payment_method": "Cash",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-09",
+    "amount": 140.0,
+    "type": "expense",
+    "raw_reason": "Badminton + DairyMilk",
+    "category": "Gym & Fitness",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-12",
+    "amount": 100.0,
+    "type": "expense",
+    "raw_reason": "Dinner office",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-18",
+    "amount": 95.0,
+    "type": "expense",
+    "raw_reason": "Dinner office",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-19",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-20",
+    "amount": 260.0,
+    "type": "expense",
+    "raw_reason": "Dinner office",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-21",
+    "amount": 140.0,
+    "type": "expense",
+    "raw_reason": "Dinner office",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-22",
+    "amount": 200.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-25",
+    "amount": 315.0,
+    "type": "expense",
+    "raw_reason": "food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-27",
+    "amount": 70.0,
+    "type": "expense",
+    "raw_reason": "Chethan + medical",
+    "category": "Pharmacy & Medicines",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-11-30",
+    "amount": 110.0,
+    "type": "expense",
+    "raw_reason": "Gobi",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-02",
+    "amount": 2000.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-03",
+    "amount": 200.0,
+    "type": "expense",
+    "raw_reason": "Pramod Anna (Volleyball)",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-04",
+    "amount": 102.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-07",
+    "amount": 237.0,
+    "type": "expense",
+    "raw_reason": "Medicine + Food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-08",
+    "amount": 35.0,
+    "type": "expense",
+    "raw_reason": "Medicine",
+    "category": "Pharmacy & Medicines",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-09",
+    "amount": 3410.0,
+    "type": "expense",
+    "raw_reason": "Trip",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-10",
+    "amount": 130.0,
+    "type": "expense",
+    "raw_reason": "Bakery",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-11",
+    "amount": 22.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-13",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "Pushpa 2",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-14",
+    "amount": 1625.0,
+    "type": "expense",
+    "raw_reason": "Lunch + Bike Service",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-15",
+    "amount": 45.0,
+    "type": "expense",
+    "raw_reason": "Breakfast",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-20",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "Dinner Bosch",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-21",
+    "amount": 40.0,
+    "type": "expense",
+    "raw_reason": "Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-22",
+    "amount": 50.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-24",
+    "amount": 210.0,
+    "type": "expense",
+    "raw_reason": "Lunch(going to village)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-27",
+    "amount": 385.0,
+    "type": "expense",
+    "raw_reason": "Stocks",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-28",
+    "amount": 340.0,
+    "type": "expense",
+    "raw_reason": "Film (MAX)",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-28",
+    "amount": 4050.0,
+    "type": "expense",
+    "raw_reason": "Party SKL Frds",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-29",
+    "amount": 1000.0,
+    "type": "expense",
+    "raw_reason": "Stocks Loss",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-30",
+    "amount": 2400.0,
+    "type": "expense",
+    "raw_reason": "FLO (MG Road)",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2024-12-31",
+    "amount": 700.0,
+    "type": "expense",
+    "raw_reason": "New Year Party",
+    "category": "Movies & Events",
+    "raw_payment": "ONLINE",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2024
+  },
+  {
+    "date": "2025-01-02",
+    "amount": 320.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-04",
+    "amount": 345.0,
+    "type": "expense",
+    "raw_reason": "Cake(dhanush) + Ice cream",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-04",
+    "amount": 75.0,
+    "type": "expense",
+    "raw_reason": "Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-05",
+    "amount": 225.0,
+    "type": "expense",
+    "raw_reason": "Badminton + Lunch",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-05",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "Metro",
+    "category": "Metro & Bus",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-06",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "Dinner(Bosch)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-06",
+    "amount": 490.0,
+    "type": "expense",
+    "raw_reason": "Amma Currency",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-07",
+    "amount": 130.0,
+    "type": "expense",
+    "raw_reason": "Snacks + Dinner (Bosch)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-08",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "Ice Cream (Bosch)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-09",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "Dinner(Bosch)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-12",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "Metro",
+    "category": "Metro & Bus",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-13",
+    "amount": 170.0,
+    "type": "expense",
+    "raw_reason": "Dinner +",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-16",
+    "amount": 210.0,
+    "type": "expense",
+    "raw_reason": "Gold JAR",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-17",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "Dinner(Bosch)",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-18",
+    "amount": 135.0,
+    "type": "expense",
+    "raw_reason": "Juice(Nithin)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "HDFC Card",
+    "payment_method": "HDFC Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-20",
+    "amount": 20.0,
+    "type": "expense",
+    "raw_reason": "Medicine",
+    "category": "Pharmacy & Medicines",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-23",
+    "amount": 102.0,
+    "type": "expense",
+    "raw_reason": "Rapido + metro",
+    "category": "Uber / Ola / Rapido",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-24",
+    "amount": 220.0,
+    "type": "expense",
+    "raw_reason": "Egg chilli (Bosch) + Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-25",
+    "amount": 250.0,
+    "type": "expense",
+    "raw_reason": "Screen guard  + Phone Guard",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-26",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "Breakfast",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-01-31",
+    "amount": 70.0,
+    "type": "expense",
+    "raw_reason": "GOBI",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-01",
+    "amount": 320.0,
+    "type": "expense",
+    "raw_reason": "Chicken + Coconut water",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-02",
+    "amount": 2593.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-03",
+    "amount": 360.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-05",
+    "amount": 162.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-10",
+    "amount": 230.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-11",
+    "amount": 144.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-13",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-17",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-19",
+    "amount": 40.0,
+    "type": "expense",
+    "raw_reason": "Maggie (Bosch)",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-21",
+    "amount": 160.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-22",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-23",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "Dhanush(Petrol)",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-25",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "Egg chilli(Bosch)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-26",
+    "amount": 230.0,
+    "type": "expense",
+    "raw_reason": "Bosch Juice",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-27",
+    "amount": 130.0,
+    "type": "expense",
+    "raw_reason": "Egg chilli(Bosch) + Swiggy",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-02-28",
+    "amount": 1060.0,
+    "type": "expense",
+    "raw_reason": "WPL + Abhi (petrol)",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-01",
+    "amount": 170.0,
+    "type": "expense",
+    "raw_reason": "Ice Cream",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-03",
+    "amount": 350.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-04",
+    "amount": 280.0,
+    "type": "expense",
+    "raw_reason": "Juice (Bosch)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-05",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "EGG Chilli (Bosch)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-06",
+    "amount": 32.0,
+    "type": "expense",
+    "raw_reason": "Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-08",
+    "amount": 50.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-09",
+    "amount": 3700.0,
+    "type": "expense",
+    "raw_reason": "Bosch Trip (Safari)",
+    "category": "Movies & Events",
+    "raw_payment": "Card + online",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-11",
+    "amount": 57.0,
+    "type": "expense",
+    "raw_reason": "Bosch Lunch",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-12",
+    "amount": 415.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online + Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-13",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "Coconut Water",
+    "category": "Electricity Bill",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-15",
+    "amount": 190.0,
+    "type": "expense",
+    "raw_reason": "Chicken",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-16",
+    "amount": 33.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-19",
+    "amount": 120.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-20",
+    "amount": 118.0,
+    "type": "expense",
+    "raw_reason": "Repco Bank",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-22",
+    "amount": 83.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-24",
+    "amount": 390.0,
+    "type": "expense",
+    "raw_reason": "Dasharth + Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-27",
+    "amount": 380.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-30",
+    "amount": 82.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-03-31",
+    "amount": 37.0,
+    "type": "expense",
+    "raw_reason": "Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-03",
+    "amount": 27.0,
+    "type": "expense",
+    "raw_reason": "Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-04",
+    "amount": 298.0,
+    "type": "expense",
+    "raw_reason": "Cake(Bosch)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-05",
+    "amount": 25.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-06",
+    "amount": 313.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "ONLINE",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-07",
+    "amount": 12.0,
+    "type": "expense",
+    "raw_reason": "Coffee(Bosch)",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-09",
+    "amount": 50.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-10",
+    "amount": 33.0,
+    "type": "expense",
+    "raw_reason": "Hot Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-11",
+    "amount": 619.0,
+    "type": "expense",
+    "raw_reason": "Drinks + coffee + Petrol",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online + one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-12",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-14",
+    "amount": 207.0,
+    "type": "expense",
+    "raw_reason": "Coffee(Bosch) + Petrol(Abhishek) + Samosa",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-15",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "Egg Masala Bosch",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-17",
+    "amount": 27.0,
+    "type": "expense",
+    "raw_reason": "Coffee(Bosch)",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-18",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-19",
+    "amount": 202.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-20",
+    "amount": 125.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-27",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-28",
+    "amount": 544.0,
+    "type": "expense",
+    "raw_reason": "Petrol + Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-29",
+    "amount": 25.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-04-30",
+    "amount": 120.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-01",
+    "amount": 441.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-07",
+    "amount": 20.0,
+    "type": "expense",
+    "raw_reason": "Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-08",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-09",
+    "amount": 67.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-10",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-13",
+    "amount": 59.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-17",
+    "amount": 960.0,
+    "type": "expense",
+    "raw_reason": "Mandya",
+    "category": "Other Expense",
+    "raw_payment": "One Card + online",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-18",
+    "amount": 105.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-21",
+    "amount": 104.0,
+    "type": "expense",
+    "raw_reason": "Dinner + Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-23",
+    "amount": 24.0,
+    "type": "expense",
+    "raw_reason": "Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-24",
+    "amount": 1054.0,
+    "type": "expense",
+    "raw_reason": "Nagamangala",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-25",
+    "amount": 211.0,
+    "type": "expense",
+    "raw_reason": "Swiggy",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-29",
+    "amount": 10.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-30",
+    "amount": 5520.0,
+    "type": "expense",
+    "raw_reason": "Amma Jewellary",
+    "category": "Other Expense",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-05-31",
+    "amount": 62.0,
+    "type": "expense",
+    "raw_reason": "Juice",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-01",
+    "amount": 476.0,
+    "type": "expense",
+    "raw_reason": "Amma Food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-02",
+    "amount": 2622.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-03",
+    "amount": 1150.0,
+    "type": "expense",
+    "raw_reason": "RCB Caf\u00e9",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-04",
+    "amount": 1000.0,
+    "type": "expense",
+    "raw_reason": "Appa Birthday",
+    "category": "Movies & Events",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-05",
+    "amount": 120.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-07",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-08",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "Min balance (KAR Bank)",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-09",
+    "amount": 520.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-12",
+    "amount": 820.0,
+    "type": "expense",
+    "raw_reason": "Mobile Recharge",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-13",
+    "amount": 180.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-16",
+    "amount": 525.0,
+    "type": "expense",
+    "raw_reason": "Amma Currency",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-18",
+    "amount": 240.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-20",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-21",
+    "amount": 700.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-06-29",
+    "amount": 341.0,
+    "type": "expense",
+    "raw_reason": "Ice cream",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-05",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "onilne",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-07",
+    "amount": 380.0,
+    "type": "expense",
+    "raw_reason": "Zomato",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-08",
+    "amount": 2050.0,
+    "type": "expense",
+    "raw_reason": "Bike Accident(Hospital) + Bike insurance",
+    "category": "Travel & Commute",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-09",
+    "amount": 110.0,
+    "type": "expense",
+    "raw_reason": "Azeez gift",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-11",
+    "amount": 1700.0,
+    "type": "expense",
+    "raw_reason": "Dharmastala",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-12",
+    "amount": 2000.0,
+    "type": "expense",
+    "raw_reason": "Amma saree Balance",
+    "category": "Other Expense",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-13",
+    "amount": 200.0,
+    "type": "expense",
+    "raw_reason": "Oxford Match",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-14",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "Nikki Engagement",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-15",
+    "amount": 460.0,
+    "type": "expense",
+    "raw_reason": "Shashank Farewell + Chicken",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-18",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-24",
+    "amount": 840.0,
+    "type": "expense",
+    "raw_reason": "Birthday Sweets + Bosch dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-25",
+    "amount": 1000.0,
+    "type": "expense",
+    "raw_reason": "Bosch Birthday party",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-26",
+    "amount": 20.0,
+    "type": "expense",
+    "raw_reason": "Jio Recharge",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-27",
+    "amount": 265.0,
+    "type": "expense",
+    "raw_reason": "Birthday Sweets",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-29",
+    "amount": 3000.0,
+    "type": "expense",
+    "raw_reason": "Vidya barthi Birthday Party",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-30",
+    "amount": 183.0,
+    "type": "expense",
+    "raw_reason": "MagicPin(Food)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-07-31",
+    "amount": 20.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-01",
+    "amount": 1410.0,
+    "type": "expense",
+    "raw_reason": "Birthday party for Nandu",
+    "category": "Movies & Events",
+    "raw_payment": "online + one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-02",
+    "amount": 2590.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-04",
+    "amount": 200.0,
+    "type": "expense",
+    "raw_reason": "Badminton",
+    "category": "Gym & Fitness",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-06",
+    "amount": 590.0,
+    "type": "expense",
+    "raw_reason": "Amma shoe",
+    "category": "Amazon Shopping",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-09",
+    "amount": 430.0,
+    "type": "expense",
+    "raw_reason": "AUTO (Manjamma Birthday)",
+    "category": "Uber / Ola / Rapido",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-10",
+    "amount": 300.0,
+    "type": "expense",
+    "raw_reason": "Ganesh + Rakhi",
+    "category": "Other Expense",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-11",
+    "amount": 75.0,
+    "type": "expense",
+    "raw_reason": "Maggie (Bosch)",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-13",
+    "amount": 200.0,
+    "type": "expense",
+    "raw_reason": "Su from SO film(27-7-25)",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-14",
+    "amount": 1000.0,
+    "type": "expense",
+    "raw_reason": "Bike Repair",
+    "category": "Travel & Commute",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-15",
+    "amount": 2790.0,
+    "type": "expense",
+    "raw_reason": "Rakhi Treat(Divya)",
+    "category": "Other Expense",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-17",
+    "amount": 500.0,
+    "type": "expense",
+    "raw_reason": "Mobile Booking",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-21",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-23",
+    "amount": 130.0,
+    "type": "expense",
+    "raw_reason": "Chikki",
+    "category": "Other Expense",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-27",
+    "amount": 450.0,
+    "type": "expense",
+    "raw_reason": "Minu ganesha + Phone advance(Manoj Kulla)",
+    "category": "Other Expense",
+    "raw_payment": "Cash + online",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-08-31",
+    "amount": 120.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-02",
+    "amount": 3099.0,
+    "type": "expense",
+    "raw_reason": "SIP + Shorts",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-03",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-04",
+    "amount": 899.0,
+    "type": "expense",
+    "raw_reason": "Jio Recharge (Mine)",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-05",
+    "amount": 113.0,
+    "type": "expense",
+    "raw_reason": "Dinner_Bosch",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-07",
+    "amount": 420.0,
+    "type": "expense",
+    "raw_reason": "Dinner Amma",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-08",
+    "amount": 170.0,
+    "type": "expense",
+    "raw_reason": "Harshith Birthday",
+    "category": "Movies & Events",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-09",
+    "amount": 1000.0,
+    "type": "expense",
+    "raw_reason": "Ganesha Nagendra",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-12",
+    "amount": 130.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-15",
+    "amount": 40.0,
+    "type": "expense",
+    "raw_reason": "Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-17",
+    "amount": 110.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-23",
+    "amount": 400.0,
+    "type": "expense",
+    "raw_reason": "Kumara Send off + Bosch Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-27",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-28",
+    "amount": 27.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-09-30",
+    "amount": 450.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-01",
+    "amount": 620.0,
+    "type": "expense",
+    "raw_reason": "Petrol + Amma gift",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-03",
+    "amount": 520.0,
+    "type": "expense",
+    "raw_reason": "+ Abhishek old balance",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-04",
+    "amount": 140.0,
+    "type": "expense",
+    "raw_reason": "Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-05",
+    "amount": 485.0,
+    "type": "expense",
+    "raw_reason": "Bread + Dileep Anna juice + Tiffen",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-08",
+    "amount": 12.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-09",
+    "amount": 70.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-11",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-13",
+    "amount": 1000.0,
+    "type": "expense",
+    "raw_reason": "VolleyBall tournment",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-14",
+    "amount": 1673.0,
+    "type": "expense",
+    "raw_reason": "Kantara Movie + SIP(bandan)",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-17",
+    "amount": 82.0,
+    "type": "expense",
+    "raw_reason": "Bakery",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-18",
+    "amount": 6650.0,
+    "type": "expense",
+    "raw_reason": "Trip",
+    "category": "Movies & Events",
+    "raw_payment": "Online+ One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-22",
+    "amount": 245.0,
+    "type": "expense",
+    "raw_reason": "Juice (Bosch) + Bekku(Sweets)",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-24",
+    "amount": 25.0,
+    "type": "expense",
+    "raw_reason": "Bosch Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-10-25",
+    "amount": 1242.0,
+    "type": "expense",
+    "raw_reason": "Amma Dress",
+    "category": "Amazon Shopping",
+    "raw_payment": "cash",
+    "payment_method": "Cash",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-01",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "Raj Benne",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-02",
+    "amount": 2675.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-03",
+    "amount": 40.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-05",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "Google Drive",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-08",
+    "amount": 140.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-10",
+    "amount": 25.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-14",
+    "amount": 155.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-15",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-16",
+    "amount": 255.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-21",
+    "amount": 88.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-23",
+    "amount": 128.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-24",
+    "amount": 343.0,
+    "type": "expense",
+    "raw_reason": "Bakery Items",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-25",
+    "amount": 104.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-27",
+    "amount": 240.0,
+    "type": "expense",
+    "raw_reason": "Amma Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-11-30",
+    "amount": 237.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-01",
+    "amount": 735.0,
+    "type": "expense",
+    "raw_reason": "Trip(Nikki Marriage)",
+    "category": "Movies & Events",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-02",
+    "amount": 2510.0,
+    "type": "expense",
+    "raw_reason": "Bosch(Coffee) + SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-03",
+    "amount": 951.0,
+    "type": "expense",
+    "raw_reason": "Jio Recharge",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-05",
+    "amount": 250.0,
+    "type": "expense",
+    "raw_reason": "Food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-11",
+    "amount": 550.0,
+    "type": "expense",
+    "raw_reason": "Badmiton (Abhishek)",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-13",
+    "amount": 215.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-15",
+    "amount": 50.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-16",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-17",
+    "amount": 250.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-19",
+    "amount": 400.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-20",
+    "amount": 100.0,
+    "type": "expense",
+    "raw_reason": "Mandya Travelling",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-22",
+    "amount": 125.0,
+    "type": "expense",
+    "raw_reason": "Mandya Return",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-24",
+    "amount": 325.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-25",
+    "amount": 350.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-26",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "Bedsheet",
+    "category": "Other Expense",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-28",
+    "amount": 760.0,
+    "type": "expense",
+    "raw_reason": "Breakfast + Badmiton Abhishek",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2025
+  },
+  {
+    "date": "2025-12-29",
+    "amount": 48000.0,
+    "type": "expense",
+    "raw_reason": "TCL TV",
+    "category": "Other Expense",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2025
+  },
+  {
+    "date": "2026-01-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-03",
+    "amount": 2244.0,
+    "type": "expense",
+    "raw_reason": "Bekku",
+    "category": "Gifts & Celebrations",
+    "raw_payment": "Online + one Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-04",
+    "amount": 200.0,
+    "type": "expense",
+    "raw_reason": "Hotel",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-05",
+    "amount": 70.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-07",
+    "amount": 678.0,
+    "type": "expense",
+    "raw_reason": "Zepto",
+    "category": "Blinkit / Zepto / Instamart",
+    "raw_payment": "Online + one Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-14",
+    "amount": 250.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "One Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-15",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-16",
+    "amount": 350.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-17",
+    "amount": 479.0,
+    "type": "expense",
+    "raw_reason": "Zomato + FlyoverDrinnkery",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "Online + one Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-23",
+    "amount": 100.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-24",
+    "amount": 100.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-25",
+    "amount": 863.0,
+    "type": "expense",
+    "raw_reason": "(USB Extension) + Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "One Crard",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-29",
+    "amount": 149.0,
+    "type": "expense",
+    "raw_reason": "Ethernet",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-30",
+    "amount": 733.0,
+    "type": "expense",
+    "raw_reason": "Train Kalburgi",
+    "category": "Train / IRCTC",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-01-31",
+    "amount": 540.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-01",
+    "amount": 420.0,
+    "type": "expense",
+    "raw_reason": "Train Mandya",
+    "category": "Train / IRCTC",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-02",
+    "amount": 2685.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-03",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-05",
+    "amount": 170.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-06",
+    "amount": 245.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-09",
+    "amount": 5010.0,
+    "type": "expense",
+    "raw_reason": "Dasharth old balance + Train kalburgi + HDMI",
+    "category": "Train / IRCTC",
+    "raw_payment": "Online + one Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-13",
+    "amount": 314.0,
+    "type": "expense",
+    "raw_reason": "Swiggy",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "Online + one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-14",
+    "amount": 115.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-15",
+    "amount": 80.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-17",
+    "amount": 1100.0,
+    "type": "expense",
+    "raw_reason": "Abhi old balance",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-18",
+    "amount": 150.0,
+    "type": "expense",
+    "raw_reason": "Food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-21",
+    "amount": 479.0,
+    "type": "expense",
+    "raw_reason": "Zepto + Swiggy",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-23",
+    "amount": 110.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-02-27",
+    "amount": 5500.0,
+    "type": "expense",
+    "raw_reason": "Trip KasarGod office",
+    "category": "Movies & Events",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-01",
+    "amount": 217.0,
+    "type": "expense",
+    "raw_reason": "Zomato",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-03",
+    "amount": 999.0,
+    "type": "expense",
+    "raw_reason": "Currency Mine",
+    "category": "Mobile Recharge & Postpaid",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-05",
+    "amount": 30.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-06",
+    "amount": 75.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-07",
+    "amount": 140.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-08",
+    "amount": 253.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-09",
+    "amount": 15.0,
+    "type": "expense",
+    "raw_reason": "coffee Bosch",
+    "category": "Coffee & Cafe",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-11",
+    "amount": 70.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-12",
+    "amount": 90.0,
+    "type": "expense",
+    "raw_reason": "Bosch Coffee",
+    "category": "Coffee & Cafe",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-13",
+    "amount": 35.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-14",
+    "amount": 420.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online + One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-15",
+    "amount": 337.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online + one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-16",
+    "amount": 842.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-18",
+    "amount": 350.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-19",
+    "amount": 50.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-20",
+    "amount": 740.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online + one Card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-21",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-22",
+    "amount": 640.0,
+    "type": "expense",
+    "raw_reason": "Amma&Appa Anniversery",
+    "category": "Other Expense",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-23",
+    "amount": 250.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-03-27",
+    "amount": 145.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-02",
+    "amount": 2500.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-03",
+    "amount": 484.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-04",
+    "amount": 280.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-05",
+    "amount": 1188.0,
+    "type": "expense",
+    "raw_reason": "Divya Village",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-08",
+    "amount": 169.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-09",
+    "amount": 535.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-12",
+    "amount": 1151.0,
+    "type": "expense",
+    "raw_reason": "Amma Oota",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-13",
+    "amount": 55.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-14",
+    "amount": 650.0,
+    "type": "expense",
+    "raw_reason": "Bosch Dinner+Dhanush old balance",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-15",
+    "amount": 101.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-16",
+    "amount": 635.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-17",
+    "amount": 2000.0,
+    "type": "expense",
+    "raw_reason": "GAME",
+    "category": "Movies & Events",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-18",
+    "amount": 300.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-19",
+    "amount": 670.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-20",
+    "amount": 136.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-21",
+    "amount": 750.0,
+    "type": "expense",
+    "raw_reason": "Bekku old balance",
+    "category": "Gifts & Celebrations",
+    "raw_payment": "",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-26",
+    "amount": 1149.0,
+    "type": "expense",
+    "raw_reason": "Amma Balance",
+    "category": "Other Expense",
+    "raw_payment": "CASH",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-04-30",
+    "amount": 344.0,
+    "type": "expense",
+    "raw_reason": "Bosch Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-02",
+    "amount": 2900.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "SIP + Harshitha House",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-03",
+    "amount": 200.0,
+    "type": "expense",
+    "raw_reason": "USB cable",
+    "category": "Uber / Ola / Rapido",
+    "raw_payment": "Cash",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-06",
+    "amount": 180.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-07",
+    "amount": 60.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-08",
+    "amount": 569.0,
+    "type": "expense",
+    "raw_reason": "Churuchyroll",
+    "category": "Other Expense",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-09",
+    "amount": 330.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-10",
+    "amount": 446.0,
+    "type": "expense",
+    "raw_reason": "Food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-11",
+    "amount": 40.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-15",
+    "amount": 350.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-16",
+    "amount": 240.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-17",
+    "amount": 465.0,
+    "type": "expense",
+    "raw_reason": "Food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-20",
+    "amount": 685.0,
+    "type": "expense",
+    "raw_reason": "Food",
+    "category": "Groceries & Supermarket",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-24",
+    "amount": 1179.0,
+    "type": "expense",
+    "raw_reason": "Reliance + Zomato",
+    "category": "Swiggy / Zomato",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-25",
+    "amount": 45.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-05-30",
+    "amount": 720.0,
+    "type": "expense",
+    "raw_reason": "Zepto",
+    "category": "Blinkit / Zepto / Instamart",
+    "raw_payment": "Online+ one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-01",
+    "amount": 899.0,
+    "type": "expense",
+    "raw_reason": "Curreny Mine",
+    "category": "Other Expense",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-02",
+    "amount": 10600.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-03",
+    "amount": 300.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-04",
+    "amount": 20.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-05",
+    "amount": 350.0,
+    "type": "expense",
+    "raw_reason": "Fuel",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-07",
+    "amount": 120.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "",
+    "payment_method": "Cash",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-09",
+    "amount": 10000.0,
+    "type": "expense",
+    "raw_reason": "SIP(HDFC)",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-12",
+    "amount": 3000.0,
+    "type": "expense",
+    "raw_reason": "Appa Trip",
+    "category": "Movies & Events",
+    "raw_payment": "one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-13",
+    "amount": 310.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-14",
+    "amount": 265.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online+One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-19",
+    "amount": 275.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-22",
+    "amount": 760.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-26",
+    "amount": 420.0,
+    "type": "expense",
+    "raw_reason": "Bosch Dinner",
+    "category": "Dining Out & Restaurants",
+    "raw_payment": "online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-27",
+    "amount": 390.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-06-28",
+    "amount": 529.0,
+    "type": "expense",
+    "raw_reason": "",
+    "category": "Other Expense",
+    "raw_payment": "Online + one card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-07-01",
+    "amount": 325.0,
+    "type": "expense",
+    "raw_reason": "Petrol",
+    "category": "Fuel (Petrol / Diesel)",
+    "raw_payment": "One card",
+    "payment_method": "OneCard Credit Card",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-07-02",
+    "amount": 3422.0,
+    "type": "expense",
+    "raw_reason": "SIP",
+    "category": "Index Mutual Fund",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  },
+  {
+    "date": "2026-07-04",
+    "amount": 1602.0,
+    "type": "expense",
+    "raw_reason": "Bosch volleyball",
+    "category": "Other Expense",
+    "raw_payment": "Online",
+    "payment_method": "Google Pay (GPay)",
+    "source_year": 2026
+  }
+]

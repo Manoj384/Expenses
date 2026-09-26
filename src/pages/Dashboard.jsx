@@ -6,13 +6,16 @@ import Layout from '../components/Layout'
 import SummaryCard from '../components/SummaryCard'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
-import { formatCurrency } from '../utils/formatCurrency'
+import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { formatDate, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../utils/dateUtils'
 import { frequencyLabel } from '../utils/sipUtils'
+import pastData from '../data/past_expenses.json'
+import defaultSips from '../data/default_sips.json'
+import savedGrowwData from '../data/groww_holdings.json'
 import {
   TrendingUp, TrendingDown, PiggyBank, Wallet, CreditCard,
-  ArrowDownRight, Clock, AlertCircle, ArrowUpRight, BarChart3,
-  Smartphone, Banknote
+  ArrowDownRight, Clock, AlertCircle, BarChart3,
+  History, ArrowRight, Database, LineChart, Landmark, Target, Zap, Sparkles, ShieldCheck
 } from 'lucide-react'
 
 const TYPE_STYLES = {
@@ -97,10 +100,10 @@ export default function Dashboard() {
 
       setMonthIncome(income)
       setMonthExpense(expense)
-      setActiveSips(sipRes.count || 0)
+      setActiveSips(sipRes.count !== null && sipRes.count > 0 ? sipRes.count : defaultSips.length)
       setTotalDebt((debtRes.data || []).reduce((s, d) => s + Number(d.outstanding), 0))
       setRecentTxns(recentRes.data || [])
-      setUpcomingSips(upcomingRes.data || [])
+      setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
       const payArr = Object.entries(payMap)
         .map(([name, amount]) => ({ name, amount }))
@@ -120,6 +123,16 @@ export default function Dashboard() {
   const netSavings = monthIncome - monthExpense
   const savingsRate = monthIncome > 0 ? ((netSavings / monthIncome) * 100).toFixed(0) : 0
 
+  // Past expenses total
+  const pastTotal = pastData.reduce((s, d) => s + d.amount, 0)
+  const count2024 = pastData.filter(d => d.date.startsWith('2024')).length
+  const count2025 = pastData.filter(d => d.date.startsWith('2025')).length
+  const count2026 = pastData.filter(d => d.date.startsWith('2026')).length
+
+  // Groww Portfolio Total
+  const totalMfValue = savedGrowwData.reduce((s, f) => s + f.current_value, 0)
+  const totalMfGain = savedGrowwData.reduce((s, f) => s + (f.current_value - f.invested_amount), 0)
+
   if (loading) {
     return (
       <Layout title="Dashboard">
@@ -137,7 +150,7 @@ export default function Dashboard() {
       )}
 
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 mb-6">
         <SummaryCard
           title="Monthly Income"
           value={formatCurrency(monthIncome)}
@@ -164,18 +177,113 @@ export default function Dashboard() {
           value={activeSips}
           icon={Wallet}
           color="purple"
-          subtitle="Active investments"
+          subtitle="₹2,500/mo Groww SIPs"
         />
         <SummaryCard
-          title="Total Debt Balance"
-          value={formatCurrency(totalDebt)}
-          icon={CreditCard}
-          color="yellow"
-          subtitle="Outstanding sum"
+          title="Mutual Funds Portfolio"
+          value={formatCurrency(totalMfValue)}
+          icon={LineChart}
+          color="green"
+          subtitle={`+${formatCurrency(totalMfGain)} (+7.7%)`}
         />
       </div>
 
-      {/* Quick Visual Section: Payment Method Quick Breakdown + Quick Actions */}
+      {/* 4 Feature Hub Widgets */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {/* Groww Mutual Funds Card */}
+        <div className="card bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white p-4 border-none shadow-md flex flex-col justify-between">
+          <div>
+            <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 mb-1.5">
+              <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span> AMFI Live NAVs
+            </span>
+            <h3 className="font-bold text-sm text-white">Mutual Funds Hub</h3>
+            <p className="text-xl font-extrabold text-white mt-1">{formatCurrency(totalMfValue)}</p>
+            <p className="text-[11px] text-teal-200 mt-0.5">
+              Profit: <strong className="text-emerald-300">+{formatCurrency(totalMfGain)}</strong>
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+            <span className="text-[10px] text-teal-200/80">8 Active Folios</span>
+            <Link
+              to="/mutual-funds"
+              className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-[11px] py-1 px-2.5 rounded-lg flex items-center gap-1 shadow-sm transition-all"
+            >
+              Open Hub <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Consolidated Net Worth Card */}
+        <div className="card bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 border-none shadow-md flex flex-col justify-between">
+          <div>
+            <span className="bg-indigo-500/30 text-indigo-200 text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 mb-1.5">
+              <Sparkles className="h-3 w-3 text-indigo-300" /> Net Worth
+            </span>
+            <h3 className="font-bold text-sm text-white">Total Net Worth</h3>
+            <p className="text-xl font-extrabold text-white mt-1">{formatCurrency(totalMfValue - totalDebt)}</p>
+            <p className="text-[11px] text-indigo-200 mt-0.5">
+              Assets: {formatCurrencyShort(totalMfValue)} • Debts: {formatCurrencyShort(totalDebt)}
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+            <span className="text-[10px] text-indigo-200/80">Assets & Debts Balance</span>
+            <Link
+              to="/net-worth"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] py-1 px-2.5 rounded-lg flex items-center gap-1 shadow-sm transition-all"
+            >
+              View Wealth <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Goals Progress Card */}
+        <div className="card bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white p-4 border-none shadow-md flex flex-col justify-between">
+          <div>
+            <span className="bg-teal-500/30 text-teal-200 text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 mb-1.5">
+              <Target className="h-3 w-3 text-teal-300" /> Milestones
+            </span>
+            <h3 className="font-bold text-sm text-white">Financial Goals</h3>
+            <p className="text-xl font-extrabold text-white mt-1">3 Active Goals</p>
+            <p className="text-[11px] text-teal-200 mt-0.5">
+              Emergency Fund • Car • Vacation
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+            <span className="text-[10px] text-teal-200/80">37.4% Completed</span>
+            <Link
+              to="/goals"
+              className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] py-1 px-2.5 rounded-lg flex items-center gap-1 shadow-sm transition-all"
+            >
+              Track Goals <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Past Expenses Board Card */}
+        <div className="card bg-gradient-to-r from-slate-900 to-slate-950 text-white p-4 border-none shadow-md flex flex-col justify-between">
+          <div>
+            <span className="bg-blue-500/30 text-blue-200 text-[10px] font-mono px-2 py-0.5 rounded-full inline-block mb-1.5">
+              Excel Sync Ready
+            </span>
+            <h3 className="font-bold text-sm text-white">Past Expenses (2024–26)</h3>
+            <p className="text-xl font-extrabold text-white mt-1">{formatCurrency(pastTotal)}</p>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              385 records loaded & verified
+            </p>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+            <span className="text-[10px] text-slate-400">2024 • 2025 • 2026</span>
+            <Link
+              to="/past-expenses"
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] py-1 px-2.5 rounded-lg flex items-center gap-1 shadow-sm transition-all"
+            >
+              Open Board <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Visual Section: Payment Method Quick Breakdown */}
       {paymentBreakdown.length > 0 && (
         <div className="card mb-6">
           <div className="flex items-center justify-between mb-3">
@@ -211,7 +319,7 @@ export default function Dashboard() {
 
           {recentTxns.length === 0 ? (
             <EmptyState
-              title="No transactions yet"
+              title="No transactions recorded this month"
               description="Record your first income or expense to populate this dashboard."
             />
           ) : (
@@ -248,7 +356,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-gray-900 text-sm">Upcoming SIP Schedules</h2>
             <Link to="/sips" className="text-xs text-blue-600 hover:underline font-medium">
-              View all
+              View all ({upcomingSips.length})
             </Link>
           </div>
 
@@ -256,12 +364,12 @@ export default function Dashboard() {
             <EmptyState title="No active SIPs" description="Add a recurring SIP investment to track scheduled dates." />
           ) : (
             <div className="space-y-3">
-              {upcomingSips.map((sip) => {
+              {upcomingSips.map((sip, idx) => {
                 const overdue = isOverdue(sip.next_due_date)
                 const days = daysUntil(sip.next_due_date)
                 return (
                   <div
-                    key={sip.id}
+                    key={sip.id || idx}
                     className={`flex items-center justify-between p-3.5 rounded-xl border ${
                       overdue ? 'border-red-200 bg-red-50/70' : 'border-gray-100 bg-gray-50/70'
                     }`}

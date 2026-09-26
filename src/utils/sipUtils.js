@@ -1,46 +1,58 @@
+import { parseLocalDate, toLocalDateString } from './dateUtils.js'
+
 /**
  * Calculate the next due date based on frequency
- * Handles month-end edge cases using native JS Date arithmetic
+ * Handles month-end edge cases using timezone-safe local date arithmetic
  */
 export function calculateNextDueDate(currentDueDate, frequency) {
-  const date = new Date(currentDueDate + 'T00:00:00')
+  const [y, m, d] = currentDueDate.split('-').map(Number)
+  const originalDay = d
+
+  let nextYear = y
+  let nextMonth = m // 1-indexed
+  let nextDay = d
 
   switch (frequency) {
     case 'weekly': {
-      date.setDate(date.getDate() + 7)
-      break
+      const date = new Date(y, m - 1, d + 7)
+      return toLocalDateString(date)
     }
     case 'monthly': {
-      const originalDay = date.getDate()
-      date.setMonth(date.getMonth() + 1)
-      // Handle month-end: if month overflowed, clamp to last day
-      if (date.getDate() !== originalDay) {
-        date.setDate(0) // last day of previous month
+      nextMonth = m + 1
+      if (nextMonth > 12) {
+        nextMonth = 1
+        nextYear = y + 1
       }
       break
     }
     case 'quarterly': {
-      const originalDay = date.getDate()
-      date.setMonth(date.getMonth() + 3)
-      if (date.getDate() !== originalDay) {
-        date.setDate(0)
+      nextMonth = m + 3
+      if (nextMonth > 12) {
+        nextMonth = nextMonth - 12
+        nextYear = y + 1
       }
       break
     }
     case 'yearly': {
-      const originalDay = date.getDate()
-      date.setFullYear(date.getFullYear() + 1)
-      if (date.getDate() !== originalDay) {
-        date.setDate(0)
-      }
+      nextYear = y + 1
       break
     }
     default: {
-      date.setMonth(date.getMonth() + 1)
+      nextMonth = m + 1
+      if (nextMonth > 12) {
+        nextMonth = 1
+        nextYear = y + 1
+      }
     }
   }
 
-  return date.toISOString().split('T')[0]
+  // Month-end clamping (e.g. Jan 31 -> Feb 28 in non-leap year)
+  const daysInNextMonth = new Date(nextYear, nextMonth, 0).getDate()
+  nextDay = Math.min(originalDay, daysInNextMonth)
+
+  const monthStr = String(nextMonth).padStart(2, '0')
+  const dayStr = String(nextDay).padStart(2, '0')
+  return `${nextYear}-${monthStr}-${dayStr}`
 }
 
 /**

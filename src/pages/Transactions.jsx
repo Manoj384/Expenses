@@ -9,7 +9,8 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import CategoryManager from '../components/CategoryManager'
 import PaymentMethodManager from '../components/PaymentMethodManager'
 import AdminLockModal from '../components/AdminLockModal'
-import { Plus, SlidersHorizontal, X, Tag, CreditCard } from 'lucide-react'
+import StatementImportModal from '../components/StatementImportModal'
+import { Plus, SlidersHorizontal, X, Tag, CreditCard, FileSpreadsheet, Sparkles } from 'lucide-react'
 
 export default function Transactions() {
   const { user } = useAuth()
@@ -18,8 +19,10 @@ export default function Transactions() {
   const [paymentMethods, setPaymentMethods] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
 
   const [showAdd, setShowAdd] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [showCat, setShowCat] = useState(false)
   const [showMethods, setShowMethods] = useState(false)
@@ -104,11 +107,44 @@ export default function Transactions() {
 
   const hasFilters = Object.values(filters).some(Boolean)
 
+  const handleBatchImport = async (rows = []) => {
+    if (!user || rows.length === 0) return
+    try {
+      const toInsert = []
+      for (const r of rows) {
+        // Match category ID
+        const matchedCat = categories.find(c => c.name.toLowerCase() === (r.suggested_category || '').toLowerCase())
+        toInsert.push({
+          user_id: user.id,
+          type: r.type || 'expense',
+          amount: parseFloat(r.amount),
+          note: r.description || null,
+          category_id: matchedCat?.id || null,
+          payment_method_id: paymentMethods[0]?.id || null,
+          date: r.date || new Date().toISOString().slice(0, 10),
+        })
+      }
+
+      const { error: insErr } = await supabase.from('transactions').insert(toInsert)
+      if (insErr) throw insErr
+      setSuccess(`Imported ${toInsert.length} transactions from statement!`)
+      setTimeout(() => setSuccess(''), 4000)
+      fetchTransactions()
+    } catch (err) {
+      setError('Statement import failed. Please try again.')
+    }
+  }
+
   return (
     <Layout title="Transactions">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4" role="alert">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-lg mb-4" role="status">
+          {success}
         </div>
       )}
 
@@ -117,6 +153,13 @@ export default function Transactions() {
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setShowAdd(true)} className="btn-primary flex items-center gap-2">
             <Plus className="h-4 w-4" /> Add Transaction
+          </button>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-emerald-200" />
+            Statement & SMS Parser
           </button>
           <button
             onClick={() => setShowFilters((f) => !f)}
@@ -250,6 +293,15 @@ export default function Transactions() {
       <AdminLockModal
         isOpen={showAdminLock}
         onClose={() => setShowAdminLock(false)}
+      />
+
+      {/* Smart Statement & SMS Import Modal */}
+      <StatementImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={handleBatchImport}
+        categories={categories}
+        paymentMethods={paymentMethods}
       />
     </Layout>
   )

@@ -1,0 +1,2319 @@
+{
+  "metadata": {
+    "generatedAt": "2026-09-26T06:57:31.541Z",
+    "totalNodes": 64,
+    "totalEdges": 205,
+    "groups": [
+      "Database Tables",
+      "Utils",
+      "UI Components",
+      "Context Providers",
+      "Data & Datasets",
+      "Clients & Config",
+      "Pages & Routes",
+      "Core Utilities"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "src:context/AuthContext.jsx",
+      "label": "AuthContext",
+      "type": "code",
+      "group": "Context Providers",
+      "file": "context/AuthContext.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\context\\AuthContext.jsx",
+      "color": "#8b5cf6",
+      "shape": "hexagon",
+      "lineCount": 60,
+      "size": 1633,
+      "connections": 19,
+      "value": 40
+    },
+    {
+      "id": "src:App.jsx",
+      "label": "App",
+      "type": "code",
+      "group": "Utils",
+      "file": "App.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\App.jsx",
+      "color": "#64748b",
+      "shape": "dot",
+      "lineCount": 72,
+      "size": 2805,
+      "connections": 18,
+      "value": 40
+    },
+    {
+      "id": "src:pages/SIPs.jsx",
+      "label": "SIPs",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/SIPs.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\SIPs.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 549,
+      "size": 19940,
+      "connections": 18,
+      "value": 40
+    },
+    {
+      "id": "src:components/Layout.jsx",
+      "label": "Layout",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/Layout.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\Layout.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 104,
+      "size": 4286,
+      "connections": 17,
+      "value": 40
+    },
+    {
+      "id": "src:pages/Dashboard.jsx",
+      "label": "Dashboard",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Dashboard.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Dashboard.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 403,
+      "size": 17485,
+      "connections": 16,
+      "value": 40
+    },
+    {
+      "id": "src:utils/formatCurrency.js",
+      "label": "formatCurrency",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/formatCurrency.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\formatCurrency.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 27,
+      "size": 672,
+      "connections": 16,
+      "value": 40
+    },
+    {
+      "id": "src:components/DataBackupModal.jsx",
+      "label": "DataBackupModal",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/DataBackupModal.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\DataBackupModal.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 184,
+      "size": 6828,
+      "connections": 15,
+      "value": 40
+    },
+    {
+      "id": "src:lib/supabaseClient.js",
+      "label": "supabaseClient",
+      "type": "code",
+      "group": "Clients & Config",
+      "file": "lib/supabaseClient.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\lib\\supabaseClient.js",
+      "color": "#f97316",
+      "shape": "square",
+      "lineCount": 11,
+      "size": 372,
+      "connections": 15,
+      "value": 40
+    },
+    {
+      "id": "src:pages/MutualFunds.jsx",
+      "label": "MutualFunds",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/MutualFunds.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\MutualFunds.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 1014,
+      "size": 39471,
+      "connections": 15,
+      "value": 40
+    },
+    {
+      "id": "src:pages/Transactions.jsx",
+      "label": "Transactions",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Transactions.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Transactions.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 309,
+      "size": 11525,
+      "connections": 15,
+      "value": 40
+    },
+    {
+      "id": "src:components/Modal.jsx",
+      "label": "Modal",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/Modal.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\Modal.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 61,
+      "size": 1797,
+      "connections": 12,
+      "value": 36
+    },
+    {
+      "id": "src:pages/Debts.jsx",
+      "label": "Debts",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Debts.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Debts.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 543,
+      "size": 20189,
+      "connections": 12,
+      "value": 36
+    },
+    {
+      "id": "src:pages/NetWorth.jsx",
+      "label": "NetWorth",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/NetWorth.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\NetWorth.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 461,
+      "size": 16869,
+      "connections": 12,
+      "value": 36
+    },
+    {
+      "id": "src:components/LoadingSpinner.jsx",
+      "label": "LoadingSpinner",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/LoadingSpinner.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\LoadingSpinner.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 17,
+      "size": 443,
+      "connections": 11,
+      "value": 33
+    },
+    {
+      "id": "src:pages/Budgets.jsx",
+      "label": "Budgets",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Budgets.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Budgets.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 327,
+      "size": 12619,
+      "connections": 11,
+      "value": 33
+    },
+    {
+      "id": "src:utils/dateUtils.js",
+      "label": "dateUtils",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/dateUtils.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\dateUtils.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 106,
+      "size": 2701,
+      "connections": 11,
+      "value": 33
+    },
+    {
+      "id": "src:pages/PastExpenses.jsx",
+      "label": "PastExpenses",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/PastExpenses.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\PastExpenses.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 486,
+      "size": 20008,
+      "connections": 10,
+      "value": 30
+    },
+    {
+      "id": "db:transactions",
+      "label": "📊 DB: transactions",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: transactions",
+      "connections": 9,
+      "value": 27
+    },
+    {
+      "id": "src:components/ConfirmDialog.jsx",
+      "label": "ConfirmDialog",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/ConfirmDialog.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\ConfirmDialog.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 50,
+      "size": 1550,
+      "connections": 9,
+      "value": 27
+    },
+    {
+      "id": "src:pages/Goals.jsx",
+      "label": "Goals",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Goals.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Goals.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 550,
+      "size": 19608,
+      "connections": 9,
+      "value": 27
+    },
+    {
+      "id": "src:pages/Reports.jsx",
+      "label": "Reports",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Reports.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Reports.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 245,
+      "size": 9055,
+      "connections": 9,
+      "value": 27
+    },
+    {
+      "id": "src:components/CategoryManager.jsx",
+      "label": "CategoryManager",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/CategoryManager.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\CategoryManager.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 335,
+      "size": 12578,
+      "connections": 8,
+      "value": 24
+    },
+    {
+      "id": "src:components/PaymentMethodManager.jsx",
+      "label": "PaymentMethodManager",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/PaymentMethodManager.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\PaymentMethodManager.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 320,
+      "size": 12488,
+      "connections": 8,
+      "value": 24
+    },
+    {
+      "id": "src:components/TransactionForm.jsx",
+      "label": "TransactionForm",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/TransactionForm.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\TransactionForm.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 223,
+      "size": 7137,
+      "connections": 7,
+      "value": 21
+    },
+    {
+      "id": "src:context/AdminContext.jsx",
+      "label": "AdminContext",
+      "type": "code",
+      "group": "Context Providers",
+      "file": "context/AdminContext.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\context\\AdminContext.jsx",
+      "color": "#8b5cf6",
+      "shape": "hexagon",
+      "lineCount": 64,
+      "size": 1728,
+      "connections": 6,
+      "value": 18
+    },
+    {
+      "id": "db:categories",
+      "label": "📊 DB: categories",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: categories",
+      "connections": 5,
+      "value": 15
+    },
+    {
+      "id": "src:components/AdminLockModal.jsx",
+      "label": "AdminLockModal",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/AdminLockModal.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\AdminLockModal.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 189,
+      "size": 7258,
+      "connections": 5,
+      "value": 15
+    },
+    {
+      "id": "src:components/DebtCard.jsx",
+      "label": "DebtCard",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/DebtCard.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\DebtCard.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 276,
+      "size": 10993,
+      "connections": 5,
+      "value": 15
+    },
+    {
+      "id": "src:components/EmptyState.jsx",
+      "label": "EmptyState",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/EmptyState.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\EmptyState.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 15,
+      "size": 594,
+      "connections": 5,
+      "value": 15
+    },
+    {
+      "id": "src:components/SipCard.jsx",
+      "label": "SipCard",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/SipCard.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\SipCard.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 154,
+      "size": 6136,
+      "connections": 5,
+      "value": 15
+    },
+    {
+      "id": "src:components/TransactionList.jsx",
+      "label": "TransactionList",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/TransactionList.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\TransactionList.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 166,
+      "size": 7469,
+      "connections": 5,
+      "value": 15
+    },
+    {
+      "id": "src:data/groww_holdings.json",
+      "label": "groww_holdings",
+      "type": "code",
+      "group": "Data & Datasets",
+      "file": "data/groww_holdings.json",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\data\\groww_holdings.json",
+      "color": "#ec4899",
+      "shape": "triangle",
+      "lineCount": 106,
+      "size": 3130,
+      "connections": 5,
+      "value": 15
+    },
+    {
+      "id": "db:payment_methods",
+      "label": "📊 DB: payment_methods",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: payment_methods",
+      "connections": 4,
+      "value": 12
+    },
+    {
+      "id": "db:debts",
+      "label": "📊 DB: debts",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: debts",
+      "connections": 4,
+      "value": 12
+    },
+    {
+      "id": "db:mutual_funds",
+      "label": "📊 DB: mutual_funds",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: mutual_funds",
+      "connections": 4,
+      "value": 12
+    },
+    {
+      "id": "src:components/Sidebar.jsx",
+      "label": "Sidebar",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/Sidebar.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\Sidebar.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 139,
+      "size": 5149,
+      "connections": 4,
+      "value": 12
+    },
+    {
+      "id": "src:components/StatementImportModal.jsx",
+      "label": "StatementImportModal",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/StatementImportModal.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\StatementImportModal.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 181,
+      "size": 7177,
+      "connections": 4,
+      "value": 12
+    },
+    {
+      "id": "src:utils/sipUtils.js",
+      "label": "sipUtils",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/sipUtils.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\sipUtils.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 70,
+      "size": 1645,
+      "connections": 4,
+      "value": 12
+    },
+    {
+      "id": "db:sips",
+      "label": "📊 DB: sips",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: sips",
+      "connections": 3,
+      "value": 10
+    },
+    {
+      "id": "src:components/GrowwPortfolioGrowthChart.jsx",
+      "label": "GrowwPortfolioGrowthChart",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/GrowwPortfolioGrowthChart.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\GrowwPortfolioGrowthChart.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 421,
+      "size": 18709,
+      "connections": 3,
+      "value": 10
+    },
+    {
+      "id": "src:components/PortfolioHealthModal.jsx",
+      "label": "PortfolioHealthModal",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/PortfolioHealthModal.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\PortfolioHealthModal.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 153,
+      "size": 7322,
+      "connections": 3,
+      "value": 10
+    },
+    {
+      "id": "src:context/ToastContext.jsx",
+      "label": "ToastContext",
+      "type": "code",
+      "group": "Context Providers",
+      "file": "context/ToastContext.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\context\\ToastContext.jsx",
+      "color": "#8b5cf6",
+      "shape": "hexagon",
+      "lineCount": 80,
+      "size": 3282,
+      "connections": 3,
+      "value": 10
+    },
+    {
+      "id": "src:data/default_sips.json",
+      "label": "default_sips",
+      "type": "code",
+      "group": "Data & Datasets",
+      "file": "data/default_sips.json",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\data\\default_sips.json",
+      "color": "#ec4899",
+      "shape": "triangle",
+      "lineCount": 45,
+      "size": 1236,
+      "connections": 3,
+      "value": 10
+    },
+    {
+      "id": "src:data/past_expenses.json",
+      "label": "past_expenses",
+      "type": "code",
+      "group": "Data & Datasets",
+      "file": "data/past_expenses.json",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\data\\past_expenses.json",
+      "color": "#ec4899",
+      "shape": "triangle",
+      "lineCount": 3852,
+      "size": 97057,
+      "connections": 3,
+      "value": 10
+    },
+    {
+      "id": "db:goals",
+      "label": "📊 DB: goals",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: goals",
+      "connections": 2,
+      "value": 10
+    },
+    {
+      "id": "db:budgets",
+      "label": "📊 DB: budgets",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: budgets",
+      "connections": 2,
+      "value": 10
+    },
+    {
+      "id": "src:components/Charts.jsx",
+      "label": "Charts",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/Charts.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\Charts.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 193,
+      "size": 7150,
+      "connections": 2,
+      "value": 10
+    },
+    {
+      "id": "src:pages/Login.jsx",
+      "label": "Login",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Login.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Login.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 104,
+      "size": 3397,
+      "connections": 2,
+      "value": 10
+    },
+    {
+      "id": "src:pages/Signup.jsx",
+      "label": "Signup",
+      "type": "code",
+      "group": "Pages & Routes",
+      "file": "pages/Signup.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\pages\\Signup.jsx",
+      "color": "#10b981",
+      "shape": "diamond",
+      "lineCount": 138,
+      "size": 4749,
+      "connections": 2,
+      "value": 10
+    },
+    {
+      "id": "src:utils/defaultData.js",
+      "label": "defaultData",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/defaultData.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\defaultData.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 124,
+      "size": 4848,
+      "connections": 2,
+      "value": 10
+    },
+    {
+      "id": "src:utils/mfApi.js",
+      "label": "mfApi",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/mfApi.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\mfApi.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 272,
+      "size": 9409,
+      "connections": 2,
+      "value": 10
+    },
+    {
+      "id": "db:sip_payments",
+      "label": "📊 DB: sip_payments",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: sip_payments",
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "db:net_worth_custom_assets",
+      "label": "📊 DB: net_worth_custom_assets",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: net_worth_custom_assets",
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:components/BottomNav.jsx",
+      "label": "BottomNav",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/BottomNav.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\BottomNav.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 46,
+      "size": 1382,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:components/CommandPalette.jsx",
+      "label": "CommandPalette",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/CommandPalette.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\CommandPalette.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 153,
+      "size": 6177,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:components/ErrorBoundary.jsx",
+      "label": "ErrorBoundary",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/ErrorBoundary.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\ErrorBoundary.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 53,
+      "size": 1781,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:components/NetworkStatusIndicator.jsx",
+      "label": "NetworkStatusIndicator",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/NetworkStatusIndicator.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\NetworkStatusIndicator.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 55,
+      "size": 1583,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:components/SummaryCard.jsx",
+      "label": "SummaryCard",
+      "type": "code",
+      "group": "UI Components",
+      "file": "components/SummaryCard.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\components\\SummaryCard.jsx",
+      "color": "#3b82f6",
+      "shape": "dot",
+      "lineCount": 34,
+      "size": 1521,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:main.jsx",
+      "label": "main",
+      "type": "code",
+      "group": "Utils",
+      "file": "main.jsx",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\main.jsx",
+      "color": "#64748b",
+      "shape": "dot",
+      "lineCount": 11,
+      "size": 229,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:utils/growwParser.js",
+      "label": "growwParser",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/growwParser.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\growwParser.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 158,
+      "size": 5943,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:utils/offlineStorage.js",
+      "label": "offlineStorage",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/offlineStorage.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\offlineStorage.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 63,
+      "size": 1690,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "src:utils/statementParser.js",
+      "label": "statementParser",
+      "type": "code",
+      "group": "Core Utilities",
+      "file": "utils/statementParser.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\utils\\statementParser.js",
+      "color": "#06b6d4",
+      "shape": "ellipse",
+      "lineCount": 172,
+      "size": 7084,
+      "connections": 1,
+      "value": 10
+    },
+    {
+      "id": "db:users",
+      "label": "📊 DB: users",
+      "type": "database",
+      "group": "Database Tables",
+      "color": "#f59e0b",
+      "shape": "database",
+      "description": "Supabase PostgreSQL table: users",
+      "connections": 0,
+      "value": 10
+    },
+    {
+      "id": "src:lib/localDB.js",
+      "label": "localDB",
+      "type": "code",
+      "group": "Clients & Config",
+      "file": "lib/localDB.js",
+      "fullPath": "C:\\Users\\ManojShankar\\Desktop\\Learnings\\Expenses_website\\Version_1.1\\finance-tracker\\src\\lib\\localDB.js",
+      "color": "#f97316",
+      "shape": "square",
+      "lineCount": 272,
+      "size": 7731,
+      "connections": 0,
+      "value": 10
+    }
+  ],
+  "edges": [
+    {
+      "key": "src:App.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:context/AdminContext.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:context/AdminContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:context/ToastContext.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:context/ToastContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:components/ErrorBoundary.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:components/ErrorBoundary.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Login.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Login.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Signup.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Signup.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Dashboard.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Dashboard.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Transactions.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Transactions.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/PastExpenses.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/PastExpenses.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/MutualFunds.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/MutualFunds.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/NetWorth.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/NetWorth.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Goals.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Goals.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Budgets.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Budgets.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/SIPs.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/SIPs.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Debts.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Debts.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:App.jsx->src:pages/Reports.jsx:imports",
+      "source": "src:App.jsx",
+      "target": "src:pages/Reports.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/AdminLockModal.jsx->src:context/AdminContext.jsx:imports",
+      "source": "src:components/AdminLockModal.jsx",
+      "target": "src:context/AdminContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/AdminLockModal.jsx->src:components/Modal.jsx:imports",
+      "source": "src:components/AdminLockModal.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/CategoryManager.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:components/CategoryManager.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/CategoryManager.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:components/CategoryManager.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/CategoryManager.jsx->src:context/AdminContext.jsx:imports",
+      "source": "src:components/CategoryManager.jsx",
+      "target": "src:context/AdminContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/CategoryManager.jsx->src:utils/defaultData.js:imports",
+      "source": "src:components/CategoryManager.jsx",
+      "target": "src:utils/defaultData.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/CategoryManager.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:components/CategoryManager.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/CategoryManager.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:components/CategoryManager.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/CategoryManager.jsx->db:categories:queries",
+      "source": "src:components/CategoryManager.jsx",
+      "target": "db:categories",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/Charts.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:components/Charts.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:components/Modal.jsx:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:context/ToastContext.jsx:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:context/ToastContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:utils/offlineStorage.js:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:utils/offlineStorage.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:data/past_expenses.json:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:data/past_expenses.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:data/groww_holdings.json:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:data/groww_holdings.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->src:data/default_sips.json:imports",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "src:data/default_sips.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->db:transactions:queries",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->db:sips:queries",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "db:sips",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->db:debts:queries",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "db:debts",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->db:mutual_funds:queries",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "db:mutual_funds",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->db:goals:queries",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "db:goals",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/DataBackupModal.jsx->db:budgets:queries",
+      "source": "src:components/DataBackupModal.jsx",
+      "target": "db:budgets",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/DebtCard.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:components/DebtCard.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DebtCard.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:components/DebtCard.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DebtCard.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:components/DebtCard.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/DebtCard.jsx->src:components/Modal.jsx:imports",
+      "source": "src:components/DebtCard.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/GrowwPortfolioGrowthChart.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:components/GrowwPortfolioGrowthChart.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/GrowwPortfolioGrowthChart.jsx->src:utils/mfApi.js:imports",
+      "source": "src:components/GrowwPortfolioGrowthChart.jsx",
+      "target": "src:utils/mfApi.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Layout.jsx->src:components/Sidebar.jsx:imports",
+      "source": "src:components/Layout.jsx",
+      "target": "src:components/Sidebar.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Layout.jsx->src:components/BottomNav.jsx:imports",
+      "source": "src:components/Layout.jsx",
+      "target": "src:components/BottomNav.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Layout.jsx->src:components/AdminLockModal.jsx:imports",
+      "source": "src:components/Layout.jsx",
+      "target": "src:components/AdminLockModal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Layout.jsx->src:components/NetworkStatusIndicator.jsx:imports",
+      "source": "src:components/Layout.jsx",
+      "target": "src:components/NetworkStatusIndicator.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Layout.jsx->src:components/CommandPalette.jsx:imports",
+      "source": "src:components/Layout.jsx",
+      "target": "src:components/CommandPalette.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Layout.jsx->src:components/DataBackupModal.jsx:imports",
+      "source": "src:components/Layout.jsx",
+      "target": "src:components/DataBackupModal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Layout.jsx->src:context/AdminContext.jsx:imports",
+      "source": "src:components/Layout.jsx",
+      "target": "src:context/AdminContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PaymentMethodManager.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:components/PaymentMethodManager.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PaymentMethodManager.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:components/PaymentMethodManager.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PaymentMethodManager.jsx->src:context/AdminContext.jsx:imports",
+      "source": "src:components/PaymentMethodManager.jsx",
+      "target": "src:context/AdminContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PaymentMethodManager.jsx->src:utils/defaultData.js:imports",
+      "source": "src:components/PaymentMethodManager.jsx",
+      "target": "src:utils/defaultData.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PaymentMethodManager.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:components/PaymentMethodManager.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PaymentMethodManager.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:components/PaymentMethodManager.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PaymentMethodManager.jsx->db:payment_methods:queries",
+      "source": "src:components/PaymentMethodManager.jsx",
+      "target": "db:payment_methods",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/PortfolioHealthModal.jsx->src:components/Modal.jsx:imports",
+      "source": "src:components/PortfolioHealthModal.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/PortfolioHealthModal.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:components/PortfolioHealthModal.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Sidebar.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:components/Sidebar.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Sidebar.jsx->src:context/AdminContext.jsx:imports",
+      "source": "src:components/Sidebar.jsx",
+      "target": "src:context/AdminContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/Sidebar.jsx->src:components/AdminLockModal.jsx:imports",
+      "source": "src:components/Sidebar.jsx",
+      "target": "src:components/AdminLockModal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/SipCard.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:components/SipCard.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/SipCard.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:components/SipCard.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/SipCard.jsx->src:utils/sipUtils.js:imports",
+      "source": "src:components/SipCard.jsx",
+      "target": "src:utils/sipUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/SipCard.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:components/SipCard.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/StatementImportModal.jsx->src:components/Modal.jsx:imports",
+      "source": "src:components/StatementImportModal.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/StatementImportModal.jsx->src:utils/statementParser.js:imports",
+      "source": "src:components/StatementImportModal.jsx",
+      "target": "src:utils/statementParser.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/StatementImportModal.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:components/StatementImportModal.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/TransactionForm.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:components/TransactionForm.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/TransactionForm.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:components/TransactionForm.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/TransactionForm.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:components/TransactionForm.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/TransactionForm.jsx->db:categories:queries",
+      "source": "src:components/TransactionForm.jsx",
+      "target": "db:categories",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/TransactionForm.jsx->db:payment_methods:queries",
+      "source": "src:components/TransactionForm.jsx",
+      "target": "db:payment_methods",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/TransactionForm.jsx->db:transactions:queries",
+      "source": "src:components/TransactionForm.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:components/TransactionList.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:components/TransactionList.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/TransactionList.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:components/TransactionList.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/TransactionList.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:components/TransactionList.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:components/TransactionList.jsx->src:components/EmptyState.jsx:imports",
+      "source": "src:components/TransactionList.jsx",
+      "target": "src:components/EmptyState.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:context/AuthContext.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:context/AuthContext.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:main.jsx->src:App.jsx:imports",
+      "source": "src:main.jsx",
+      "target": "src:App.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/Budgets.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Budgets.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/Budgets.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->src:components/Modal.jsx:imports",
+      "source": "src:pages/Budgets.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/Budgets.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/Budgets.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:pages/Budgets.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->db:categories:queries",
+      "source": "src:pages/Budgets.jsx",
+      "target": "db:categories",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->db:transactions:queries",
+      "source": "src:pages/Budgets.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Budgets.jsx->db:budgets:queries",
+      "source": "src:pages/Budgets.jsx",
+      "target": "db:budgets",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:components/SummaryCard.jsx:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:components/SummaryCard.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:components/EmptyState.jsx:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:components/EmptyState.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:utils/sipUtils.js:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:utils/sipUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:data/past_expenses.json:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:data/past_expenses.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:data/default_sips.json:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:data/default_sips.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->src:data/groww_holdings.json:imports",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "src:data/groww_holdings.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->db:transactions:queries",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->db:sips:queries",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "db:sips",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Dashboard.jsx->db:debts:queries",
+      "source": "src:pages/Dashboard.jsx",
+      "target": "db:debts",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:context/ToastContext.jsx:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:context/ToastContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:components/DebtCard.jsx:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:components/DebtCard.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:components/Modal.jsx:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:components/EmptyState.jsx:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:components/EmptyState.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/Debts.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Debts.jsx->db:transactions:queries",
+      "source": "src:pages/Debts.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Debts.jsx->db:debts:queries",
+      "source": "src:pages/Debts.jsx",
+      "target": "db:debts",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Goals.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/Goals.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Goals.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Goals.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Goals.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/Goals.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Goals.jsx->src:components/Modal.jsx:imports",
+      "source": "src:pages/Goals.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Goals.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:pages/Goals.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Goals.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/Goals.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Goals.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:pages/Goals.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Goals.jsx->db:goals:queries",
+      "source": "src:pages/Goals.jsx",
+      "target": "db:goals",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Login.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Login.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:components/Modal.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:components/EmptyState.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:components/EmptyState.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:utils/mfApi.js:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:utils/mfApi.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:utils/growwParser.js:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:utils/growwParser.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:data/groww_holdings.json:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:data/groww_holdings.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:components/GrowwPortfolioGrowthChart.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:components/GrowwPortfolioGrowthChart.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->src:components/PortfolioHealthModal.jsx:imports",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "src:components/PortfolioHealthModal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/MutualFunds.jsx->db:mutual_funds:queries",
+      "source": "src:pages/MutualFunds.jsx",
+      "target": "db:mutual_funds",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:components/Modal.jsx:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->src:data/groww_holdings.json:imports",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "src:data/groww_holdings.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->db:debts:queries",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "db:debts",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->db:mutual_funds:queries",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "db:mutual_funds",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/NetWorth.jsx->db:net_worth_custom_assets:queries",
+      "source": "src:pages/NetWorth.jsx",
+      "target": "db:net_worth_custom_assets",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->src:data/past_expenses.json:imports",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "src:data/past_expenses.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->db:categories:queries",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "db:categories",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->db:payment_methods:queries",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "db:payment_methods",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/PastExpenses.jsx->db:transactions:queries",
+      "source": "src:pages/PastExpenses.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Reports.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/Reports.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Reports.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Reports.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Reports.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/Reports.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Reports.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/Reports.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Reports.jsx->src:components/Charts.jsx:imports",
+      "source": "src:pages/Reports.jsx",
+      "target": "src:components/Charts.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Reports.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:pages/Reports.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Reports.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/Reports.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Reports.jsx->db:transactions:queries",
+      "source": "src:pages/Reports.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Signup.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Signup.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:components/SipCard.jsx:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:components/SipCard.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:components/Modal.jsx:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:components/EmptyState.jsx:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:components/EmptyState.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:components/ConfirmDialog.jsx:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:components/ConfirmDialog.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:utils/formatCurrency.js:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:utils/formatCurrency.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:utils/dateUtils.js:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:utils/sipUtils.js:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:utils/sipUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:data/default_sips.json:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:data/default_sips.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->src:data/groww_holdings.json:imports",
+      "source": "src:pages/SIPs.jsx",
+      "target": "src:data/groww_holdings.json",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->db:transactions:queries",
+      "source": "src:pages/SIPs.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->db:sips:queries",
+      "source": "src:pages/SIPs.jsx",
+      "target": "db:sips",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->db:sip_payments:queries",
+      "source": "src:pages/SIPs.jsx",
+      "target": "db:sip_payments",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/SIPs.jsx->db:mutual_funds:queries",
+      "source": "src:pages/SIPs.jsx",
+      "target": "db:mutual_funds",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:lib/supabaseClient.js:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:lib/supabaseClient.js",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:context/AuthContext.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:context/AuthContext.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/Layout.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/Layout.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/TransactionForm.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/TransactionForm.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/TransactionList.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/TransactionList.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/Modal.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/Modal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/LoadingSpinner.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/LoadingSpinner.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/CategoryManager.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/CategoryManager.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/PaymentMethodManager.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/PaymentMethodManager.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/AdminLockModal.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/AdminLockModal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->src:components/StatementImportModal.jsx:imports",
+      "source": "src:pages/Transactions.jsx",
+      "target": "src:components/StatementImportModal.jsx",
+      "relation": "imports",
+      "label": "imports"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->db:categories:queries",
+      "source": "src:pages/Transactions.jsx",
+      "target": "db:categories",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->db:payment_methods:queries",
+      "source": "src:pages/Transactions.jsx",
+      "target": "db:payment_methods",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:pages/Transactions.jsx->db:transactions:queries",
+      "source": "src:pages/Transactions.jsx",
+      "target": "db:transactions",
+      "relation": "queries",
+      "label": "queries"
+    },
+    {
+      "key": "src:utils/sipUtils.js->src:utils/dateUtils.js:imports",
+      "source": "src:utils/sipUtils.js",
+      "target": "src:utils/dateUtils.js",
+      "relation": "imports",
+      "label": "imports"
+    }
+  ]
+}
