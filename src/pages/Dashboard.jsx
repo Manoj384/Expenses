@@ -39,6 +39,8 @@ export default function Dashboard() {
   const [upcomingSips, setUpcomingSips] = useState([])
   const [paymentBreakdown, setPaymentBreakdown] = useState([])
   const [showCashflowModal, setShowCashflowModal] = useState(false)
+  const [mfList, setMfList] = useState(savedGrowwData)
+  const [goalsList, setGoalsList] = useState([])
 
   const fetchData = useCallback(async () => {
     if (!user) return
@@ -48,7 +50,7 @@ export default function Dashboard() {
       const monthStart = startOfMonth()
       const monthEnd = endOfMonth()
 
-      const [txRes, sipRes, debtRes, recentRes, upcomingRes] = await Promise.all([
+      const [txRes, sipRes, debtRes, recentRes, upcomingRes, mfRes, goalRes] = await Promise.all([
         supabase
           .from('transactions')
           .select('type, amount, payment_methods(name)')
@@ -82,6 +84,18 @@ export default function Dashboard() {
           .eq('active', true)
           .order('next_due_date')
           .limit(5),
+
+        supabase
+          .from('mutual_funds')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('current_value', { ascending: false }),
+
+        supabase
+          .from('goals')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
       ])
 
       if (txRes.error) throw txRes.error
@@ -108,6 +122,25 @@ export default function Dashboard() {
       setRecentTxns(recentRes.data || [])
       setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
+      // Mutual funds live sync
+      if (!mfRes.error && mfRes.data && mfRes.data.length > 0) {
+        setMfList(mfRes.data)
+      } else {
+        setMfList(savedGrowwData)
+      }
+
+      // Goals live sync
+      let loadedGoals = []
+      if (!goalRes.error && goalRes.data && goalRes.data.length > 0) {
+        loadedGoals = goalRes.data
+      } else {
+        try {
+          const cached = localStorage.getItem(`ft_financial_goals_${user.id}`)
+          if (cached) loadedGoals = JSON.parse(cached)
+        } catch {}
+      }
+      setGoalsList(loadedGoals)
+
       const payArr = Object.entries(payMap)
         .map(([name, amount]) => ({ name, amount }))
         .sort((a, b) => b.amount - a.amount)
@@ -123,18 +156,34 @@ export default function Dashboard() {
     fetchData()
   }, [fetchData])
 
+  // Refresh live data on tab focus
+  useEffect(() => {
+    const handleFocus = () => fetchData()
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [fetchData])
+
   const netSavings = monthIncome - monthExpense
   const savingsRate = monthIncome > 0 ? ((netSavings / monthIncome) * 100).toFixed(0) : 0
 
   // Past expenses total
   const pastTotal = pastData.reduce((s, d) => s + d.amount, 0)
-  const count2024 = pastData.filter(d => d.date.startsWith('2024')).length
-  const count2025 = pastData.filter(d => d.date.startsWith('2025')).length
-  const count2026 = pastData.filter(d => d.date.startsWith('2026')).length
 
-  // Groww Portfolio Total
-  const totalMfValue = savedGrowwData.reduce((s, f) => s + f.current_value, 0)
-  const totalMfGain = savedGrowwData.reduce((s, f) => s + (f.current_value - f.invested_amount), 0)
+  // Live Mutual Funds Calculations
+  const totalMfValue = mfList.reduce((s, f) => s + Number(f.current_value || 0), 0)
+  const totalMfInvested = mfList.reduce((s, f) => s + Number(f.invested_amount || 0), 0)
+  const totalMfGain = totalMfValue - totalMfInvested
+  const mfGainPercent = totalMfInvested > 0 ? ((totalMfGain / totalMfInvested) * 100).toFixed(1) : '0.0'
+  const mfCount = mfList.length
+
+  // Live Goals Calculations
+  const totalGoalsTarget = goalsList.reduce((s, g) => s + Number(g.target_amount || 0), 0)
+  const totalGoalsSaved = goalsList.reduce((s, g) => s + Number(g.current_amount || 0), 0)
+  const goalsProgress = totalGoalsTarget > 0 ? ((totalGoalsSaved / totalGoalsTarget) * 100).toFixed(1) : '0.0'
+  const goalsCount = goalsList.length
+  const goalsSummaryText = goalsCount > 0
+    ? goalsList.slice(0, 3).map((g) => (g.name || '').replace(/^[^\w\s]+/, '').trim()).join(' • ')
+    : 'No active goals'
 
   if (loading) {
     return (
@@ -195,14 +244,14 @@ export default function Dashboard() {
           value={activeSips}
           icon={Wallet}
           color="purple"
-          subtitle="₹2,500/mo Groww SIPs"
+          subtitle="Running SIPs"
         />
         <SummaryCard
           title="Mutual Funds Portfolio"
           value={formatCurrency(totalMfValue)}
           icon={LineChart}
           color="green"
-          subtitle={`+${formatCurrency(totalMfGain)} (+7.7%)`}
+          subtitle={`${totalMfGain >= 0 ? '+' : ''}${formatCurrency(totalMfGain)} (${totalMfGain >= 0 ? '+' : ''}${mfGainPercent}%)`}
         />
       </div>
 
@@ -217,11 +266,13 @@ export default function Dashboard() {
             <h3 className="font-bold text-sm text-white">Mutual Funds Hub</h3>
             <p className="text-xl font-extrabold text-white mt-1">{formatCurrency(totalMfValue)}</p>
             <p className="text-[11px] text-teal-200 mt-0.5">
-              Profit: <strong className="text-emerald-300">+{formatCurrency(totalMfGain)}</strong>
+              Profit: <strong className={totalMfGain >= 0 ? 'text-emerald-300' : 'text-rose-300'}>
+                {totalMfGain >= 0 ? `+${formatCurrency(totalMfGain)}` : formatCurrency(totalMfGain)} ({mfGainPercent}%)
+              </strong>
             </p>
           </div>
           <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
-            <span className="text-[10px] text-teal-200/80">8 Active Folios</span>
+            <span className="text-[10px] text-teal-200/80">{mfCount} Active Folios</span>
             <Link
               to="/mutual-funds"
               className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-[11px] py-1 px-2.5 rounded-lg flex items-center gap-1 shadow-sm transition-all"
@@ -261,13 +312,15 @@ export default function Dashboard() {
               <Target className="h-3 w-3 text-teal-300" /> Milestones
             </span>
             <h3 className="font-bold text-sm text-white">Financial Goals</h3>
-            <p className="text-xl font-extrabold text-white mt-1">3 Active Goals</p>
-            <p className="text-[11px] text-teal-200 mt-0.5">
-              Emergency Fund • Car • Vacation
+            <p className="text-xl font-extrabold text-white mt-1">{goalsCount} Active Goal{goalsCount === 1 ? '' : 's'}</p>
+            <p className="text-[11px] text-teal-200 mt-0.5 truncate">
+              {goalsSummaryText}
             </p>
           </div>
           <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
-            <span className="text-[10px] text-teal-200/80">37.4% Completed</span>
+            <span className="text-[10px] text-teal-200/80">
+              {goalsProgress}% ({formatCurrencyShort(totalGoalsSaved)} / {formatCurrencyShort(totalGoalsTarget)})
+            </span>
             <Link
               to="/goals"
               className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-[11px] py-1 px-2.5 rounded-lg flex items-center gap-1 shadow-sm transition-all"

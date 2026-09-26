@@ -24,14 +24,24 @@ export default function Layout({ children, title }) {
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 md:px-6 py-3 sticky top-0 z-30 flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h1>
+        <header className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-3 md:px-6 py-2.5 md:py-3 sticky top-0 z-30 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2 md:gap-3 min-w-0">
+            <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-white truncate">{title}</h1>
             <NetworkStatusIndicator />
           </div>
 
           {/* Header Action Badges */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            {/* Ask AI Copilot Header Trigger */}
+            <button
+              onClick={() => setShowAiModal(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-xs shadow-indigo-500/20 transition-all scale-100 hover:scale-[1.02] active:scale-95 flex-shrink-0"
+              title="Ask AI Financial Advisor & Wealth Copilot"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+              <span>Ask AI</span>
+            </button>
+
             {/* Notification Center Bell & Due Date Alerts */}
             <NotificationCenter />
 
@@ -43,16 +53,6 @@ export default function Layout({ children, title }) {
               aria-label="Toggle Theme"
             >
               {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
-            </button>
-
-            {/* Ask AI Copilot Header Trigger */}
-            <button
-              onClick={() => setShowAiModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xs shadow-blue-500/20 transition-all scale-100 hover:scale-[1.02] active:scale-95"
-              title="Ask AI Financial Advisor & Wealth Copilot"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
-              <span>Ask AI</span>
             </button>
 
             {/* Quick Command Palette Launcher */}
@@ -74,17 +74,17 @@ export default function Layout({ children, title }) {
             {/* Data Backup & Export Button */}
             <button
               onClick={() => setShowBackupModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 dark:bg-slate-800 dark:text-indigo-300 dark:border-slate-700 transition-all"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 dark:bg-slate-800 dark:text-indigo-300 dark:border-slate-700 transition-all"
               title="1-Click JSON Backup & Disaster Recovery"
             >
               <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="hidden sm:inline">Backup</span>
+              <span>Backup</span>
             </button>
 
             {/* Admin status badge */}
             <button
               onClick={() => setShowAdminModal(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
                 isAdmin
                   ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700 shadow-xs'
                   : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700'
@@ -99,7 +99,7 @@ export default function Layout({ children, title }) {
               ) : (
                 <>
                   <Shield className="h-3.5 w-3.5 text-gray-400" />
-                  <span className="hidden sm:inline">Admin (Off)</span>
+                  <span>Admin (Off)</span>
                 </>
               )}
             </button>
@@ -112,7 +112,7 @@ export default function Layout({ children, title }) {
         </main>
       </div>
 
-      <BottomNav />
+      <BottomNav onOpenAi={() => setShowAiModal(true)} />
 
       {/* Global Modals & Command Palette */}
       <CommandPalette />
