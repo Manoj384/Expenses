@@ -263,7 +263,7 @@ Output strictly raw JSON without markdown backticks or commentary.`
     }
   } catch (err) {
     if (err.message === 'MISSING_API_KEY') {
-      return localStatementHeuristicParser(rawTextHint || '')
+      throw new Error('MISSING_API_KEY: Please configure your Gemini API Key in the top right Settings or in Render Environment Variables (VITE_GEMINI_API_KEY).')
     }
     throw err
   }

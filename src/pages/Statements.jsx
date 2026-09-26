@@ -108,7 +108,12 @@ export default function Statements() {
           addToast('Could not find transactions in this document. Try a clearer image or PDF.', 'warning')
         }
       } catch (err) {
-        addToast(err?.message || 'Failed to parse statement. Check API key or format.', 'error')
+        if (err?.message?.includes('MISSING_API_KEY')) {
+          setShowApiKeyModal(true)
+          addToast('Please enter your Gemini API Key to enable AI statement parsing on this domain.', 'warning')
+        } else {
+          addToast(err?.message || 'Failed to parse statement. Check API key or format.', 'error')
+        }
       } finally {
         setIsProcessing(false)
       }
@@ -157,7 +162,12 @@ export default function Statements() {
         }
       }
     } catch (err) {
-      addToast(err?.message || 'Failed to continue extraction.', 'error')
+      if (err?.message?.includes('MISSING_API_KEY')) {
+        setShowApiKeyModal(true)
+        addToast('Please enter your Gemini API Key to continue AI extraction.', 'warning')
+      } else {
+        addToast(err?.message || 'Failed to continue extraction.', 'error')
+      }
     } finally {
       setIsProcessing(false)
     }

@@ -76,9 +76,9 @@ export default function AiFinancialAdvisorModal({ isOpen, onClose }) {
         // SIPs
         const { data: sips } = await supabase
           .from('sips')
-          .select('id, is_active')
+          .select('id, active')
           .eq('user_id', user.id)
-        const activeSips = sips ? sips.filter((s) => s.is_active !== false).length : 0
+        const activeSips = sips ? sips.filter((s) => s.active !== false).length : 0
 
         // Mutual Funds
         const { data: mfs } = await supabase
