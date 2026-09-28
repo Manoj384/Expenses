@@ -141,14 +141,13 @@ export default function Dashboard() {
         setMfList(savedGrowwData)
       }
 
-      // Goals live sync
+      // Goals live sync (strictly sync with Supabase and purge old localStorage cache)
       let loadedGoals = []
-      if (!goalRes.error && goalRes.data && goalRes.data.length > 0) {
+      if (!goalRes.error && goalRes.data) {
         loadedGoals = goalRes.data
-      } else {
         try {
-          const cached = localStorage.getItem(`ft_financial_goals_${user.id}`)
-          if (cached) loadedGoals = JSON.parse(cached)
+          localStorage.removeItem(`ft_financial_goals_${user.id}`)
+          localStorage.removeItem('ft_financial_goals')
         } catch {}
       }
       setGoalsList(loadedGoals)
@@ -221,7 +220,7 @@ export default function Dashboard() {
       liquidAssets: totalMfValue > 0 ? totalMfValue : 112341,
       totalDebts: totalDebt,
       monthlyInvestments: 25000,
-      goalsCount: goalsCount > 0 ? goalsCount : 3,
+      goalsCount: goalsCount,
     })
   }, [monthIncome, monthExpense, totalMfValue, totalDebt, goalsCount])
 

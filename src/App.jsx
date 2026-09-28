@@ -6,6 +6,7 @@ import { ToastProvider } from './context/ToastContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { NotificationProvider } from './context/NotificationContext'
 import { CurrencyProvider } from './context/CurrencyContext'
+import { DesktopModeProvider } from './context/DesktopModeContext'
 import LoadingSpinner from './components/LoadingSpinner'
 import ErrorBoundary from './components/ErrorBoundary'
 
@@ -25,6 +26,7 @@ const Statements   = lazy(() => import('./pages/Statements'))
 const Reports      = lazy(() => import('./pages/Reports'))
 const Splitwise    = lazy(() => import('./pages/Splitwise'))
 const BillReminders = lazy(() => import('./pages/BillReminders'))
+const Reminders    = lazy(() => import('./pages/Reminders'))
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -63,6 +65,7 @@ function AppRoutes() {
         <Route path="/"              element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/dashboard"     element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/transactions"  element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+        <Route path="/reminders"     element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
         <Route path="/mutual-funds"  element={<ProtectedRoute><MutualFunds /></ProtectedRoute>} />
         <Route path="/net-worth"     element={<ProtectedRoute><NetWorth /></ProtectedRoute>} />
         <Route path="/goals"         element={<ProtectedRoute><Goals /></ProtectedRoute>} />
@@ -86,21 +89,23 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <BrowserRouter>
-          <ToastProvider>
-            <CurrencyProvider>
-              <AuthProvider>
-                <NotificationProvider>
-                  <AdminProvider>
-                    <AppRoutes />
-                  </AdminProvider>
-                </NotificationProvider>
-              </AuthProvider>
-            </CurrencyProvider>
-          </ToastProvider>
-        </BrowserRouter>
-      </ThemeProvider>
+      <DesktopModeProvider>
+        <ThemeProvider>
+          <BrowserRouter>
+            <ToastProvider>
+              <CurrencyProvider>
+                <AuthProvider>
+                  <NotificationProvider>
+                    <AdminProvider>
+                      <AppRoutes />
+                    </AdminProvider>
+                  </NotificationProvider>
+                </AuthProvider>
+              </CurrencyProvider>
+            </ToastProvider>
+          </BrowserRouter>
+        </ThemeProvider>
+      </DesktopModeProvider>
     </ErrorBoundary>
   )
 }

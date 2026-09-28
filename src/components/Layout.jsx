@@ -6,23 +6,26 @@ import NetworkStatusIndicator from './NetworkStatusIndicator'
 import CommandPalette from './CommandPalette'
 import DataBackupModal from './DataBackupModal'
 import NotificationCenter from './NotificationCenter'
-import AiFinancialAdvisorModal from './AiFinancialAdvisorModal'
-
+import AiChatbotWidget from './AiChatbotWidget'
 import KeyboardShortcutsModal from './KeyboardShortcutsModal'
 import OnboardingWizardModal from './OnboardingWizardModal'
+import AlarmRingingModal from './AlarmRingingModal'
 import QuickAddFAB from './QuickAddFAB'
 import { useAdmin } from '../context/AdminContext'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut, HelpCircle, Compass } from 'lucide-react'
+import { useDesktopMode } from '../context/DesktopModeContext'
+import { useToast } from '../context/ToastContext'
+import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut, HelpCircle, Compass, Monitor, Smartphone, Bot } from 'lucide-react'
 
 export default function Layout({ children, title }) {
   const { isAdmin } = useAdmin()
   const { isDark, toggleTheme } = useTheme()
+  const { isDesktopSite, toggleDesktopSite } = useDesktopMode()
+  const toast = useToast()
   const { logout } = useAuth()
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
-  const [showAiModal, setShowAiModal] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
 
@@ -58,18 +61,39 @@ export default function Layout({ children, title }) {
 
           {/* Header Action Badges */}
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-            {/* Ask AI Copilot Header Trigger */}
-            <button
-              onClick={() => setShowAiModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-xs shadow-indigo-500/20 transition-all scale-100 hover:scale-[1.02] active:scale-95 flex-shrink-0"
-              title="Ask AI Financial Advisor & Wealth Copilot"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
-              <span>Ask AI</span>
-            </button>
-
             {/* Notification Center Bell & Due Date Alerts */}
             <NotificationCenter />
+
+            {/* Desktop Site Mode Toggle Button */}
+            <button
+              onClick={() => {
+                toggleDesktopSite()
+                if (!isDesktopSite) {
+                  toast.info('Desktop Site View enabled (1280px layout)')
+                } else {
+                  toast.info('Mobile Responsive View restored')
+                }
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                isDesktopSite
+                  ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-700 shadow-xs'
+                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700'
+              }`}
+              title={isDesktopSite ? 'Switch back to Mobile Responsive View' : 'Switch to Desktop Site View (Full 1280px layout)'}
+              aria-label="Toggle Desktop Site Mode"
+            >
+              {isDesktopSite ? (
+                <>
+                  <Smartphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <span className="hidden sm:inline">Mobile View</span>
+                </>
+              ) : (
+                <>
+                  <Monitor className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                  <span className="hidden sm:inline">Desktop Site</span>
+                </>
+              )}
+            </button>
 
             {/* Dark Mode Toggle */}
             <button
@@ -169,20 +193,16 @@ export default function Layout({ children, title }) {
       </div>
 
       <QuickAddFAB />
+      <AiChatbotWidget />
 
       <BottomNav
-        onOpenAi={() => setShowAiModal(true)}
+        onOpenAi={() => window.dispatchEvent(new CustomEvent('open-ai-chat'))}
         onOpenAdmin={() => setShowAdminModal(true)}
         onOpenBackup={() => setShowBackupModal(true)}
       />
 
       {/* Global Modals & Command Palette */}
       <CommandPalette />
-
-      <AiFinancialAdvisorModal
-        isOpen={showAiModal}
-        onClose={() => setShowAiModal(false)}
-      />
 
       <AdminLockModal
         isOpen={showAdminModal}
@@ -203,6 +223,8 @@ export default function Layout({ children, title }) {
         isOpen={showOnboardingModal}
         onClose={() => setShowOnboardingModal(false)}
       />
+
+      <AlarmRingingModal />
     </div>
   )
 }

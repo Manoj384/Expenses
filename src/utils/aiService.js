@@ -14,7 +14,9 @@ const STORAGE_AI_MODEL = 'ft_ai_model'
 
 export function getGeminiApiKey() {
   try {
-    return localStorage.getItem(STORAGE_API_KEY) || import.meta.env.VITE_GEMINI_API_KEY || ''
+    const saved = localStorage.getItem(STORAGE_API_KEY)
+    if (saved && saved.trim()) return saved.trim()
+    return import.meta.env.VITE_GEMINI_API_KEY || ''
   } catch {
     return import.meta.env.VITE_GEMINI_API_KEY || ''
   }
@@ -32,15 +34,19 @@ export function setGeminiApiKey(key) {
 
 export function getAiModel() {
   try {
-    return localStorage.getItem(STORAGE_AI_MODEL) || 'gemini-flash-latest'
+    const saved = localStorage.getItem(STORAGE_AI_MODEL)
+    if (saved && (saved === 'gemini-3.6-flash' || saved === 'gemini-3.8-flash' || saved.startsWith('gpt-'))) {
+      return saved
+    }
+    return 'gemini-3.6-flash'
   } catch {
-    return 'gemini-flash-latest'
+    return 'gemini-3.6-flash'
   }
 }
 
 export function setAiModel(model) {
   try {
-    localStorage.setItem(STORAGE_AI_MODEL, model || 'gemini-flash-latest')
+    localStorage.setItem(STORAGE_AI_MODEL, model || 'gemini-3.6-flash')
   } catch {}
 }
 
@@ -94,10 +100,7 @@ async function callAi(prompt, inlineData = null) {
     return data.choices?.[0]?.message?.content || ''
   }
 
-  // Google Gemini Auto-Cascading Models
-  const candidateModels = model.includes('pro')
-    ? ['gemini-pro-latest', 'gemini-3.1-pro-preview', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-latest']
-    : ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.7-flash']
+  const candidateModels = ['gemini-3.6-flash']
 
   const contents = []
   const parts = []
@@ -116,16 +119,21 @@ async function callAi(prompt, inlineData = null) {
 
   let lastError = null
 
-  for (const m of candidateModels) {
+  // Try up to 3 progressive attempts on gemini-3.6-flash
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 400))
+    }
+
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents,
           generationConfig: {
-            temperature: 0.1,
+            temperature: 0.2,
             maxOutputTokens: 65536,
           },
         }),
@@ -284,41 +292,46 @@ export async function askFinancialAdvisorAi(userQuestion, financialContext = {},
     historyContext = `\nRECENT CONVERSATION HISTORY:\n${recent}\n`
   }
 
-  const systemContextPrompt = `You are an elite Certified Financial Planner (CFP) & Wealth Advisor AI.
-You have real-time access to the user's complete personal finance dashboard:
+  const now = new Date()
+  const todayDateStr = now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
 
-📊 LIVE FINANCIAL SNAPSHOT:
-• Monthly Inflow (Income): ₹${(financialContext.monthIncome || 0).toLocaleString('en-IN')}
-• Monthly Outflow (Expenses): ₹${(financialContext.monthExpense || 0).toLocaleString('en-IN')}
-• Net Monthly Surplus / Savings: ₹${(financialContext.netSavings || 0).toLocaleString('en-IN')} (Savings Rate: ${financialContext.savingsRate || 0}%)
-• Mutual Funds Portfolio: ₹${(financialContext.totalMfValue || 0).toLocaleString('en-IN')} (Total Return: ₹${(financialContext.totalMfGain || 0).toLocaleString('en-IN')})
-• Active SIPs: ${financialContext.activeSips || 0} running monthly
-• Total Outstanding Liabilities / Debts: ₹${(financialContext.totalDebt || 0).toLocaleString('en-IN')}
-• Tracked Financial Goals: ${financialContext.goalsCount || 0} milestones (Target: ₹${(financialContext.goalsTarget || 0).toLocaleString('en-IN')})
-• Bank & OneCard Statement Records: ${financialContext.statementTxnsCount || 0} transactions analyzed
+  const systemContextPrompt = `You are an intelligent AI Assistant powered by Google Gemini (capable of answering all questions across general knowledge, science, weather, coding, recipes, math, trivia, and conversational queries with full capability).
+
+CURRENT DATE & TIME:
+• ${todayDateStr}, ${timeStr}
+
+LIVE USER FINANCIAL SNAPSHOT (Reference if user asks about their finances, spending, mutual funds, SIPs, debts, or goals):
+• Monthly Income: ₹${(financialContext.monthIncome || 0).toLocaleString('en-IN')}
+• Monthly Expenses: ₹${(financialContext.monthExpense || 0).toLocaleString('en-IN')}
+• Net Savings: ₹${(financialContext.netSavings || 0).toLocaleString('en-IN')} (${financialContext.savingsRate || 0}% savings rate)
+• Mutual Funds Portfolio: ₹${(financialContext.totalMfValue || 0).toLocaleString('en-IN')} (Gain: ₹${(financialContext.totalMfGain || 0).toLocaleString('en-IN')})
+• Active SIPs: ${financialContext.activeSips || 0} active running
+• Outstanding Debts: ₹${(financialContext.totalDebt || 0).toLocaleString('en-IN')}
+• Tracked Goals: ${financialContext.goalsCount || 0} active milestones
 ${historyContext}
 USER QUESTION: "${userQuestion}"
 
 INSTRUCTIONS:
-1. Provide practical, highly specific, and actionable advice with realistic INR (₹) estimates tailored directly to their live numbers.
-2. Structure your response with clear markdown bullet points and bold metric highlights.
-3. Apply proven financial frameworks (50-30-20 rule, debt avalanche payoff, 6-month emergency reserve calculus, rupee-cost averaging, tax planning).
-4. Keep the tone encouraging, empowering, and concise.`
+1. Answer the user's question directly, accurately, and naturally in full detail as Google Gemini AI.
+2. If asked about weather or local conditions and no city was provided, inform them you don't have access to their GPS location and ask which city/region they'd like the weather for, or give typical seasonal info.
+3. If asked about personal finances, provide customized, smart insights based on their live numbers.
+4. Format responses with clean, readable markdown.`
 
   try {
     if (apiKey) {
       return await callGemini(systemContextPrompt)
     }
   } catch (err) {
-    console.warn('AI Advisor call fallback:', err)
+    console.warn('AI Copilot call error:', err)
   }
 
-  // In-memory Smart Advisor Fallback if no API key is provided
-  return localAdvisorRuleEngine(userQuestion, financialContext)
+  // In-memory Smart Fallback if Gemini servers are momentarily unreachable
+  return localAdvisorRuleEngine(userQuestion, financialContext, Boolean(apiKey))
 }
 
 /**
- * Local Fallback Heuristics
+ * Local Fallback Heuristics & Alexa Assistant Engine
  */
 function localReceiptHeuristicParser(dataUrl) {
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -343,25 +356,96 @@ function localStatementHeuristicParser(text) {
   ]
 }
 
-function localAdvisorRuleEngine(question, ctx) {
-  const q = question.toLowerCase()
+function localAdvisorRuleEngine(question, ctx, hasApiKey = false) {
+  const q = question.toLowerCase().trim()
   const inc = ctx.monthIncome || 0
   const exp = ctx.monthExpense || 0
   const sav = ctx.netSavings || 0
   const debt = ctx.totalDebt || 0
   const mf = ctx.totalMfValue || 0
 
-  if (q.includes('save') || q.includes('cut') || q.includes('reduce')) {
-    return `💡 **Smart Savings Analysis:**\n• Your current monthly income is ₹${inc.toLocaleString('en-IN')} and outflow is ₹${exp.toLocaleString('en-IN')}.\n• You are saving **₹${sav.toLocaleString('en-IN')} (${ctx.savingsRate || 0}% savings rate)**.\n• **Tip:** Aim to follow the 50-30-20 rule (50% Needs, 30% Wants, 20% Investments). Limiting discretionary dining & shopping can increase your savings by ₹3,000–₹5,000 monthly.`
+  // 1. Time / Date / Day (Alexa-style)
+  if (q.includes('time') && (q.includes('what') || q.includes('current') || q.includes('tell') || q.includes('now'))) {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+    return `⏰ **The current time is:** **${timeStr}**`
   }
 
+  if ((q.includes('date') || q.includes('today') || q.includes('day')) && (q.includes('what') || q.includes('which') || q.includes('tell') || q.includes('today') || q.includes('current'))) {
+    const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    return `📅 **Today is:** **${dateStr}**`
+  }
+
+  // 2. Greetings & Persona
+  if (/^(hi|hello|hey|hola|namaste|good morning|good evening|good afternoon)\b/i.test(q)) {
+    return `👋 **Hello! I'm your AI Copilot & Personal Assistant.**\n\nI can answer general questions (world facts, coding, recipes, math) and manage your personal finances (log expenses, check mutual funds & SIPs, analyze spending). How can I help you today?`
+  }
+
+  if (q.includes('who are you') || q.includes('your name') || q.includes('what can you do')) {
+    return `🤖 **I am your AI Personal Assistant & Finance Copilot** (powered by Google Gemini with live Alexa & Finance tools).\n\n✨ **What you can ask me:**\n• *"What time / date is it?"*\n• *"What is 15% of 85,000?"*\n• *"Spent ₹350 on petrol via GPay"*\n• *"What did I spend on Food this month?"*\n• *"Review my Mutual Fund portfolio & SIP health"*\n• *"When is my next SIP due?"*\n• Any general knowledge, coding, or life question!`
+  }
+
+  // 3. Alexa Jokes & Fun
+  if (q.includes('joke') || q.includes('make me laugh') || q.includes('funny')) {
+    const jokes = [
+      "😄 Why did the credit card go to therapy? It had too many balance issues!",
+      "😄 Why don't money and plants mix? Because money doesn't grow on trees!",
+      "😄 Why did the stock market investor sleep like a baby? He woke up every two hours crying!",
+      "😄 Why did the dollar break up with the penny? It needed some change!",
+    ]
+    return jokes[Math.floor(Math.random() * jokes.length)]
+  }
+
+  // 4. Financial Concepts & Definitions
+  if (q.includes('inflation')) {
+    return `📈 **What is Inflation?**\n• Inflation is the gradual increase in prices of goods and services over time, reducing the purchasing power of money.\n• In India, average inflation is ~5–6% per year.\n• **Tip:** Keeping cash in a savings account loses real value; investing in equity mutual funds / SIPs historically beats inflation over 5+ years.`
+  }
+
+  if (q.includes('xirr')) {
+    return `📊 **What is XIRR?**\n• **XIRR (Extended Internal Rate of Return)** is the standard annualized return metric for irregular cash inflows and outflows (such as monthly SIPs, top-ups, and partial withdrawals).\n• It accounts for the exact timestamp of every investment installment.`
+  }
+
+  if (q.includes('50 30 20') || q.includes('50-30-20')) {
+    return `💡 **The 50-30-20 Budgeting Framework:**\n• **50% Needs:** Essential living expenses (Rent, Groceries, Utilities, EMIs).\n• **30% Wants:** Discretionary lifestyle spending (Dining out, Entertainment, Shopping).\n• **20% Savings & Investments:** Wealth building (Mutual Fund SIPs, Emergency Reserve, Debt prepayment).`
+  }
+
+  if (q.includes('ltcg') || q.includes('stcg') || q.includes('tax on mutual')) {
+    return `🏛️ **Mutual Funds Tax Rules (Budget 2024–2026):**\n• **LTCG (Held > 12 Months):** Gains up to ₹1.25 Lakh per financial year are **100% Tax-Free**. Excess gains are taxed at **12.5%**.\n• **STCG (Held < 12 Months):** Taxed at a flat **20%** on realized gains.`
+  }
+
+  // 5. Savings / Budgeting
+  if (q.includes('save') || q.includes('cut') || q.includes('reduce') || q.includes('budget')) {
+    return `💡 **Smart Savings Analysis:**\n• Your current monthly income is ₹${inc.toLocaleString('en-IN')} and outflow is ₹${exp.toLocaleString('en-IN')}.\n• You are saving **₹${sav.toLocaleString('en-IN')} (${ctx.savingsRate || 0}% savings rate)**.\n• **Tip:** Aim to follow the 50-30-20 rule. Limiting discretionary dining & shopping can increase your savings by ₹3,000–₹5,000 monthly.`
+  }
+
+  // 6. Debts / Loans
   if (q.includes('debt') || q.includes('loan') || q.includes('emi') || q.includes('repay')) {
     return `💳 **Debt Repayment Strategy:**\n• Total outstanding debt: **₹${debt.toLocaleString('en-IN')}**.\n• **Avalanche Method:** Pay minimums on all loans, and divert any surplus cash to the debt with the highest interest (Credit Cards / Personal Loans first).\n• Pre-paying an extra ₹2,000/month can reduce total interest by up to 20% and clear your obligations months ahead of schedule.`
   }
 
-  if (q.includes('invest') || q.includes('mutual') || q.includes('sip') || q.includes('groww')) {
-    return `📈 **Portfolio & Investment Health:**\n• Current Mutual Funds Value: **₹${mf.toLocaleString('en-IN')}**.\n• You have **${ctx.activeSips || 0} active SIPs** running.\n• **Recommendation:** Maintain steady automated monthly SIPs to benefit from rupee-cost averaging. Allocate 60% in Large/Flexi-Cap, 25% Mid-Cap, and 15% Small-Cap for optimal risk-adjusted wealth creation.`
+  // 7. Mutual Funds / Portfolio / SIPs
+  if (q.includes('invest') || q.includes('mutual') || q.includes('portfolio') || q.includes('sip') || q.includes('groww') || q.includes('mf') || q.includes('health')) {
+    const sipsCount = ctx.activeSips || (ctx.sipsList?.length || 0)
+    const sipsList = ctx.sipsList || []
+    let sipsDetail = ''
+    if (sipsList.length > 0) {
+      sipsDetail = '\n**Active SIP Schedules:**\n' + sipsList.map((s) => `• **${s.name || s.scheme_name}**: ₹${(Number(s.amount) || 0).toLocaleString('en-IN')}/mo (Next Due: **${s.next_due_date || 'N/A'}**)`).join('\n')
+    }
+    return `📈 **Portfolio & Investment Health:**\n• **Current Mutual Funds Value:** ₹${mf.toLocaleString('en-IN')}\n• **Active SIPs:** **${sipsCount} active running**${sipsDetail}\n\n💡 **Recommendation:** Maintain steady automated monthly SIPs to benefit from rupee-cost averaging. Allocate 50% in Large/Flexi-Cap, 30% Mid-Cap, and 20% Small-Cap for optimal risk-adjusted wealth creation.`
   }
 
-  return `📊 **Financial Health Snapshot:**\n• Monthly Income: ₹${inc.toLocaleString('en-IN')} | Expenses: ₹${exp.toLocaleString('en-IN')}\n• Net Savings: ₹${sav.toLocaleString('en-IN')} (Healthy cash buffer)\n• Outstanding Liabilities: ₹${debt.toLocaleString('en-IN')}\n• **Key Takeaway:** You have positive monthly cashflow. Focus on maintaining an emergency fund of 3-6 months' expenses before scaling aggressive equity SIPs.`
+  // 8. Goals
+  if (q.includes('goal') || q.includes('target') || q.includes('milestone')) {
+    const goalsCount = ctx.goalsCount || 0
+    if (goalsCount === 0) {
+      return `🎯 **Financial Goals:**\n• You currently have **0 active goals** tracked in your database.\n• **Tip:** Go to the **Goals** tab to set target milestones like Emergency Fund, Vacation, or Vehicle down payment!`
+    }
+    return `🎯 **Financial Goals:**\n• You have **${goalsCount} active goals** tracked with a total target of ₹${(ctx.goalsTarget || 0).toLocaleString('en-IN')}.`
+  }
+
+  // 9. Open-Domain General Knowledge fallback
+  if (hasApiKey) {
+    return `🤖 **AI Assistant Response:**\n\nI couldn't reach the online Gemini server at this exact moment. Please try asking your question again in a moment!`
+  }
+
+  return `🤖 **AI Assistant Response:**\n\nI can help you with questions about personal finance, time/date, math calculations, definitions, or logging expenses.\n\n💡 **Tip:** To ask open-domain questions (like world facts, coding, recipes, or creative writing), your default Google Gemini API Key is configured in settings!`
 }

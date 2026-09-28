@@ -39,3 +39,72 @@
   }
 }
 
+/* Global Force Desktop Site Mode Styles */
+html.force-desktop-mode,
+body.force-desktop-mode {
+  min-width: 1280px !important;
+  width: 1280px !important;
+  overflow-x: auto !important;
+}
+
+.force-desktop-mode #root {
+  min-width: 1280px !important;
+  width: 100% !important;
+}
+
+.force-desktop-mode aside {
+  display: flex !important;
+  width: 16rem !important;
+  flex-shrink: 0 !important;
+}
+
+.force-desktop-mode nav[aria-label="Bottom navigation"],
+.force-desktop-mode .safe-area-bottom {
+  display: none !important;
+}
+
+.force-desktop-mode main {
+  padding-bottom: 1.5rem !important;
+}
+
+.force-desktop-mode .hidden.sm\:flex,
+.force-desktop-mode .hidden.md\:flex,
+.force-desktop-mode .hidden.lg\:flex {
+  display: flex !important;
+}
+
+.force-desktop-mode .hidden.sm\:block,
+.force-desktop-mode .hidden.md\:block,
+.force-desktop-mode .hidden.lg\:block {
+  display: block !important;
+}
+
+.force-desktop-mode .hidden.sm\:grid,
+.force-desktop-mode .hidden.md\:grid,
+.force-desktop-mode .hidden.lg\:grid {
+  display: grid !important;
+}
+
+.force-desktop-mode .hidden.sm\:table-cell,
+.force-desktop-mode .hidden.md\:table-cell,
+.force-desktop-mode .hidden.lg\:table-cell {
+  display: table-cell !important;
+}
+
+.force-desktop-mode .hidden.sm\:inline,
+.force-desktop-mode .hidden.md\:inline,
+.force-desktop-mode .hidden.lg\:inline {
+  display: inline !important;
+}
+
+.force-desktop-mode .hidden.sm\:inline-flex,
+.force-desktop-mode .hidden.md\:inline-flex,
+.force-desktop-mode .hidden.lg\:inline-flex {
+  display: inline-flex !important;
+}
+
+.force-desktop-mode .sm\:hidden,
+.force-desktop-mode .md\:hidden {
+  display: none !important;
+}
+

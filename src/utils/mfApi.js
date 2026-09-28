@@ -9,15 +9,20 @@ const BASE_URL = 'https://api.mfapi.in/mf'
 const VERIFIED_SCHEME_CODES = {
   'motilal oswal midcap fund direct growth': '127042',
   'motilal oswal midcap fund - direct plan - growth option': '127042',
+  'motilal oswal midcap fund': '127042',
   'quant small cap fund direct plan growth': '120828',
   'quant small cap fund - direct plan - growth option': '120828',
-  'bandhan small cap fund direct growth': '147944',
-  'bandhan small cap fund - direct plan - growth': '147944',
-  'hdfc flexi cap direct plan growth': '118989',
-  'hdfc flexi cap fund - direct plan - growth option': '118989',
+  'quant small cap fund': '120828',
+  'bandhan small cap fund direct growth': '147946',
+  'bandhan small cap fund - direct plan - growth': '147946',
+  'bandhan small cap fund': '147946',
+  'hdfc flexi cap direct plan growth': '118955',
+  'hdfc flexi cap fund - direct plan - growth option': '118955',
+  'hdfc flexi cap fund': '118955',
   'nippon india growth mid cap fund direct growth': '118668',
   'nippon india growth mid cap fund - direct plan - growth option': '118668',
   'nippon india growth fund direct growth': '118668',
+  'nippon india growth fund': '118668',
 }
 
 /**
@@ -81,8 +86,18 @@ export async function refreshFundNavs(funds = []) {
 
   for (const fund of funds) {
     let liveData = null
-    const normName = (fund.scheme_name || '').toLowerCase().trim()
-    const targetCode = fund.scheme_code || VERIFIED_SCHEME_CODES[normName]
+    const normName = (fund.scheme_name || '').toLowerCase().trim().replace(/[^a-z0-9 ]/g, ' ')
+    
+    // Find matching code from dictionary or fund properties
+    let targetCode = fund.scheme_code
+    if (!targetCode) {
+      for (const [dictName, code] of Object.entries(VERIFIED_SCHEME_CODES)) {
+        if (normName.includes(dictName) || dictName.includes(normName)) {
+          targetCode = code
+          break
+        }
+      }
+    }
 
     if (targetCode) {
       liveData = await getLatestNav(targetCode)
@@ -92,12 +107,8 @@ export async function refreshFundNavs(funds = []) {
     const invested = parseFloat(fund.invested_amount || 0)
 
     if (liveData && liveData.nav > 0) {
-      const avgNav = parseFloat(fund.avg_nav || fund.current_nav || 0)
-      const ratio = avgNav > 0 ? liveData.nav / avgNav : 1
-      const isReasonableNav = ratio >= 0.5 && ratio <= 2.0
-
-      const effectiveNav = isReasonableNav ? liveData.nav : (parseFloat(fund.current_nav) || avgNav)
-      const currentVal = units * effectiveNav
+      const effectiveNav = liveData.nav
+      const currentVal = units > 0 ? units * effectiveNav : (parseFloat(fund.current_value) || invested)
       const profitLoss = currentVal - invested
       const profitLossPct = invested > 0 ? ((profitLoss / invested) * 100) : 0
       const oneDayGain = units > 0 && liveData.oneDayDiff ? units * liveData.oneDayDiff : 0

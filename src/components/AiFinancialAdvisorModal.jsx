@@ -17,6 +17,8 @@ import { askFinancialAdvisorAi, getGeminiApiKey, setGeminiApiKey, getAiModel, se
 import { formatCurrency } from '../utils/formatCurrency'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
+import savedGrowwData from '../data/groww_holdings.json'
+import defaultSips from '../data/default_sips.json'
 
 const DEFAULT_QUESTIONS = [
   'How can I optimize my monthly savings & cut waste?',
@@ -73,43 +75,43 @@ export default function AiFinancialAdvisorModal({ isOpen, onClose }) {
           .eq('user_id', user.id)
         const totalDebt = debts ? debts.reduce((sum, d) => sum + (Number(d.outstanding) || 0), 0) : 0
 
-        // SIPs
-        const { data: sips } = await supabase
+        // SIPs (with defaultSips fallback if empty in DB)
+        const { data: sipsData } = await supabase
           .from('sips')
-          .select('id, active')
+          .select('*')
           .eq('user_id', user.id)
-        const activeSips = sips ? sips.filter((s) => s.active !== false).length : 0
+          .eq('active', true)
 
-        // Mutual Funds
-        const { data: mfs } = await supabase
+        const sipsList = sipsData && sipsData.length > 0 ? sipsData : defaultSips
+        const activeSips = sipsList.length
+
+        // Mutual Funds (with savedGrowwData fallback if empty in DB)
+        const { data: mfsData } = await supabase
           .from('mutual_funds')
-          .select('units, current_nav, invested_amount')
+          .select('*')
           .eq('user_id', user.id)
+
+        const mfList = mfsData && mfsData.length > 0 ? mfsData : savedGrowwData
         let totalMfValue = 0
         let totalMfGain = 0
-        if (mfs) {
-          mfs.forEach((mf) => {
-            const curVal = (Number(mf.units) || 0) * (Number(mf.current_nav) || 0)
-            const invVal = Number(mf.invested_amount) || 0
-            totalMfValue += curVal
-            totalMfGain += curVal - invVal
-          })
-        }
+        mfList.forEach((mf) => {
+          const curVal = Number(mf.current_value) || (Number(mf.units || 0) * Number(mf.current_nav || mf.nav || 0))
+          const invVal = Number(mf.invested_amount) || (Number(mf.units || 0) * Number(mf.avg_nav || mf.nav || 0))
+          totalMfValue += curVal
+          totalMfGain += curVal - invVal
+        })
 
         const netSavings = income - expense
         const savingsRate = income > 0 ? Math.round((netSavings / income) * 100) : 0
 
-        // Goals
-        let goalsCount = 0
-        let goalsTarget = 0
-        try {
-          const savedGoals = localStorage.getItem(`ft_financial_goals_${user?.id || 'guest'}`)
-          if (savedGoals) {
-            const parsed = JSON.parse(savedGoals)
-            goalsCount = parsed.length
-            goalsTarget = parsed.reduce((sum, g) => sum + (Number(g.target_amount) || 0), 0)
-          }
-        } catch {}
+        // Goals (strictly from Supabase goals table)
+        const { data: goalsData } = await supabase
+          .from('goals')
+          .select('*')
+          .eq('user_id', user.id)
+
+        const goalsCount = goalsData ? goalsData.length : 0
+        const goalsTarget = goalsData ? goalsData.reduce((sum, g) => sum + (Number(g.target_amount) || 0), 0) : 0
 
         // Statements
         let statementTxnsCount = 0
@@ -127,8 +129,10 @@ export default function AiFinancialAdvisorModal({ isOpen, onClose }) {
           savingsRate,
           totalDebt,
           activeSips,
+          sipsList,
           totalMfValue,
           totalMfGain,
+          mfList,
           goalsCount,
           goalsTarget,
           statementTxnsCount,
