@@ -235,7 +235,7 @@ export default function SIPs() {
 
       flash(`SIP of ${formatCurrency(targetSip.amount)} marked paid! Next due date updated.`)
       fetchSipsAndFunds()
-    } catch (err) {
+    } catch {
       setError('Unable to process SIP payment. Please try again.')
     }
   }

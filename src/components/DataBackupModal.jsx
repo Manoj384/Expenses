@@ -81,7 +81,7 @@ export default function DataBackupModal({ isOpen, onClose }) {
       downloadBackupFile(backupData, filename)
       toastSuccess(`Full database backup downloaded (${filename})!`)
       onClose()
-    } catch (err) {
+    } catch {
       toastError('Export failed. Please try again.')
     } finally {
       setExporting(false)

@@ -69,6 +69,61 @@ const DEBT_TYPES = [
   },
 ]
 
+function normalizeDebt(d) {
+  let extra = {}
+  try {
+    const raw = localStorage.getItem(`ft_debt_extra_${d.id}`) || localStorage.getItem(`ft_debt_extra_${d.name}`)
+    if (raw) extra = JSON.parse(raw)
+  } catch {}
+
+  let type = d.debt_type || extra.debt_type || 'personal'
+  let pName = d.person_name || extra.person_name || ''
+  let notes = d.notes || extra.notes || ''
+  let target_date = d.target_date || extra.target_date || null
+  const name = d.name || ''
+
+  if (!d.debt_type && !extra.debt_type) {
+    if (name.includes('💸') || name.toLowerCase().includes('lent') || name.toLowerCase().includes('lend')) type = 'lent'
+    else if (name.includes('💳') || name.toLowerCase().includes('card') || name.toLowerCase().includes('emi')) type = 'card'
+    else if (name.includes('🏦') || name.toLowerCase().includes('bank') || name.toLowerCase().includes('loan')) type = 'bank'
+    else type = 'personal'
+  }
+
+  const status = d.status || (Number(d.outstanding) <= 0 ? 'cleared' : 'active')
+
+  return {
+    ...d,
+    debt_type: type,
+    person_name: pName,
+    notes,
+    target_date,
+    status,
+  }
+}
+
+function validateDebtForm(form) {
+  if (!form.name.trim()) return 'Please enter a title / name for this record.'
+  if (form.principal === '' || Number(form.principal) <= 0) return 'Principal amount must be greater than 0.'
+  if (form.outstanding === '' || Number(form.outstanding) < 0) return 'Outstanding balance must be 0 or more.'
+  return null
+}
+
+function buildDebtPayload(form, userId) {
+  return {
+    user_id: userId,
+    name: form.name.trim(),
+    debt_type: form.debt_type || 'personal',
+    person_name: form.person_name.trim() || null,
+    principal: Number(form.principal),
+    outstanding: Number(form.outstanding),
+    emi: Number(form.emi) || 0,
+    due_day: form.due_day !== '' ? Number(form.due_day) : null,
+    target_date: form.target_date || null,
+    notes: form.notes.trim() || null,
+    status: Number(form.outstanding) <= 0 ? 'cleared' : 'active',
+  }
+}
+
 export default function Debts() {
   const { user } = useAuth()
   const { success: toastSuccess, error: toastError } = useToast()
@@ -87,7 +142,6 @@ export default function Debts() {
 
   const fetchDebts = useCallback(async () => {
     if (!user) return
-    setLoading(true)
     try {
       const { data, error: fetchErr } = await supabase
         .from('debts')
@@ -97,39 +151,7 @@ export default function Debts() {
 
       if (fetchErr) throw fetchErr
 
-      // Normalize records if database has basic schema
-      const normalized = (data || []).map((d) => {
-        let extra = {}
-        try {
-          const raw = localStorage.getItem(`ft_debt_extra_${d.id}`) || localStorage.getItem(`ft_debt_extra_${d.name}`)
-          if (raw) extra = JSON.parse(raw)
-        } catch {}
-
-        let type = d.debt_type || extra.debt_type || 'personal'
-        let pName = d.person_name || extra.person_name || ''
-        let notes = d.notes || extra.notes || ''
-        let target_date = d.target_date || extra.target_date || null
-        const name = d.name || ''
-
-        if (!d.debt_type && !extra.debt_type) {
-          if (name.includes('💸') || name.toLowerCase().includes('lent') || name.toLowerCase().includes('lend')) type = 'lent'
-          else if (name.includes('💳') || name.toLowerCase().includes('card') || name.toLowerCase().includes('emi')) type = 'card'
-          else if (name.includes('🏦') || name.toLowerCase().includes('bank') || name.toLowerCase().includes('loan')) type = 'bank'
-          else type = 'personal'
-        }
-
-        const status = d.status || (Number(d.outstanding) <= 0 ? 'cleared' : 'active')
-
-        return {
-          ...d,
-          debt_type: type,
-          person_name: pName,
-          notes,
-          target_date,
-          status,
-        }
-      })
-
+      const normalized = (data || []).map(normalizeDebt)
       setDebts(normalized)
     } catch {
       setError('Unable to load debts and borrowings.')
@@ -139,8 +161,14 @@ export default function Debts() {
   }, [user])
 
   useEffect(() => {
-    fetchDebts()
-  }, [fetchDebts])
+    let ignore = false
+    if (user) {
+      fetchDebts()
+    }
+    return () => {
+      ignore = true
+    }
+  }, [fetchDebts, user])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -156,17 +184,10 @@ export default function Debts() {
     }))
   }
 
-  const validate = () => {
-    if (!form.name.trim()) return 'Please enter a title / name for this record.'
-    if (form.principal === '' || Number(form.principal) <= 0) return 'Principal amount must be greater than 0.'
-    if (form.outstanding === '' || Number(form.outstanding) < 0) return 'Outstanding balance must be 0 or more.'
-    return null
-  }
-
   const handleSave = async (e) => {
     e.preventDefault()
     setFormErr('')
-    const err = validate()
+    const err = validateDebtForm(form)
     if (err) {
       setFormErr(err)
       return
@@ -174,19 +195,7 @@ export default function Debts() {
 
     setSaving(true)
     try {
-      const fullPayload = {
-        user_id: user.id,
-        name: form.name.trim(),
-        debt_type: form.debt_type || 'personal',
-        person_name: form.person_name.trim() || null,
-        principal: Number(form.principal),
-        outstanding: Number(form.outstanding),
-        emi: Number(form.emi) || 0,
-        due_day: form.due_day !== '' ? Number(form.due_day) : null,
-        target_date: form.target_date || null,
-        notes: form.notes.trim() || null,
-        status: Number(form.outstanding) <= 0 ? 'cleared' : 'active',
-      }
+      const fullPayload = buildDebtPayload(form, user.id)
 
       let res = editTarget?.id
         ? await supabase.from('debts').update(fullPayload).eq('id', editTarget.id)

@@ -178,7 +178,7 @@ export default function Transactions() {
       setSuccess(`Imported ${toInsert.length} transactions from statement!`)
       setTimeout(() => setSuccess(''), 4000)
       fetchTransactions()
-    } catch (err) {
+    } catch {
       setError('Statement import failed. Please try again.')
     }
   }

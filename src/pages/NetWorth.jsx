@@ -188,7 +188,7 @@ export default function NetWorth() {
       setEditTarget(null)
       setForm({ name: '', type: 'liquid', value: '', notes: '' })
       fetchData()
-    } catch (err) {
+    } catch {
       setError('Failed to save asset.')
     } finally {
       setSaving(false)

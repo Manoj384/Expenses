@@ -89,7 +89,7 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
       setError('')
       try {
         recognitionRef.current.start()
-      } catch (err) {
+      } catch {
         recognitionRef.current.stop()
       }
     }

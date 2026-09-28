@@ -44,6 +44,47 @@ import {
 
 const PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1']
 
+function createDefaultHoldings(userId) {
+  return savedGrowwData.map((h) => ({
+    user_id: userId,
+    scheme_name: h.scheme_name,
+    fund_house: h.fund_house,
+    category: h.category,
+    folio_number: h.folio_number,
+    units: h.units,
+    avg_nav: h.avg_nav,
+    invested_amount: h.invested_amount,
+    current_nav: h.current_nav,
+    current_value: h.current_value,
+    last_updated: new Date().toISOString(),
+  }))
+}
+
+function validateFundForm(form) {
+  if (!form.scheme_name.trim()) return 'Scheme name is required.'
+  const units = parseFloat(form.units) || 0
+  const invested = parseFloat(form.invested_amount) || 0
+  if (units <= 0 && invested <= 0) return 'Please provide units or invested amount.'
+  return null
+}
+
+function buildFundPayload(form, userId, liveNav, currentVal) {
+  return {
+    user_id: userId,
+    scheme_code: form.scheme_code || null,
+    scheme_name: form.scheme_name.trim(),
+    fund_house: form.fund_house || null,
+    category: form.category || 'Equity',
+    units: parseFloat(form.units) || 0,
+    avg_nav: parseFloat(form.avg_nav) || 0,
+    invested_amount: parseFloat(form.invested_amount) || 0,
+    current_nav: liveNav,
+    current_value: currentVal,
+    folio_number: form.folio_number.trim() || null,
+    last_updated: new Date().toISOString(),
+  }
+}
+
 export default function MutualFunds() {
   const { user } = useAuth()
   const [funds, setFunds] = useState(savedGrowwData)
@@ -64,7 +105,6 @@ export default function MutualFunds() {
   const [editTarget, setEditTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
-
 
   // Add/Edit Form state
   const [searchQuery, setSearchQuery] = useState('')
@@ -104,22 +144,9 @@ export default function MutualFunds() {
 
       if (fetchErr) throw fetchErr
 
-      // If database has fewer than 8 holdings (e.g. from previous scheme overwrite), auto-heal it
       if (!data || data.length < savedGrowwData.length) {
         await supabase.from('mutual_funds').delete().eq('user_id', user.id)
-        const toInsert = savedGrowwData.map(h => ({
-          user_id: user.id,
-          scheme_name: h.scheme_name,
-          fund_house: h.fund_house,
-          category: h.category,
-          folio_number: h.folio_number,
-          units: h.units,
-          avg_nav: h.avg_nav,
-          invested_amount: h.invested_amount,
-          current_nav: h.current_nav,
-          current_value: h.current_value,
-          last_updated: new Date().toISOString(),
-        }))
+        const toInsert = createDefaultHoldings(user.id)
         const { data: insertedData, error: insErr } = await supabase
           .from('mutual_funds')
           .insert(toInsert)
@@ -133,8 +160,7 @@ export default function MutualFunds() {
       } else {
         setFunds(data)
       }
-    } catch (err) {
-      // Fallback safely to full 8 Groww holdings
+    } catch {
       setFunds(savedGrowwData)
     } finally {
       setLoading(false)
@@ -142,8 +168,14 @@ export default function MutualFunds() {
   }, [user])
 
   useEffect(() => {
-    fetchFunds()
-  }, [fetchFunds])
+    let ignore = false
+    if (user) {
+      fetchFunds()
+    }
+    return () => {
+      ignore = true
+    }
+  }, [fetchFunds, user])
 
   const flash = (msg) => {
     setSuccess(msg)
@@ -178,7 +210,7 @@ export default function MutualFunds() {
 
       setFunds(updated)
       flash('All fund NAVs refreshed with live market prices from AMFI!')
-    } catch (err) {
+    } catch {
       setError('Unable to refresh live NAVs. Please try again.')
     } finally {
       setRefreshingNav(false)
@@ -271,7 +303,7 @@ export default function MutualFunds() {
 
       flash(`Successfully synced all ${count} holdings from your Groww report (${formatCurrency(totalCurrentValue)})!`)
       fetchFunds()
-    } catch (err) {
+    } catch {
       setError('Unable to sync Groww report. Please try again.')
     } finally {
       setSavingFund(false)
@@ -331,44 +363,25 @@ export default function MutualFunds() {
 
   const handleSaveFund = async (e) => {
     e.preventDefault()
-    if (!form.scheme_name.trim()) {
-      setError('Scheme name is required.')
-      return
-    }
-
-    const units = parseFloat(form.units) || 0
-    const invested = parseFloat(form.invested_amount) || 0
-    const avgNav = parseFloat(form.avg_nav) || 0
-
-    if (units <= 0 && invested <= 0) {
-      setError('Please provide units or invested amount.')
+    const validationErr = validateFundForm(form)
+    if (validationErr) {
+      setError(validationErr)
       return
     }
 
     setSavingFund(true)
     try {
-      let liveNav = avgNav
+      let liveNav = parseFloat(form.avg_nav) || 0
       if (form.scheme_code) {
         const live = await getLatestNav(form.scheme_code)
         if (live?.nav) liveNav = live.nav
       }
 
+      const units = parseFloat(form.units) || 0
+      const invested = parseFloat(form.invested_amount) || 0
       const currentVal = units > 0 ? units * liveNav : invested
 
-      const payload = {
-        user_id: user.id,
-        scheme_code: form.scheme_code || null,
-        scheme_name: form.scheme_name.trim(),
-        fund_house: form.fund_house || null,
-        category: form.category || 'Equity',
-        units: units,
-        avg_nav: avgNav,
-        invested_amount: invested,
-        current_nav: liveNav,
-        current_value: currentVal,
-        folio_number: form.folio_number.trim() || null,
-        last_updated: new Date().toISOString(),
-      }
+      const payload = buildFundPayload(form, user.id, liveNav, currentVal)
 
       if (editTarget?.id) {
         const { error: updErr } = await supabase.from('mutual_funds').update(payload).eq('id', editTarget.id)
@@ -384,8 +397,8 @@ export default function MutualFunds() {
       setEditTarget(null)
       resetForm()
       fetchFunds()
-    } catch (err) {
-      setError(err?.message || 'Unable to save mutual fund.')
+    } catch {
+      setError('Unable to save mutual fund.')
     } finally {
       setSavingFund(false)
     }
@@ -432,7 +445,7 @@ export default function MutualFunds() {
       setFunds((prev) => prev.filter((f) => f.id !== deleteTarget.id))
       setDeleteTarget(null)
       flash('Mutual fund removed from portfolio.')
-    } catch (err) {
+    } catch {
       setError('Unable to delete mutual fund.')
     } finally {
       setDeleting(false)
@@ -513,7 +526,7 @@ export default function MutualFunds() {
       setParsedPreview([])
       flash(`Imported all ${importedCount} holdings from Groww Excel! Total: ${formatCurrency(totalCurrentValue)}`)
       fetchFunds()
-    } catch (err) {
+    } catch {
       setError('Import failed. Please check file format.')
     } finally {
       setImporting(false)
