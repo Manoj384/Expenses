@@ -190,3 +190,27 @@ export function DailySpendingAreaChart({ data }) {
     </ResponsiveContainer>
   )
 }
+
+export function YearOverYearBarChart({ data }) {
+  if (!data || data.length === 0) {
+    return <p className="text-sm text-gray-400 text-center py-8">Not enough historical data for Year-over-Year comparison.</p>
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={320}>
+      <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+        <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748b' }} />
+        <YAxis
+          tickFormatter={(v) => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v}`}
+          tick={{ fontSize: 11, fill: '#64748b' }}
+        />
+        <Tooltip content={<INRTooltip />} />
+        <Legend wrapperStyle={{ fontSize: '12px' }} />
+        <Bar dataKey="thisYear" name="Current Period" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="lastYear" name="Prior Year" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+

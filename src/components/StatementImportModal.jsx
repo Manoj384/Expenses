@@ -10,14 +10,34 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
+  KeyRound,
+  Lock,
+  FileText,
+  ShieldCheck,
+  Copy,
 } from 'lucide-react'
 
+const BANK_PASSWORD_PATTERNS = [
+  { bank: 'HDFC Bank', rule: 'Customer ID OR 8-digit DOB (DDMMYYYY) + First 4 letters of Name in CAPS', example: '12051996RAHU' },
+  { bank: 'ICICI Bank', rule: 'First 4 letters of Name (lowercase) + DOB (DDMM)', example: 'rahu1205' },
+  { bank: 'State Bank of India (SBI)', rule: 'Last 5 digits of Mobile No. + DOB (DDMMYY)', example: '98451120596' },
+  { bank: 'Axis Bank', rule: 'First 4 letters of Name (UPPERCASE) + Last 4 digits of A/C Number', example: 'RAHU4921' },
+  { bank: 'Kotak Mahindra Bank', rule: 'Your 9-digit NetBanking CRN Number', example: '948271039' },
+  { bank: 'Bank of Baroda', rule: 'First 4 letters of Name (CAPS) + Last 4 digits of Mobile Number', example: 'RAHU8451' },
+]
+
 export default function StatementImportModal({ isOpen, onClose, onImportSuccess, categories = [], paymentMethods = [] }) {
-  const [tab, setTab] = useState('excel') // 'excel' or 'sms'
+  const [tab, setTab] = useState('excel') // 'excel', 'sms', or 'pdf_pwd'
   const [smsText, setSmsText] = useState('')
   const [parsedRows, setParsedRows] = useState([])
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
+
+  // Password generator helper state
+  const [userName, setUserName] = useState('')
+  const [userDob, setUserDob] = useState('')
+  const [userMobile, setUserMobile] = useState('')
+  const [userAcc, setUserAcc] = useState('')
 
   if (!isOpen) return null
 
@@ -32,7 +52,7 @@ export default function StatementImportModal({ isOpen, onClose, onImportSuccess,
       if (buffer) {
         const txns = await parseBankStatementFile(buffer)
         if (txns.length === 0) {
-          setError('Could not detect transactions in this file. Please check format.')
+          setError('Could not detect transactions in this file. If this is a password-protected PDF/Excel, please check the PDF Decrypt tab.')
         } else {
           setParsedRows(txns)
         }
@@ -94,6 +114,14 @@ export default function StatementImportModal({ isOpen, onClose, onImportSuccess,
           >
             <MessageSquare className="h-4 w-4 text-indigo-600" /> Paste Bank / UPI SMS
           </button>
+          <button
+            onClick={() => { setTab('pdf_pwd'); setParsedRows([]) }}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${
+              tab === 'pdf_pwd' ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500'
+            }`}
+          >
+            <KeyRound className="h-4 w-4 text-amber-500" /> Bank PDF Passwords
+          </button>
         </div>
 
         {/* Excel Tab */}
@@ -108,6 +136,35 @@ export default function StatementImportModal({ isOpen, onClose, onImportSuccess,
               <span>Choose Statement File</span>
               <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="hidden" />
             </label>
+          </div>
+        )}
+
+        {/* PDF Password Helper Tab */}
+        {tab === 'pdf_pwd' && (
+          <div className="space-y-4">
+            <div className="bg-amber-50/70 dark:bg-amber-950/30 p-3.5 rounded-xl border border-amber-200 dark:border-amber-800/50 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5">
+              <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Indian Bank PDF Decryption Cheatsheet</p>
+                <p className="text-[11px] text-amber-800/90 dark:text-amber-300/90 mt-0.5">
+                  Indian bank statements are password-protected using your KYC details. Use the cheatsheet below to open your monthly PDF statement before exporting to Excel/CSV.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto">
+              {BANK_PASSWORD_PATTERNS.map((p) => (
+                <div key={p.bank} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-slate-900 dark:text-white">{p.bank}</span>
+                    <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300">
+                      Ex: {p.example}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{p.rule}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

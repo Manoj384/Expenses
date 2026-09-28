@@ -8,10 +8,13 @@ import {
   ExpensePieChart,
   PaymentMethodPieChart,
   DailySpendingAreaChart,
+  YearOverYearBarChart,
 } from '../components/Charts'
 import { lastNMonths, monthLabel } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
-import { TrendingUp, TrendingDown, PiggyBank, Tag, Printer, Download, FileSpreadsheet } from 'lucide-react'
+import ShareableMonthlyReportModal from '../components/ShareableMonthlyReportModal'
+import { TrendingUp, TrendingDown, PiggyBank, Tag, Printer, Download, FileSpreadsheet, Share2, Sparkles } from 'lucide-react'
+
 
 const PERIOD_OPTIONS = [3, 6, 12]
 
@@ -20,8 +23,11 @@ export default function Reports() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [period, setPeriod] = useState(6)
+  const [showShareModal, setShowShareModal] = useState(false)
+
 
   const [barData, setBarData] = useState([])
+  const [yoyData, setYoyData] = useState([])
   const [categoryData, setCategoryData] = useState([])
   const [paymentData, setPaymentData] = useState([])
   const [dailyData, setDailyData] = useState([])
@@ -45,13 +51,24 @@ export default function Reports() {
       const lastDay = new Date(lastM.year, lastM.month, 0).getDate()
       const endDate = `${lastM.year}-${String(lastM.month).padStart(2, '0')}-${lastDay}`
 
-      const { data: txns, error: txErr } = await supabase
-        .from('transactions')
-        .select('type, amount, date, categories(name), payment_methods(name)')
-        .eq('user_id', user.id)
-        .gte('date', startDate)
-        .lte('date', endDate)
-        .order('date', { ascending: true })
+      const priorStartDate = `${months[0].year - 1}-${String(months[0].month).padStart(2, '0')}-01`
+      const priorEndDate = `${lastM.year - 1}-${String(lastM.month).padStart(2, '0')}-${lastDay}`
+
+      const [{ data: txns, error: txErr }, { data: priorTxns }] = await Promise.all([
+        supabase
+          .from('transactions')
+          .select('type, amount, date, categories(name), payment_methods(name)')
+          .eq('user_id', user.id)
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .order('date', { ascending: true }),
+        supabase
+          .from('transactions')
+          .select('type, amount, date')
+          .eq('user_id', user.id)
+          .gte('date', priorStartDate)
+          .lte('date', priorEndDate)
+      ])
 
       if (txErr) throw txErr
 
@@ -94,6 +111,23 @@ export default function Reports() {
       }
 
       setBarData(Object.values(monthMap))
+
+      // Year-over-Year (YoY) comparison data
+      const yoyArr = months.map((m) => {
+        const curKey = `${m.year}-${String(m.month).padStart(2, '0')}`
+        const priorKey = `${m.year - 1}-${String(m.month).padStart(2, '0')}`
+        const thisYearExp = monthMap[curKey]?.expense || 0
+        const lastYearExp = (priorTxns || [])
+          .filter((t) => t.date.startsWith(priorKey) && t.type !== 'income')
+          .reduce((sum, t) => sum + Number(t.amount), 0)
+
+        return {
+          month: monthLabel(m.year, m.month),
+          thisYear: thisYearExp,
+          lastYear: lastYearExp,
+        }
+      })
+      setYoyData(yoyArr)
 
       // Category breakdown list
       const catArr = Object.entries(catMap)
@@ -183,7 +217,15 @@ export default function Reports() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+            title="Generate Executive Monthly Wealth Summary Card"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+            <span>Executive Report & PDF</span>
+          </button>
           <button
             onClick={handleExportCsv}
             className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
@@ -202,6 +244,7 @@ export default function Reports() {
           </button>
         </div>
       </div>
+
 
       {loading ? (
         <LoadingSpinner text="Crunching financial graphs..." />
@@ -254,6 +297,20 @@ export default function Reports() {
             <IncomeExpenseBarChart data={barData} />
           </div>
 
+          {/* Year-over-Year Outflow Comparison Chart */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Year-over-Year (YoY) Expense Comparison</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Benchmark current spending against the exact same months of the previous year</p>
+              </div>
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200">
+                YoY Trend
+              </span>
+            </div>
+            <YearOverYearBarChart data={yoyData} />
+          </div>
+
           {/* Daily spending graph */}
           {dailyData.length > 0 && (
             <div className="card">
@@ -270,12 +327,23 @@ export default function Reports() {
             </div>
 
             <div className="card">
-              <h3 className="font-semibold text-gray-900 text-sm mb-4">Expenses by Payment Method</h3>
+              <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-4">Expenses by Payment Method</h3>
               <PaymentMethodPieChart data={paymentData} />
             </div>
           </div>
         </div>
       )}
+
+      {/* Shareable Executive Monthly Report Modal */}
+      <ShareableMonthlyReportModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        month={new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
+        income={summary.totalIncome / (period || 1)}
+        expense={summary.totalExpense / (period || 1)}
+        debtsTotal={0}
+      />
     </Layout>
   )
 }
+

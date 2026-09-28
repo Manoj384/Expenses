@@ -106,10 +106,36 @@ export default function CapitalGainsModal({ isOpen, onClose, funds = [] }) {
           ))}
         </div>
 
-        <div className="flex justify-end pt-1">
-          <button onClick={onClose} className="btn-primary text-xs py-1.5 px-4">Done</button>
+        <div className="flex items-center justify-between pt-2 border-t dark:border-slate-800">
+          <button
+            onClick={() => {
+              const headers = ['Scheme Name', 'Invested (INR)', 'Current Value (INR)', 'Gain (INR)', 'Holding Mode', 'Tax Rate']
+              const rows = items.map(f => [
+                `"${f.scheme_name.replace(/"/g, '""')}"`,
+                f.inv,
+                f.val,
+                f.gain,
+                f.hMode.toUpperCase(),
+                f.hMode === 'ltcg' ? '12.5% (>1.25L Exemption)' : '20%',
+              ])
+              const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+              const blob = new Blob([csv], { type: 'text/csv' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `ITR_Capital_Gains_Report_${new Date().getFullYear()}.csv`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+          >
+            <span>📥 Export ITR Statement (CSV)</span>
+          </button>
+
+          <button onClick={onClose} className="btn-primary text-xs py-1.5 px-5">Done</button>
         </div>
       </div>
     </Modal>
   )
 }
+

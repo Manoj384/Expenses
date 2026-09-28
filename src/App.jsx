@@ -5,8 +5,10 @@ import { AdminProvider } from './context/AdminContext'
 import { ToastProvider } from './context/ToastContext'
 import { ThemeProvider } from './context/ThemeContext'
 import { NotificationProvider } from './context/NotificationContext'
+import { CurrencyProvider } from './context/CurrencyContext'
 import LoadingSpinner from './components/LoadingSpinner'
 import ErrorBoundary from './components/ErrorBoundary'
+
 
 const Login        = lazy(() => import('./pages/Login'))
 const Signup       = lazy(() => import('./pages/Signup'))
@@ -21,6 +23,8 @@ const SIPs         = lazy(() => import('./pages/SIPs'))
 const Debts        = lazy(() => import('./pages/Debts'))
 const Statements   = lazy(() => import('./pages/Statements'))
 const Reports      = lazy(() => import('./pages/Reports'))
+const Splitwise    = lazy(() => import('./pages/Splitwise'))
+const BillReminders = lazy(() => import('./pages/BillReminders'))
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -63,6 +67,8 @@ function AppRoutes() {
         <Route path="/net-worth"     element={<ProtectedRoute><NetWorth /></ProtectedRoute>} />
         <Route path="/goals"         element={<ProtectedRoute><Goals /></ProtectedRoute>} />
         <Route path="/budgets"       element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
+        <Route path="/splitwise"     element={<ProtectedRoute><Splitwise /></ProtectedRoute>} />
+        <Route path="/bills"         element={<ProtectedRoute><BillReminders /></ProtectedRoute>} />
         <Route path="/past-expenses" element={<ProtectedRoute><PastExpenses /></ProtectedRoute>} />
         <Route path="/sips"          element={<ProtectedRoute><SIPs /></ProtectedRoute>} />
         <Route path="/debts"         element={<ProtectedRoute><Debts /></ProtectedRoute>} />
@@ -75,23 +81,28 @@ function AppRoutes() {
   )
 }
 
+
 export default function App() {
+
   return (
     <ErrorBoundary>
       <ThemeProvider>
         <BrowserRouter>
           <ToastProvider>
-            <AuthProvider>
-              <NotificationProvider>
-                <AdminProvider>
-                  <AppRoutes />
-                </AdminProvider>
-              </NotificationProvider>
-            </AuthProvider>
+            <CurrencyProvider>
+              <AuthProvider>
+                <NotificationProvider>
+                  <AdminProvider>
+                    <AppRoutes />
+                  </AdminProvider>
+                </NotificationProvider>
+              </AuthProvider>
+            </CurrencyProvider>
           </ToastProvider>
         </BrowserRouter>
       </ThemeProvider>
     </ErrorBoundary>
   )
 }
+
 

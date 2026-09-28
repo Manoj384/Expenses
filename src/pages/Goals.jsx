@@ -4,8 +4,12 @@ import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
+import SkeletonPage from '../components/SkeletonLoader'
+import { retryFetch } from '../utils/retryFetch'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { formatDate } from '../utils/dateUtils'
+import defaultSips from '../data/default_sips.json'
+import { fireMilestoneConfetti } from '../utils/confetti'
 import {
   Target,
   Plus,
@@ -20,6 +24,9 @@ import {
   AlertCircle,
   Flag,
   Award,
+  Link2,
+  Layers,
+  Clock,
 } from 'lucide-react'
 
 const DEFAULT_GOALS = [
@@ -54,19 +61,18 @@ const DEFAULT_GOALS = [
 
 export default function Goals() {
   const { user } = useAuth()
-  const storageKey = `ft_financial_goals_${user?.id || 'guest'}`
 
-  const [goals, setGoals] = useState(() => {
+  const [goals, setGoals] = useState([])
+  const [sips, setSips] = useState([])
+  const [sipLinks, setSipLinks] = useState(() => {
     try {
-      const saved = localStorage.getItem(`ft_financial_goals_${user?.id || 'guest'}`)
-      if (saved) return JSON.parse(saved)
-      return DEFAULT_GOALS
+      return JSON.parse(localStorage.getItem('ft_goal_sip_links') || '{}')
     } catch {
-      return DEFAULT_GOALS
+      return {}
     }
   })
-
-  const [loading, setLoading] = useState(false)
+  const [selectedSipId, setSelectedSipId] = useState('')
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -88,41 +94,39 @@ export default function Goals() {
     notes: '',
   })
 
-  // Sync to local storage
-  const saveGoalsToCache = (newGoals) => {
-    setGoals(newGoals)
-    try {
-      localStorage.setItem(`ft_financial_goals_${user?.id || 'guest'}`, JSON.stringify(newGoals))
-    } catch {}
-  }
-
   const fetchGoals = useCallback(async () => {
-    const activeKey = `ft_financial_goals_${user?.id || 'guest'}`
-    const cached = localStorage.getItem(activeKey)
-    if (cached) {
-      try {
-        setGoals(JSON.parse(cached))
-      } catch {}
-    }
-
     if (!user) return
-
+    setLoading(true)
+    setError('')
     try {
-      const { data, error: fetchErr } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      const [goalsRes, sipsRes] = await Promise.all([
+        retryFetch(() =>
+          supabase
+            .from('goals')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+        ),
+        supabase
+          .from('sips')
+          .select('*')
+          .eq('user_id', user.id)
+      ])
 
-      if (!fetchErr && data && data.length > 0) {
-        saveGoalsToCache(data)
-      }
-    } catch {}
+      if (goalsRes.error) throw goalsRes.error
+      setGoals(goalsRes.data || [])
+      setSips(sipsRes.data?.length ? sipsRes.data : defaultSips)
+    } catch {
+      setError('Unable to load goals. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }, [user])
 
   useEffect(() => {
     fetchGoals()
   }, [fetchGoals])
+
 
   const flash = (msg) => {
     setSuccess(msg)
@@ -140,91 +144,49 @@ export default function Goals() {
       setError('Please provide goal name and target amount.')
       return
     }
+    if (saving) return
 
     setSaving(true)
     setError('')
     try {
-      const targetAmt = parseFloat(form.target_amount) || 0
-      const currentAmt = parseFloat(form.current_amount) || 0
+      const payload = {
+        user_id: user.id,
+        name: form.name.trim(),
+        target_amount: parseFloat(form.target_amount) || 0,
+        current_amount: parseFloat(form.current_amount) || 0,
+        target_date: form.target_date || null,
+        category: form.category || 'Savings',
+        notes: form.notes.trim() || null,
+      }
 
+      let savedId = editTarget?.id
       if (editTarget?.id) {
-        // Edit existing
-        const updated = goals.map((g) =>
-          g.id === editTarget.id
-            ? {
-                ...g,
-                name: form.name.trim(),
-                target_amount: targetAmt,
-                current_amount: currentAmt,
-                target_date: form.target_date || null,
-                category: form.category || 'Savings',
-                notes: form.notes.trim() || '',
-              }
-            : g
-        )
-        saveGoalsToCache(updated)
-
-        // Background Supabase update
-        if (user) {
-          try {
-            await supabase.from('goals').upsert({
-              id: editTarget.id,
-              user_id: user.id,
-              name: form.name.trim(),
-              target_amount: targetAmt,
-              current_amount: currentAmt,
-              target_date: form.target_date || null,
-              category: form.category || 'Savings',
-              notes: form.notes.trim() || null,
-            })
-          } catch {}
-        }
-
+        const { error: upErr } = await supabase
+          .from('goals').update(payload).eq('id', editTarget.id)
+        if (upErr) throw upErr
+        setGoals(prev => prev.map(g => g.id === editTarget.id ? { ...g, ...payload } : g))
         flash('Financial Goal updated!')
       } else {
-        // Create new
-        const newGoal = {
-          id: `goal_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          user_id: user?.id,
-          name: form.name.trim(),
-          target_amount: targetAmt,
-          current_amount: currentAmt,
-          target_date: form.target_date || null,
-          category: form.category || 'Savings',
-          notes: form.notes.trim() || '',
-          created_at: new Date().toISOString(),
-        }
-
-        const updated = [newGoal, ...goals]
-        saveGoalsToCache(updated)
-
-        // Background Supabase insert
-        if (user) {
-          try {
-            const { data: insData } = await supabase.from('goals').insert({
-              user_id: user.id,
-              name: newGoal.name,
-              target_amount: newGoal.target_amount,
-              current_amount: newGoal.current_amount,
-              target_date: newGoal.target_date,
-              category: newGoal.category,
-              notes: newGoal.notes || null,
-            }).select()
-
-            if (insData?.[0]?.id) {
-              const withRemoteId = updated.map((g) => (g.id === newGoal.id ? { ...g, id: insData[0].id } : g))
-              saveGoalsToCache(withRemoteId)
-            }
-          } catch {}
-        }
-
+        const { data, error: insErr } = await supabase
+          .from('goals').insert(payload).select()
+        if (insErr) throw insErr
+        savedId = data[0]?.id
+        setGoals(prev => [data[0], ...prev])
         flash('New Financial Goal created!')
+      }
+
+      // Persist SIP linkage
+      if (savedId) {
+        const updated = { ...sipLinks, [savedId]: selectedSipId || null }
+        setSipLinks(updated)
+        localStorage.setItem('ft_goal_sip_links', JSON.stringify(updated))
       }
 
       setShowAddModal(false)
       setEditTarget(null)
+      setSelectedSipId('')
     } catch (err) {
-      setError('Unable to save goal.')
+      setError(err.message || 'Unable to save goal.')
     } finally {
       setSaving(false)
     }
@@ -233,24 +195,25 @@ export default function Goals() {
   const handleContribute = async (e) => {
     e.preventDefault()
     const amt = parseFloat(contributeAmount)
-    if (!amt || amt <= 0 || !activeGoal) return
+    if (!amt || amt <= 0 || !activeGoal || saving) return
 
     setSaving(true)
     try {
       const newAmt = parseFloat(activeGoal.current_amount || 0) + amt
-      const updated = goals.map((g) =>
-        g.id === activeGoal.id ? { ...g, current_amount: newAmt } : g
-      )
-      saveGoalsToCache(updated)
+      const isTargetReached = newAmt >= parseFloat(activeGoal.target_amount || 0)
 
-      // Background Supabase update
-      if (user) {
-        try {
-          await supabase.from('goals').update({ current_amount: newAmt }).eq('id', activeGoal.id)
-        } catch {}
+      const { error: upErr } = await supabase
+        .from('goals').update({ current_amount: newAmt }).eq('id', activeGoal.id)
+      if (upErr) throw upErr
+      setGoals(prev => prev.map(g => g.id === activeGoal.id ? { ...g, current_amount: newAmt } : g))
+
+      if (isTargetReached) {
+        fireMilestoneConfetti()
+        flash(`🎉 100% GOAL ACHIEVED! You reached your milestone for ${activeGoal.name}!`)
+      } else {
+        flash(`Added ${formatCurrency(amt)} towards ${activeGoal.name}!`)
       }
 
-      flash(`Added ${formatCurrency(amt)} towards ${activeGoal.name}!`)
       setShowContributeModal(false)
       setActiveGoal(null)
       setContributeAmount('')
@@ -264,20 +227,15 @@ export default function Goals() {
   const handleDeleteGoal = async () => {
     if (!deleteTarget?.id) return
     try {
-      const updated = goals.filter((g) => g.id !== deleteTarget.id)
-      saveGoalsToCache(updated)
-
-      // Background Supabase delete
-      if (user) {
-        try {
-          await supabase.from('goals').delete().eq('id', deleteTarget.id)
-        } catch {}
-      }
-
+      const { error: delErr } = await supabase
+        .from('goals').delete().eq('id', deleteTarget.id)
+      if (delErr) throw delErr
+      setGoals(prev => prev.filter(g => g.id !== deleteTarget.id))
       flash(`"${deleteTarget.name}" removed.`)
       setDeleteTarget(null)
     } catch {
       setError('Unable to delete goal.')
+
     }
   }
 
@@ -291,6 +249,10 @@ export default function Goals() {
         </div>
       )}
 
+      {loading ? (
+        <SkeletonPage type="goals" />
+      ) : (
+      <>
       {/* Top Banner */}
       <div className="card mb-6 bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white p-6 border-none shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -347,6 +309,18 @@ export default function Goals() {
             monthlyReq = remaining / monthsLeft
           }
 
+          // Linked SIP computation
+          const linkedSipId = sipLinks[goal.id] || (goal.id === 'goal-seed-1' ? 'sip_motilal' : goal.id === 'goal-seed-2' ? 'sip_quant' : null)
+          const linkedSip = sips.find(s => s.id === linkedSipId)
+          let projectedMonths = 0
+          let estGoalDate = ''
+          if (linkedSip && linkedSip.amount > 0 && remaining > 0) {
+            projectedMonths = Math.ceil(remaining / linkedSip.amount)
+            const targetDateObj = new Date()
+            targetDateObj.setMonth(targetDateObj.getMonth() + projectedMonths)
+            estGoalDate = targetDateObj.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+          }
+
           return (
             <div key={goal.id} className="card flex flex-col justify-between hover:shadow-md transition-shadow border border-emerald-50 dark:border-slate-800">
               <div>
@@ -367,6 +341,24 @@ export default function Goals() {
 
                 {goal.notes && (
                   <p className="text-xs text-gray-500 mb-3">{goal.notes}</p>
+                )}
+
+                {/* Linked SIP Info Badge */}
+                {linkedSip && (
+                  <div className="mb-3 p-2 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-slate-800 dark:to-indigo-950/30 rounded-xl border border-blue-100 dark:border-indigo-900/40 space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1 truncate max-w-[200px]" title={linkedSip.name}>
+                        <Link2 className="h-3 w-3 text-indigo-500 shrink-0" /> {linkedSip.name}
+                      </span>
+                      <span className="font-bold text-slate-800 dark:text-white shrink-0">{formatCurrency(linkedSip.amount)}/mo</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>Funded by SIP:</span>
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                        {isComplete ? 'Complete' : `~${projectedMonths} mo (${estGoalDate})`}
+                      </span>
+                    </div>
+                  </div>
                 )}
 
                 {/* Progress Bar */}
@@ -421,6 +413,7 @@ export default function Goals() {
                 <button
                   onClick={() => {
                     setEditTarget(goal)
+                    setSelectedSipId(sipLinks[goal.id] || '')
                     setForm({
                       name: goal.name,
                       target_amount: String(goal.target_amount),
@@ -452,7 +445,10 @@ export default function Goals() {
       {showAddModal && (
         <Modal
           isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => {
+            setShowAddModal(false)
+            setSelectedSipId('')
+          }}
           title={editTarget ? 'Edit Financial Goal' : 'Create Financial Goal'}
         >
           <form onSubmit={handleSaveGoal} className="space-y-4">
@@ -516,6 +512,25 @@ export default function Goals() {
                   <option value="Retirement">Retirement</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label className="label">Link Monthly Mutual Fund SIP (Optional)</label>
+              <select
+                value={selectedSipId}
+                onChange={(e) => setSelectedSipId(e.target.value)}
+                className="input text-xs"
+              >
+                <option value="">-- No Linked SIP --</option>
+                {sips.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({formatCurrency(s.amount)}/mo)
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Directs this monthly SIP toward accelerating this goal milestone.
+              </p>
             </div>
 
             <div>
@@ -613,6 +628,8 @@ export default function Goals() {
         onConfirm={handleDeleteGoal}
         onCancel={() => setDeleteTarget(null)}
       />
+      </>
+      )}
     </Layout>
   )
 }

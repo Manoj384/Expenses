@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import AdminLockModal from './AdminLockModal'
@@ -7,10 +7,14 @@ import CommandPalette from './CommandPalette'
 import DataBackupModal from './DataBackupModal'
 import NotificationCenter from './NotificationCenter'
 import AiFinancialAdvisorModal from './AiFinancialAdvisorModal'
+
+import KeyboardShortcutsModal from './KeyboardShortcutsModal'
+import OnboardingWizardModal from './OnboardingWizardModal'
+import QuickAddFAB from './QuickAddFAB'
 import { useAdmin } from '../context/AdminContext'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut } from 'lucide-react'
+import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut, HelpCircle, Compass } from 'lucide-react'
 
 export default function Layout({ children, title }) {
   const { isAdmin } = useAdmin()
@@ -19,6 +23,22 @@ export default function Layout({ children, title }) {
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showAiModal, setShowAiModal] = useState(false)
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false)
+
+
+  // Global keyboard listener for Shift + ?
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.key === '?' || (e.shiftKey && e.key === '/')) && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+        e.preventDefault()
+        setShowShortcutsModal(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
 
   const handleLogout = () => {
     logout()
@@ -120,6 +140,25 @@ export default function Layout({ children, title }) {
                 </>
               )}
             </button>
+            {/* Guided Setup Tour Trigger Button */}
+            <button
+              onClick={() => setShowOnboardingModal(true)}
+              className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 border border-gray-200 dark:border-slate-700 transition-colors hidden sm:flex"
+              title="Guided Onboarding & Setup Tour"
+              aria-label="Setup Tour"
+            >
+              <Compass className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </button>
+
+            {/* Keyboard Shortcuts Trigger Button */}
+            <button
+              onClick={() => setShowShortcutsModal(true)}
+              className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 border border-gray-200 dark:border-slate-700 transition-colors hidden sm:flex"
+              title="Keyboard Shortcuts Cheatsheet (Shift + ?)"
+              aria-label="Keyboard Shortcuts"
+            >
+              <HelpCircle className="h-4 w-4 text-gray-500 dark:text-slate-400" />
+            </button>
           </div>
         </header>
 
@@ -128,6 +167,8 @@ export default function Layout({ children, title }) {
           {children}
         </main>
       </div>
+
+      <QuickAddFAB />
 
       <BottomNav
         onOpenAi={() => setShowAiModal(true)}
@@ -152,7 +193,19 @@ export default function Layout({ children, title }) {
         isOpen={showBackupModal}
         onClose={() => setShowBackupModal(false)}
       />
+
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+      />
+
+      <OnboardingWizardModal
+        isOpen={showOnboardingModal}
+        onClose={() => setShowOnboardingModal(false)}
+      />
     </div>
   )
 }
+
+
 

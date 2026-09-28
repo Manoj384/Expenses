@@ -5,12 +5,30 @@ import Layout from '../components/Layout'
 import TransactionForm from '../components/TransactionForm'
 import TransactionList from '../components/TransactionList'
 import Modal from '../components/Modal'
-import LoadingSpinner from '../components/LoadingSpinner'
+import { SkeletonTable } from '../components/SkeletonLoader'
 import CategoryManager from '../components/CategoryManager'
 import PaymentMethodManager from '../components/PaymentMethodManager'
 import AdminLockModal from '../components/AdminLockModal'
 import StatementImportModal from '../components/StatementImportModal'
-import { Plus, SlidersHorizontal, X, Tag, CreditCard, FileSpreadsheet, Sparkles } from 'lucide-react'
+import SmsUpiParserModal from '../components/SmsUpiParserModal'
+import MerchantAnalyticsModal from '../components/MerchantAnalyticsModal'
+import AuditLogModal from '../components/AuditLogModal'
+import { retryFetch } from '../utils/retryFetch'
+import {
+  Plus,
+  SlidersHorizontal,
+  X,
+  Tag,
+  CreditCard,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+  Smartphone,
+  Store,
+  ShieldCheck,
+} from 'lucide-react'
+
+const PAGE_SIZE = 25
 
 export default function Transactions() {
   const { user } = useAuth()
@@ -20,9 +38,14 @@ export default function Transactions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
 
   const [showAdd, setShowAdd] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [showSmsModal, setShowSmsModal] = useState(false)
+  const [showMerchantModal, setShowMerchantModal] = useState(false)
+  const [showAuditModal, setShowAuditModal] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [showCat, setShowCat] = useState(false)
   const [showMethods, setShowMethods] = useState(false)
@@ -52,12 +75,16 @@ export default function Transactions() {
     setLoading(true)
     setError('')
     try {
+      const from = (page - 1) * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+
       let q = supabase
         .from('transactions')
-        .select('*, categories(name), payment_methods(id, name, type)')
+        .select('*, categories(name), payment_methods(id, name, type)', { count: 'exact' })
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .order('created_at', { ascending: false })
+        .range(from, to)
 
       if (filters.type) q = q.eq('type', filters.type)
       if (filters.category_id) q = q.eq('category_id', filters.category_id)
@@ -65,15 +92,16 @@ export default function Transactions() {
       if (filters.start_date) q = q.gte('date', filters.start_date)
       if (filters.end_date) q = q.lte('date', filters.end_date)
 
-      const { data, error: fetchErr } = await q
+      const { data, error: fetchErr, count } = await retryFetch(() => q)
       if (fetchErr) throw fetchErr
       setTransactions(data || [])
+      setTotalCount(count || 0)
     } catch {
       setError('Unable to load transactions. Please try again.')
     } finally {
       setLoading(false)
     }
-  }, [user, filters])
+  }, [user, filters, page])
 
   useEffect(() => {
     fetchFiltersData()
@@ -81,7 +109,23 @@ export default function Transactions() {
 
   useEffect(() => {
     fetchTransactions()
-  }, [fetchTransactions])
+
+    if (!user) return
+    const channel = supabase
+      .channel(`realtime-tx-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` },
+        () => {
+          fetchTransactions()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchTransactions, user])
 
   const handleDelete = async (id) => {
     try {
@@ -99,11 +143,15 @@ export default function Transactions() {
     fetchTransactions()
   }
 
-  const handleFilterChange = (e) =>
+  const handleFilterChange = (e) => {
+    setPage(1)
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
 
-  const clearFilters = () =>
+  const clearFilters = () => {
+    setPage(1)
     setFilters({ type: '', category_id: '', payment_method_id: '', start_date: '', end_date: '' })
+  }
 
   const hasFilters = Object.values(filters).some(Boolean)
 
@@ -155,11 +203,27 @@ export default function Transactions() {
             <Plus className="h-4 w-4" /> Add Transaction
           </button>
           <button
+            onClick={() => setShowSmsModal(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+            title="Import Bank SMS & UPI payment alerts automatically"
+          >
+            <Smartphone className="h-3.5 w-3.5 text-indigo-200" />
+            SMS / UPI Import
+          </button>
+          <button
+            onClick={() => setShowMerchantModal(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+            title="Inspect top vendors, order frequency and average spend"
+          >
+            <Store className="h-3.5 w-3.5 text-purple-200" />
+            Merchants
+          </button>
+          <button
             onClick={() => setShowImportModal(true)}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
           >
             <Sparkles className="h-3.5 w-3.5 text-emerald-200" />
-            Statement & SMS Parser
+            CSV / Statement
           </button>
           <button
             onClick={() => setShowFilters((f) => !f)}
@@ -171,6 +235,13 @@ export default function Transactions() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowAuditModal(true)}
+            className="btn-secondary flex items-center gap-1.5 text-xs py-2"
+            title="Security audit trail & API webhooks"
+          >
+            <ShieldCheck className="h-4 w-4 text-emerald-600" /> Audit & Hooks
+          </button>
           <button onClick={() => setShowCat(true)} className="btn-secondary flex items-center gap-1.5 text-xs py-2">
             <Tag className="h-4 w-4 text-gray-500" /> Categories
           </button>
@@ -238,7 +309,7 @@ export default function Transactions() {
       {/* Transaction List */}
       <div className="card">
         {loading ? (
-          <LoadingSpinner text="Loading transactions..." />
+          <SkeletonTable rows={8} />
         ) : (
           <TransactionList
             transactions={transactions}
@@ -248,7 +319,35 @@ export default function Transactions() {
         )}
       </div>
 
-      {/* Modals */}
+      {/* Pagination Controls */}
+      {!loading && totalCount > PAGE_SIZE && (
+        <div className="flex items-center justify-between px-1 py-2">
+          <p className="text-xs text-gray-500 dark:text-slate-400">
+            Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount} transactions
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-1.5 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+              Page {page} of {Math.ceil(totalCount / PAGE_SIZE)}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(Math.ceil(totalCount / PAGE_SIZE), p + 1))}
+              disabled={page >= Math.ceil(totalCount / PAGE_SIZE)}
+              className="p-1.5 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+
       <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="Add Transaction">
         <TransactionForm onSuccess={handleFormSuccess} onCancel={() => setShowAdd(false)} />
       </Modal>
@@ -302,6 +401,31 @@ export default function Transactions() {
         onImportSuccess={handleBatchImport}
         categories={categories}
         paymentMethods={paymentMethods}
+      />
+
+      {/* Smart SMS & UPI Parser Modal */}
+      <SmsUpiParserModal
+        isOpen={showSmsModal}
+        onClose={() => setShowSmsModal(false)}
+        onTransactionsImported={() => {
+          fetchTransactions()
+          setSuccess('Bank SMS & UPI transactions successfully imported!')
+          setTimeout(() => setSuccess(''), 4000)
+        }}
+      />
+
+      {/* Merchant Analytics Modal */}
+      <MerchantAnalyticsModal
+        isOpen={showMerchantModal}
+        onClose={() => setShowMerchantModal(false)}
+        transactions={transactions}
+      />
+
+      {/* Audit Log & Webhook Modal */}
+      <AuditLogModal
+        isOpen={showAuditModal}
+        onClose={() => setShowAuditModal(false)}
+        transactions={transactions}
       />
     </Layout>
   )

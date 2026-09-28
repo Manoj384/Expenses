@@ -19,6 +19,11 @@ import {
   ArrowUpRight,
   ShieldCheck,
   Zap,
+  Layers,
+  Wallet,
+  Coins,
+  Settings2,
+  Info,
 } from 'lucide-react'
 
 const DEFAULT_BUDGETS = [
@@ -35,6 +40,11 @@ export default function Budgets() {
   const [categories, setCategories] = useState([])
   const [budgets, setBudgets] = useState([])
   const [spendingMap, setSpendingMap] = useState({})
+  const [monthlyIncome, setMonthlyIncome] = useState(() => {
+    return parseFloat(localStorage.getItem('ft_custom_monthly_income')) || 85000
+  })
+  const [editingIncome, setEditingIncome] = useState(false)
+  const [incomeInput, setIncomeInput] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -66,14 +76,22 @@ export default function Budgets() {
       setCategories(cats)
       setBudgets(budRes.data || [])
 
-      // Calculate category spend map for current month
+      // Calculate category spend map and income for current month
       const spentByCat = {}
+      let detectedIncome = 0
       for (const tx of txRes.data || []) {
         if (tx.type === 'expense' && tx.category_id) {
           spentByCat[tx.category_id] = (spentByCat[tx.category_id] || 0) + parseFloat(tx.amount || 0)
+        } else if (tx.type === 'income') {
+          detectedIncome += parseFloat(tx.amount || 0)
         }
       }
       setSpendingMap(spentByCat)
+
+      // If user has actual logged income this month, use it unless custom overridden
+      if (detectedIncome > 0 && !localStorage.getItem('ft_custom_monthly_income')) {
+        setMonthlyIncome(detectedIncome)
+      }
     } catch {
       setError('Unable to load budget settings.')
     } finally {
@@ -90,7 +108,13 @@ export default function Budgets() {
     setTimeout(() => setSuccess(''), 4000)
   }
 
-  // Merge categories with budgets
+  // Days in month calculation for spending velocity
+  const now = new Date()
+  const currentDay = now.getDate()
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const daysRemaining = Math.max(daysInMonth - currentDay, 1)
+
+  // Merge categories with budgets & compute spending velocity
   const budgetList = categories.map(cat => {
     const b = budgets.find(x => x.category_id === cat.id)
     const spent = spendingMap[cat.id] || 0
@@ -99,6 +123,12 @@ export default function Budgets() {
     const pct = limit > 0 ? (spent / limit) * 100 : 0
     const isOver = spent > limit
     const isWarning = !isOver && pct >= threshold
+
+    // Spending velocity metrics
+    const dailyBurnRate = spent / Math.max(currentDay, 1)
+    const projectedSpend = dailyBurnRate * daysInMonth
+    const projectedDiff = limit - projectedSpend
+    const willOvershoot = !isOver && projectedSpend > limit
 
     return {
       catId: cat.id,
@@ -110,6 +140,10 @@ export default function Budgets() {
       pct,
       isOver,
       isWarning,
+      dailyBurnRate,
+      projectedSpend,
+      projectedDiff,
+      willOvershoot,
     }
   })
 
@@ -118,7 +152,11 @@ export default function Budgets() {
   const totalSpent = budgetList.reduce((s, b) => s + b.spent, 0)
   const totalPct = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0
   const overspentCount = budgetList.filter(b => b.isOver).length
+  const atRiskCount = budgetList.filter(b => b.willOvershoot).length
   const warningCount = budgetList.filter(b => b.isWarning).length
+  const overallDailyBurn = totalSpent / Math.max(currentDay, 1)
+  const overallProjectedSpend = overallDailyBurn * daysInMonth
+
 
   const handleSaveBudget = async (e) => {
     e.preventDefault()
@@ -151,6 +189,30 @@ export default function Budgets() {
     }
   }
 
+  // Zero-Based Budgeting (YNAB style) computations
+  const unassignedAmount = monthlyIncome - totalBudget
+  const isZeroBalanced = unassignedAmount === 0
+  const isOverAssigned = unassignedAmount < 0
+  const assignedPct = monthlyIncome > 0 ? (totalBudget / monthlyIncome) * 100 : 0
+
+  const handleSaveIncome = (e) => {
+    e.preventDefault()
+    const val = parseFloat(incomeInput)
+    if (!isNaN(val) && val >= 0) {
+      setMonthlyIncome(val)
+      localStorage.setItem('ft_custom_monthly_income', val.toString())
+      flash('Monthly baseline income updated!')
+    }
+    setEditingIncome(false)
+  }
+
+  const handleResetIncome = () => {
+    localStorage.removeItem('ft_custom_monthly_income')
+    fetchData()
+    flash('Reset to automatically detected monthly income.')
+    setEditingIncome(false)
+  }
+
   return (
     <Layout title="Smart Budget Caps & Spending Alerts">
       {error && <div className="bg-red-50 text-red-700 text-xs p-3 rounded-lg mb-4">{error}</div>}
@@ -164,15 +226,20 @@ export default function Budgets() {
       {/* Top Banner */}
       <div className="card mb-6 bg-gradient-to-r from-slate-900 via-amber-950 to-slate-900 text-white p-6 border-none shadow-xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <span className="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-1.5 mb-2">
-              <Zap className="h-3 w-3 text-amber-400" />
-              Monthly Budget Guardrails
-            </span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-amber-500/20 text-amber-300 text-xs px-2.5 py-0.5 rounded-full font-semibold inline-flex items-center gap-1.5">
+                <Zap className="h-3 w-3 text-amber-400" />
+                Monthly Budget & Spending Velocity
+              </span>
+              <span className="text-[11px] text-amber-300/80 font-medium">
+                Day {currentDay} of {daysInMonth} ({daysRemaining} days left)
+              </span>
+            </div>
             <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
               {formatCurrency(totalSpent)} <span className="text-sm font-normal text-amber-200">spent of {formatCurrency(totalBudget)}</span>
             </h2>
-            <div className="w-full max-w-md bg-white/10 rounded-full h-2.5 mt-3 overflow-hidden">
+            <div className="w-full max-w-md bg-white/10 rounded-full h-2.5 mt-2 overflow-hidden">
               <div
                 className={`h-2.5 rounded-full transition-all duration-500 ${
                   totalPct >= 100 ? 'bg-rose-500' : totalPct >= 80 ? 'bg-amber-400' : 'bg-emerald-400'
@@ -180,9 +247,18 @@ export default function Budgets() {
                 style={{ width: `${Math.min(totalPct, 100)}%` }}
               ></div>
             </div>
-            <p className="text-xs text-amber-200 mt-1.5 font-medium">
-              {totalPct.toFixed(1)}% Total Budget Consumed This Month
-            </p>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-amber-200 pt-1">
+              <span>{totalPct.toFixed(1)}% consumed</span>
+              <span>•</span>
+              <span>Daily Burn: <strong className="text-white font-bold">{formatCurrency(overallDailyBurn)}/day</strong></span>
+              <span>•</span>
+              <span>
+                Projected Total:{' '}
+                <strong className={overallProjectedSpend > totalBudget ? 'text-rose-300 font-bold' : 'text-emerald-300 font-bold'}>
+                  {formatCurrency(overallProjectedSpend)}
+                </strong>
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -191,19 +267,123 @@ export default function Budgets() {
                 <AlertTriangle className="h-4 w-4 text-rose-400" />
                 <span>{overspentCount} Category Exceeded Limit!</span>
               </div>
-            ) : warningCount > 0 ? (
+            ) : atRiskCount > 0 ? (
               <div className="bg-amber-500/20 border border-amber-500/40 text-amber-300 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-amber-400" />
-                <span>{warningCount} Categories Near 80% Cap</span>
+                <span>{atRiskCount} Categories at High Burn Velocity</span>
               </div>
             ) : (
               <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>All Categories Within Safe Limits</span>
+                <span>Pacing Well • All Limits Safe</span>
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Zero-Based Budgeting (YNAB Envelope Assistant) */}
+      <div className="card mb-6 border border-indigo-100 dark:border-indigo-900/40 bg-gradient-to-br from-indigo-50/60 via-white to-purple-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/20 p-5 shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="bg-indigo-600 text-white text-[11px] px-2.5 py-0.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-xs">
+                <Layers className="h-3 w-3" />
+                Zero-Based Budgeting (YNAB Method)
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Give Every Rupee a Job
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-baseline gap-2 pt-1">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Monthly Inflow:</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white">{formatCurrency(monthlyIncome)}</span>
+              <span className="text-slate-400">•</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Assigned:</span>
+              <span className="text-lg font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(totalBudget)}</span>
+              <span className="text-slate-400">({assignedPct.toFixed(0)}%)</span>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              {isZeroBalanced ? (
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Every single rupee is accounted for! 100% Zero-based budget efficiency.
+                </span>
+              ) : isOverAssigned ? (
+                <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Over-assigned by {formatCurrency(Math.abs(unassignedAmount))}! Lower category limits to match incoming cash.
+                </span>
+              ) : (
+                <span className="text-indigo-700 dark:text-indigo-300 font-medium flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                  <strong>{formatCurrency(unassignedAmount)} left to assign:</strong> Allocate to Emergency Fund, Mutual Fund SIPs, or Savings Goals.
+                </span>
+              )}
+            </p>
+          </div>
+
+          {/* Left to assign badge & income config */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div
+              className={`px-4 py-3 rounded-2xl border text-center min-w-[170px] ${
+                isZeroBalanced
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                  : isOverAssigned
+                  ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300'
+                  : 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200'
+              }`}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wider">
+                {isOverAssigned ? 'Over Budget' : 'Left to Assign'}
+              </div>
+              <div className="text-xl font-black">
+                {formatCurrency(Math.abs(unassignedAmount))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setIncomeInput(monthlyIncome.toString())
+                setEditingIncome(!editingIncome)
+              }}
+              className="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5 h-10 self-center"
+              title="Change expected monthly income baseline"
+            >
+              <Settings2 className="h-3.5 w-3.5 text-slate-500" />
+              <span>Set Inflow</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Edit Income inline form */}
+        {editingIncome && (
+          <form onSubmit={handleSaveIncome} className="mt-4 pt-4 border-t border-indigo-100 dark:border-slate-800 flex flex-wrap items-center gap-3">
+            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Expected Monthly Inflow (₹):
+            </div>
+            <input
+              type="number"
+              min="0"
+              value={incomeInput}
+              onChange={(e) => setIncomeInput(e.target.value)}
+              placeholder="e.g. 85000"
+              className="input text-xs w-36 py-1.5 px-2"
+              autoFocus
+            />
+            <button type="submit" className="btn-primary text-xs py-1.5 px-3">
+              Save Inflow
+            </button>
+            <button type="button" onClick={handleResetIncome} className="btn-secondary text-xs py-1.5 px-3">
+              Auto-Detect
+            </button>
+            <button type="button" onClick={() => setEditingIncome(false)} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">
+              Cancel
+            </button>
+          </form>
+        )}
       </div>
 
       {/* Category Budget Cards */}
@@ -213,9 +393,9 @@ export default function Budgets() {
             key={item.catId}
             className={`card flex flex-col justify-between border transition-all ${
               item.isOver
-                ? 'border-rose-300 bg-rose-50/20 dark:bg-rose-950/10'
-                : item.isWarning
-                ? 'border-amber-300 bg-amber-50/20 dark:bg-amber-950/10'
+                ? 'border-rose-300 bg-rose-50/20 dark:bg-rose-950/10 shadow-sm'
+                : item.willOvershoot
+                ? 'border-amber-300 bg-amber-50/20 dark:bg-amber-950/10 shadow-sm'
                 : 'border-gray-100 dark:border-slate-800'
             }`}
           >
@@ -226,12 +406,12 @@ export default function Budgets() {
                 </h3>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                   item.isOver
-                    ? 'bg-rose-100 text-rose-800'
-                    : item.isWarning
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-emerald-100 text-emerald-800'
+                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                    : item.willOvershoot
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                 }`}>
-                  {item.isOver ? '⚠️ Over Budget' : item.isWarning ? '⚡ Near Cap' : '✓ Safe'}
+                  {item.isOver ? '⚠️ Exceeded' : item.willOvershoot ? '🔥 High Burn Rate' : '✓ Safe Pace'}
                 </span>
               </div>
 
@@ -246,17 +426,36 @@ export default function Budgets() {
                 <div className="w-full bg-gray-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
                   <div
                     className={`h-2 rounded-full transition-all ${
-                      item.isOver ? 'bg-rose-500' : item.isWarning ? 'bg-amber-500' : 'bg-emerald-500'
+                      item.isOver ? 'bg-rose-500' : item.willOvershoot ? 'bg-amber-500' : 'bg-emerald-500'
                     }`}
                     style={{ width: `${Math.min(item.pct, 100)}%` }}
                   ></div>
                 </div>
-                <div className="flex justify-between text-[11px] text-gray-500 pt-0.5">
+                <div className="flex justify-between text-[11px] text-gray-500 dark:text-slate-400 pt-0.5">
                   <span>{item.pct.toFixed(0)}% consumed</span>
-                  <span>{item.isOver ? `Exceeded by ${formatCurrency(item.spent - item.limit)}` : `${formatCurrency(item.limit - item.spent)} remaining`}</span>
+                  <span>{item.isOver ? `Exceeded by ${formatCurrency(item.spent - item.limit)}` : `${formatCurrency(item.limit - item.spent)} left`}</span>
                 </div>
               </div>
+
+              {/* Spending Velocity Pill */}
+              <div className={`p-2 rounded-xl text-[11px] mb-3 flex items-center justify-between ${
+                item.isOver
+                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50'
+                  : item.willOvershoot
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50'
+                  : 'bg-gray-50 dark:bg-slate-800/60 text-gray-600 dark:text-slate-400'
+              }`}>
+                <span>Burn: <strong>{formatCurrency(item.dailyBurnRate)}/day</strong></span>
+                <span>
+                  {item.isOver
+                    ? 'Cap breached'
+                    : item.willOvershoot
+                    ? `Projected: ${formatCurrency(item.projectedSpend)}`
+                    : `On track (+${formatCurrency(item.projectedDiff)})`}
+                </span>
+              </div>
             </div>
+
 
             <div className="pt-3 border-t border-gray-100 dark:border-slate-800 flex justify-end">
               <button

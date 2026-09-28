@@ -1,0 +1,266 @@
+====================================================================
+  FINANCE TRACKER — FEATURE ROADMAP & IMPROVEMENT PLAN (58 Items)
+  Inspired by: Splitwise · YNAB · Mint · ET Money · Groww · Zerodha
+               Walnut · Google Pay · PhonePe
+====================================================================
+
+
+────────────────────────────────────────────────────────────────────
+PRIORITY 1 — STABILITY & ROBUSTNESS (10 items)
+────────────────────────────────────────────────────────────────────
+
+ #1  Skeleton loaders — pulsing card placeholders instead of blank
+     white pages on slow networks
+
+ #2  Auto-retry with exponential backoff on all Supabase data fetches
+     when network is flaky
+
+ #3  Disable submit button after first click to prevent duplicate
+     form submissions; re-enable on error
+
+ #4  Transactions page pagination — add infinite scroll or page
+     controls (500+ rows kill performance)
+
+ #5  Better error toasts — show exact Supabase reason when insert
+     fails (network, RLS, duplicate key)
+
+ #6  Goals and Budgets still localStorage-only — migrate fully to
+     Supabase so they sync across devices
+
+ #7  Add confirm dialog before deleting critical records (debt,
+     MF folio, goal)
+
+ #8  Better empty state handling across all pages when Supabase
+     returns zero rows for new users
+
+ #9  Reports page lazy chart loading + date range cap to avoid
+     slowdown with large datasets
+
+#10  Run create_statement_records.sql migration in Supabase so
+     Statements section persists across logins (file already created)
+
+
+────────────────────────────────────────────────────────────────────
+PRIORITY 2 — UX & USER FRIENDLINESS (13 items)
+────────────────────────────────────────────────────────────────────
+
+#11  Onboarding wizard for first-time users — set income, add
+     categories, create first goal (inspired by Mint, YNAB)
+
+#12  Quick Add floating button — tap anywhere to add a transaction
+     in 3 taps (inspired by Walnut, Money Manager)
+
+#13  Global search — make Ctrl+K search across transactions, goals,
+     debts, not just navigate pages (inspired by Notion, Linear)
+
+#14  Dark mode auto-sync with device system preference
+     (prefers-color-scheme media query)
+
+#15  Pull-to-refresh gesture on mobile for all data sections
+
+#16  Swipe to delete on mobile transaction list rows
+     (inspired by iOS Mail, Splitwise)
+
+#17  Currency selector — support USD, EUR alongside INR for NRIs
+     (inspired by Splitwise, Wise)
+
+#18  App-level PIN lock on open + biometric prompt on supported
+     devices (inspired by ET Money, Groww)
+
+#19  Haptic feedback on mobile for key actions using Vibration API
+
+#20  Offline mode banner — "Offline — changes will sync when
+     connected" (inspired by Google Docs)
+
+#21  Undo last action — 5 second toast with Undo button after
+     delete or edit (inspired by Gmail, Slack)
+
+#22  Compact vs Comfortable view toggle on transaction list
+     (inspired by Google Sheets)
+
+#23  Keyboard shortcuts cheatsheet panel — open with Shift+?
+
+
+────────────────────────────────────────────────────────────────────
+PRIORITY 3 — SPLITWISE-LIKE BILL SPLITTING
+────────────────────────────────────────────────────────────────────
+
+NOTE: YES — this can be built on your existing Supabase + React
+stack. You already have SplitBillModal.jsx started. Only 3 new
+Supabase tables needed. Estimated effort: 3-4 days.
+
+New tables required:
+  groups          → id, name, user_id (owner), created_at
+  group_members   → id, group_id, name, email (optional)
+  split_expenses  → id, transaction_id, group_id, paid_by_member_id,
+                    splits[{member_id, amount}]
+
+Features to build:
+
+#24  Create a Group — e.g. "Goa Trip", "Flat Mates", "Office Team"
+
+#25  Add members by name or email — no separate account needed for
+     members
+
+#26  Log a shared expense — link any transaction to a group, specify
+     who paid, split equally or by custom percentage
+
+#27  Balance view — compute who owes whom:
+     Balance = Amount Paid - Fair Share = Net per person
+
+#28  Settle up — mark a person's balance as settled, log it as a
+     transaction automatically
+
+#29  WhatsApp share — generate a settlement summary and share via
+     WhatsApp link (infrastructure already exists in app)
+
+#30  Group expense history — filter transactions by group_id to see
+     all shared spends for a trip or household
+
+
+────────────────────────────────────────────────────────────────────
+PRIORITY 4 — ADVANCED FINANCIAL FEATURES (14 items)
+────────────────────────────────────────────────────────────────────
+
+  -- YNAB / Mint inspired --
+
+#31  Zero-based budgeting — assign every rupee of income to a
+     category; show "₹X left to assign" live
+
+#32  Spending velocity alerts — "You've spent 78% of your Food
+     budget with 12 days left in the month" with color alerts
+
+#33  Bill reminders / recurring expenses — set monthly reminders
+     for Netflix, rent, insurance with due-date notifications
+
+#34  Salary & income calendar — dedicated view for salary date,
+     freelance payments, dividend credits
+
+#35  Net Worth trend graph — line chart showing net worth growth
+     over months (data already tracked, just needs history log)
+
+#36  Financial health score — score out of 100 based on savings
+     rate, debt ratio, emergency fund coverage, goals progress
+
+#37  Savings rate calculator — (Income - Expenses) / Income × 100
+     tracked monthly with trend
+
+  -- ET Money / Groww / Zerodha inspired --
+
+#38  XIRR calculator for MF investments — true return considering
+     exact dates of each investment (more accurate than simple %)
+
+#39  SIP step-up planner — "If you increase SIP by 10% every year
+     you'll reach ₹X by 2035" projection
+
+#40  MF comparison tool — compare 2 funds side by side: NAV growth,
+     category, risk rating
+
+#41  Goal-SIP linkage — link a SIP to a specific goal, show
+     "35% funded via SIPs"
+
+#42  Portfolio rebalancing alert — "Equity allocation is 78%,
+     target is 70% — consider rebalancing"
+
+#43  Tax P&L report — auto-calculate LTCG and STCG across all MF
+     transactions for ITR filing (LTCG calc already partially built)
+
+#44  FD / RD tracker — track fixed deposits, maturity dates,
+     interest earned, auto-alert on maturity
+
+
+────────────────────────────────────────────────────────────────────
+PRIORITY 5 — DASHBOARD & REPORTS UPGRADES (6 items)
+────────────────────────────────────────────────────────────────────
+
+#45  Customizable dashboard widgets — show/hide and reorder cards
+     based on personal preference
+
+#46  Cash flow calendar — calendar heatmap view showing income and
+     expense amounts by day
+
+#47  Year-over-year comparison — September 2026 vs September 2025
+     spending shown side by side
+
+#48  Top merchant spend chart — pie chart of top 10 merchants or
+     payees you spend money at
+
+#49  Projected end-of-month balance — estimate based on recurring
+     expenses and income patterns
+
+#50  Weekly digest notification — Monday alert: "Last week you spent
+     ₹4,200. Top category: Food (42%)"
+
+
+────────────────────────────────────────────────────────────────────
+PRIORITY 6 — SOCIAL & SHARING (5 items)
+────────────────────────────────────────────────────────────────────
+
+#51  Shareable monthly report — generate a read-only link or PDF
+     of your monthly financial summary
+
+#52  Couple / Family mode — share a budget view with partner; both
+     can add transactions to a shared pool
+
+#53  Export to Excel / Google Sheets — one-click export of all
+     transactions in pivot-ready format
+
+#54  Import from CSV — upload transactions from any bank's CSV
+     export (HDFC, ICICI, SBI, Axis formats)
+
+#55  CA / Accountant export — ITR-ready JSON or CSV with LTCG,
+     STCG, income categorized separately
+
+
+────────────────────────────────────────────────────────────────────
+PRIORITY 7 — DEVELOPER / POWER USER (3 items + Walnut SMS)
+────────────────────────────────────────────────────────────────────
+
+#56  SMS / UPI transaction auto-import — parse SMS from HDFC,
+     ICICI, SBI and auto-add as transactions (inspired by Walnut)
+
+#57  Category auto-suggestions using AI — suggest category based
+     on merchant name (Swiggy → Food, Amazon → Shopping)
+
+#58  Spending streak gamification — "🔥 5-day streak of staying
+     under daily budget" with milestone badges
+
+
+====================================================================
+  RECOMMENDED IMPLEMENTATION ORDER
+====================================================================
+
+Phase 1 — Immediate (1-2 weeks)
+  #1  Skeleton loaders
+  #2  Auto-retry on fetch
+  #3  Prevent duplicate submissions
+  #4  Transactions pagination
+  #6  Goals + Budgets → Supabase
+  #10 Run statement_records SQL migration
+  #12 Quick Add floating button
+  #16 Swipe to delete on mobile
+
+Phase 2 — Core Value (2-4 weeks)
+  #24-30  Splitwise bill splitting (full group expense flow)
+  #33     Bill reminders / recurring expenses
+  #32     Spending velocity alerts
+  #38     XIRR for Mutual Funds
+  #35     Net Worth trend graph
+
+Phase 3 — Advanced (1-2 months)
+  #36     Financial health score
+  #43     Tax P&L report for ITR
+  #46     Cash flow calendar
+  #52     Couple / Family mode
+  #45     Customizable dashboard
+
+Phase 4 — Power Features (2-3 months)
+  #56     SMS / UPI auto-import
+  #54     CSV import from banks
+  #51     Shareable reports
+  #58     Gamification streaks
+
+====================================================================
+  Total: 58 improvements across 7 priority tiers
+  Last updated: 2026-09-28
+====================================================================

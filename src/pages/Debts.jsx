@@ -10,6 +10,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import SplitBillModal from '../components/SplitBillModal'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
+import { fireMilestoneConfetti } from '../utils/confetti'
 import {
   Plus,
   Users,
@@ -292,6 +293,10 @@ export default function Debts() {
           note: isLent ? `Money collected from ${debtName}` : `Debt repayment for ${debtName}`,
           date: new Date().toISOString().slice(0, 10),
         })
+      }
+
+      if (isNowCleared) {
+        fireMilestoneConfetti()
       }
 
       toastSuccess(

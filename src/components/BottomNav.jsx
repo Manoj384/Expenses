@@ -21,6 +21,8 @@ import {
   Database,
   LogOut,
   X,
+  Users,
+  Calendar,
 } from 'lucide-react'
 
 const primaryNavItems = [
@@ -31,14 +33,17 @@ const primaryNavItems = [
 ]
 
 const moreMenuItems = [
+  { to: '/splitwise',     label: 'Splitwise & Groups',    desc: 'Split bills & settle debts',     icon: Users, color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50' },
+  { to: '/bills',         label: 'Bill Reminders',        desc: 'Rent, WiFi & utilities dues',    icon: Calendar, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' },
   { to: '/statements',    label: 'Statements (AI OCR)',   desc: 'Bank & OneCard transaction OCR', icon: FileSpreadsheet, color: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50' },
   { to: '/sips',          label: 'SIPs Tracker',          desc: 'Monthly schedules & dues',       icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50' },
-  { to: '/net-worth',     label: 'Net Worth',             desc: 'Total assets & liabilities',     icon: Landmark, color: 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50' },
+  { to: '/net-worth',     label: 'Net Worth',             desc: 'Total assets & liabilities',     icon: Landmark, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50' },
   { to: '/goals',         label: 'Wealth Goals',          desc: 'Target milestone progress',      icon: Target, color: 'text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/50' },
-  { to: '/budgets',       label: 'Budget Caps',           desc: 'Category spend limits',          icon: Zap, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50' },
+  { to: '/budgets',       label: 'Budget Caps & Velocity',desc: 'Category limits & daily burn',   icon: Zap, color: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50' },
   { to: '/past-expenses', label: 'Past Expenses',         desc: '385+ historical records',        icon: History, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50' },
   { to: '/reports',       label: 'Reports & Analytics',   desc: 'Visual spending graphs',         icon: BarChart2, color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50' },
 ]
+
 
 export default function BottomNav({ onOpenAi, onOpenAdmin, onOpenBackup }) {
   const [showMoreSheet, setShowMoreSheet] = useState(false)

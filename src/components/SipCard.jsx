@@ -13,6 +13,7 @@ import {
   TrendingUp,
   ExternalLink,
   Layers,
+  Target,
 } from 'lucide-react'
 import ConfirmDialog from './ConfirmDialog'
 
@@ -24,6 +25,22 @@ export default function SipCard({ sip, onEdit, onDelete, onMarkPaid, onViewHisto
   const overdue = isOverdue(sip.next_due_date)
   const days = daysUntil(sip.next_due_date)
   const dueSoon = !overdue && days !== null && days <= 5
+
+  // Check goal linkage
+  let linkedGoalLabel = null
+  try {
+    const goalLinks = JSON.parse(localStorage.getItem('ft_goal_sip_links') || '{}')
+    const matchedGoalId = Object.keys(goalLinks).find(gid => goalLinks[gid] === sip.id)
+    if (matchedGoalId) {
+      if (matchedGoalId === 'goal-seed-1') linkedGoalLabel = 'Emergency Fund'
+      else if (matchedGoalId === 'goal-seed-2') linkedGoalLabel = 'Car Down Payment'
+      else linkedGoalLabel = 'Financial Goal'
+    } else if (sip.id === 'sip_motilal') {
+      linkedGoalLabel = 'Emergency Fund'
+    } else if (sip.id === 'sip_quant') {
+      linkedGoalLabel = 'Car Down Payment'
+    }
+  } catch {}
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -52,6 +69,11 @@ export default function SipCard({ sip, onEdit, onDelete, onMarkPaid, onViewHisto
             {linkedFund && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium flex items-center gap-1 border border-blue-100">
                 <Layers className="h-3 w-3" /> Linked to Groww Portfolio
+              </span>
+            )}
+            {linkedGoalLabel && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-medium flex items-center gap-1 border border-purple-100">
+                <Target className="h-3 w-3 text-purple-600" /> Funding: {linkedGoalLabel}
               </span>
             )}
           </div>

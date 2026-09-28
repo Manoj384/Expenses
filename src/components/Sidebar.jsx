@@ -18,6 +18,8 @@ import {
   Target,
   Zap,
   FileSpreadsheet,
+  Users,
+  Calendar,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAdmin } from '../context/AdminContext'
@@ -26,16 +28,19 @@ import AdminLockModal from './AdminLockModal'
 const navItems = [
   { to: '/',              label: 'Dashboard',         icon: LayoutDashboard },
   { to: '/transactions',  label: 'Transactions',      icon: ArrowLeftRight },
+  { to: '/splitwise',     label: 'Splitwise & Groups',icon: Users },
+  { to: '/bills',         label: 'Bill Reminders',    icon: Calendar },
   { to: '/mutual-funds',  label: 'Mutual Funds',      icon: LineChart },
   { to: '/net-worth',     label: 'Net Worth',         icon: Landmark },
   { to: '/goals',         label: 'Goals',             icon: Target },
   { to: '/budgets',       label: 'Budgets & Alerts',  icon: Zap },
   { to: '/sips',          label: 'SIPs',              icon: TrendingUp },
-  { to: '/past-expenses', label: 'Past Expenses',     icon: History },
   { to: '/debts',         label: 'Debts',             icon: CreditCard },
   { to: '/statements',    label: 'Statements',        icon: FileSpreadsheet },
   { to: '/reports',       label: 'Reports & Visuals', icon: BarChart2 },
+  { to: '/past-expenses', label: 'Past Expenses',     icon: History },
 ]
+
 
 export default function Sidebar() {
   const { user, logout } = useAuth()

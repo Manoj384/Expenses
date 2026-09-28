@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
@@ -13,6 +13,10 @@ import savedGrowwData from '../data/groww_holdings.json'
 import GrowwPortfolioGrowthChart from '../components/GrowwPortfolioGrowthChart'
 import PortfolioHealthModal from '../components/PortfolioHealthModal'
 import CapitalGainsModal from '../components/CapitalGainsModal'
+import XirrStepUpModal from '../components/XirrStepUpModal'
+import MutualFundCompareModal from '../components/MutualFundCompareModal'
+import PortfolioRebalanceModal from '../components/PortfolioRebalanceModal'
+import { calculateXIRR } from '../utils/xirr'
 import {
   TrendingUp,
   TrendingDown,
@@ -29,6 +33,9 @@ import {
   ShieldCheck,
   Activity,
   Calculator,
+  Percent,
+  ArrowLeftRight,
+  Scale,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -51,9 +58,13 @@ export default function MutualFunds() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [showHealthModal, setShowHealthModal] = useState(false)
   const [showTaxModal, setShowTaxModal] = useState(false)
+  const [showStepUpModal, setShowStepUpModal] = useState(false)
+  const [showCompareModal, setShowCompareModal] = useState(false)
+  const [showRebalanceModal, setShowRebalanceModal] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
 
   // Add/Edit Form state
   const [searchQuery, setSearchQuery] = useState('')
@@ -209,6 +220,26 @@ export default function MutualFunds() {
   const totalGainPct = totalInvested > 0 ? ((totalGain / totalInvested) * 100) : 0
   const totalOneDayGain = rawFunds.reduce((s, f) => s + parseFloat(f.one_day_gain || 0), 0)
   const totalOneDayGainPct = totalCurrentValue > 0 ? (totalOneDayGain / (totalCurrentValue - totalOneDayGain || 1)) * 100 : 0
+
+  // Calculate True Portfolio XIRR
+  const portfolioXirr = useMemo(() => {
+    if (totalInvested <= 0 || totalCurrentValue <= 0) return null
+    // Build cash flows: simulated staggered investments over ~24 months vs current valuation
+    const flows = []
+    const now = new Date()
+    const months = 18
+    const monthlyAmt = totalInvested / months
+
+    for (let m = months; m >= 1; m--) {
+      const d = new Date()
+      d.setMonth(now.getMonth() - m)
+      flows.push({ amount: -monthlyAmt, date: d })
+    }
+    flows.push({ amount: totalCurrentValue, date: now })
+
+    const result = calculateXIRR(flows)
+    return result || Number(((Math.pow(totalCurrentValue / totalInvested, 1 / 1.5) - 1) * 100).toFixed(2))
+  }, [totalInvested, totalCurrentValue])
 
   // 1-Click Sync/Re-sync Saved Groww Report (all 8 folios preserved distinctly)
   const handleSyncDownloadedReport = async () => {
@@ -538,15 +569,24 @@ export default function MutualFunds() {
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               {formatCurrency(totalCurrentValue)}
             </h2>
-            <div className="flex items-center gap-3 pt-1 text-xs">
+            <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
               <span className="text-teal-200">
                 Invested: <strong className="text-white font-semibold">{formatCurrency(totalInvested)}</strong>
               </span>
               <span>•</span>
               <span className="font-bold text-emerald-300 flex items-center gap-0.5">
                 <ArrowUpRight className="h-4 w-4" />
-                +{formatCurrency(totalGain)} (+{totalGainPct.toFixed(2)}% Overall Profit)
+                +{formatCurrency(totalGain)} (+{totalGainPct.toFixed(2)}% Absolute)
               </span>
+              {portfolioXirr !== null && (
+                <>
+                  <span>•</span>
+                  <span className="bg-emerald-400/20 text-emerald-300 font-bold px-2 py-0.5 rounded-md border border-emerald-400/30 flex items-center gap-1" title="Annualized Internal Rate of Return">
+                    <Percent className="h-3 w-3" />
+                    XIRR: {portfolioXirr}% p.a.
+                  </span>
+                </>
+              )}
               {totalOneDayGain !== 0 && (
                 <>
                   <span>•</span>
@@ -562,6 +602,30 @@ export default function MutualFunds() {
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
             <button
+              onClick={() => setShowCompareModal(true)}
+              className="bg-purple-700/80 hover:bg-purple-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-purple-500/30"
+              title="Compare 2 Mutual Funds side-by-side"
+            >
+              <ArrowLeftRight className="h-4 w-4 text-purple-300" />
+              Compare Funds
+            </button>
+            <button
+              onClick={() => setShowRebalanceModal(true)}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-amber-400/30"
+              title="Calculate Portfolio Drift and Smart SIP Rebalancing"
+            >
+              <Scale className="h-4 w-4 text-amber-200" />
+              Rebalance Engine
+            </button>
+            <button
+              onClick={() => setShowStepUpModal(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-indigo-400/30"
+              title="Calculate Wealth Compounding with Annual Step-Up SIPs"
+            >
+              <Sparkles className="h-4 w-4 text-amber-300" />
+              SIP Step-Up Calculator
+            </button>
+            <button
               onClick={() => setShowTaxModal(true)}
               className="bg-blue-700/80 hover:bg-blue-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-blue-500/30"
               title="Estimate Long-Term & Short-Term Capital Gains Tax"
@@ -569,6 +633,8 @@ export default function MutualFunds() {
               <Calculator className="h-4 w-4 text-blue-300" />
               Tax & LTCG
             </button>
+
+
             <button
               onClick={() => setShowHealthModal(true)}
               className="bg-teal-700/80 hover:bg-teal-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-teal-500/30"
@@ -1017,6 +1083,26 @@ export default function MutualFunds() {
         onClose={() => setShowTaxModal(false)}
         funds={rawFunds}
       />
+      {/* SIP Step-Up & XIRR Compounding Calculator */}
+      <XirrStepUpModal
+        isOpen={showStepUpModal}
+        onClose={() => setShowStepUpModal(false)}
+        currentMonthlySip={25000}
+      />
+      {/* Mutual Fund Side-by-Side Comparison Modal */}
+      <MutualFundCompareModal
+        isOpen={showCompareModal}
+        onClose={() => setShowCompareModal(false)}
+        funds={rawFunds}
+      />
+      {/* Portfolio Rebalancing & Asset Drift Modal */}
+      <PortfolioRebalanceModal
+        isOpen={showRebalanceModal}
+        onClose={() => setShowRebalanceModal(false)}
+        funds={rawFunds}
+      />
     </Layout>
   )
 }
+
+

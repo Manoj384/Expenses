@@ -1,16 +1,17 @@
 {
+  "name": "Finance Tracker — Wealth & Portfolio OS",
   "short_name": "FinanceTracker",
-  "name": "Personal Finance & Wealth Tracker",
+  "description": "Smart personal finance tracker, Groww mutual fund portfolio, Splitwise expense splitter, and zero-based budgeting assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
       "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
       "type": "image/svg+xml",
-      "sizes": "192x192 512x512"
+      "purpose": "any maskable"
     }
-  ],
-  "start_url": "/",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
-  "display": "standalone",
-  "orientation": "portrait"
+  ]
 }
