@@ -11,6 +11,7 @@ import { formatDate, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../u
 import { frequencyLabel } from '../utils/sipUtils'
 import pastData from '../data/past_expenses.json'
 import defaultSips from '../data/default_sips.json'
+import savedGrowwData from '../data/groww_holdings.json'
 import CashflowForecastModal from '../components/CashflowForecastModal'
 import FinancialHealthScoreModal, { calculateFinancialHealthScore } from '../components/FinancialHealthScoreModal'
 import CashFlowCalendarModal from '../components/CashFlowCalendarModal'
