@@ -13,7 +13,7 @@ import {
 import { lastNMonths, monthLabel } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
 import ShareableMonthlyReportModal from '../components/ShareableMonthlyReportModal'
-import { TrendingUp, TrendingDown, PiggyBank, Tag, Printer, Download, FileSpreadsheet, Share2, Sparkles } from 'lucide-react'
+import { TrendingUp, TrendingDown, PiggyBank, Tag, Printer, Download, FileSpreadsheet, Share2, Sparkles, Calculator } from 'lucide-react'
 
 
 const PERIOD_OPTIONS = [3, 6, 12]
@@ -218,6 +218,14 @@ export default function Reports() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-tax-planner'))}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"
+            title="Calculate Old vs New Regime Tax (FY 2026-27)"
+          >
+            <Calculator className="h-3.5 w-3.5" />
+            <span>Tax Planner</span>
+          </button>
           <button
             onClick={() => setShowShareModal(true)}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs py-1.5 px-3 rounded-xl flex items-center gap-1.5 shadow-sm transition-all"

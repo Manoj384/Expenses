@@ -40,6 +40,7 @@ export default function FireSimulatorModal({
   initialPortfolio = 1500000,
   initialMonthlySavings = 40000,
   initialMonthlyExpense = 45000,
+  isEmbedded = false,
 }) {
   const [currentAge, setCurrentAge] = useState(28)
   const [retirementAge, setRetirementAge] = useState(50)
@@ -168,7 +169,7 @@ export default function FireSimulatorModal({
   }, [standardFireTarget, safeWithdrawal, infRate, simSeed])
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="FIRE & Financial Freedom Simulator" maxWidth="max-w-4xl">
+    <Modal isOpen={isOpen} isEmbedded={isEmbedded} onClose={onClose} title="FIRE & Financial Freedom Simulator" maxWidth="max-w-4xl">
       <div className="space-y-4 text-xs text-gray-700 dark:text-slate-300">
         {/* Top Hero Banner */}
         <div className="p-4 bg-gradient-to-r from-amber-950 via-slate-900 to-slate-900 text-white rounded-2xl border border-amber-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">

@@ -4,7 +4,7 @@ import { formatCurrency } from '../utils/formatCurrency'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { AlertTriangle } from 'lucide-react'
 
-export default function CashflowForecastModal({ isOpen, onClose, sips = [], debts = [] }) {
+export default function CashflowForecastModal({ isOpen, onClose, sips = [], debts = [], isEmbedded = false }) {
   const [horizon, setHorizon] = useState(60)
   const [currBal, setCurrBal] = useState('65000')
   const [salary, setSalary] = useState('110000')
@@ -41,7 +41,7 @@ export default function CashflowForecastModal({ isOpen, onClose, sips = [], debt
   }, [horizon, currBal, salary, salDay, dSpend, sipTot, emiTot])
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Predictive 90-Day Cashflow Forecast">
+    <Modal isOpen={isOpen} isEmbedded={isEmbedded} onClose={onClose} title="Predictive 90-Day Cashflow Forecast">
       <div className="space-y-3.5 text-xs">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-gray-50 dark:bg-slate-800 p-2 rounded-xl">
           <div>

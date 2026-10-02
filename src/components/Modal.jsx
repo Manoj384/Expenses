@@ -1,26 +1,27 @@
 import { useEffect } from 'react'
 import { X } from 'lucide-react'
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-lg' }) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-lg', isEmbedded = false }) {
   // Close on Escape key
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen || isEmbedded) return
     const handleKey = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, isEmbedded])
 
   // Prevent body scroll when modal is open
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isEmbedded) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
     }
     return () => { document.body.style.overflow = '' }
-  }, [isOpen])
+  }, [isOpen, isEmbedded])
 
   if (!isOpen) return null
+  if (isEmbedded) return <div className="w-full">{children}</div>
 
   return (
     <div

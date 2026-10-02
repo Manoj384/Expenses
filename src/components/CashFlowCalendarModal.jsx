@@ -11,7 +11,7 @@ import {
   Filter,
 } from 'lucide-react'
 
-export default function CashFlowCalendarModal({ isOpen, onClose, transactions = [], bills = [], sips = [], debts = [] }) {
+export default function CashFlowCalendarModal({ isOpen, onClose, transactions = [], bills = [], sips = [], debts = [], isEmbedded = false }) {
   const { user } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(new Date().getDate())
@@ -113,7 +113,7 @@ export default function CashFlowCalendarModal({ isOpen, onClose, transactions = 
   if (!isOpen) return null
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Financial Dues & Cash Flow Calendar" maxWidth="max-w-4xl">
+    <Modal isOpen={isOpen} isEmbedded={isEmbedded} onClose={onClose} title="Financial Dues & Cash Flow Calendar" maxWidth="max-w-4xl">
       <div className="space-y-4 text-xs text-gray-700 dark:text-slate-300">
         {/* Month Navigation & Summary */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800">

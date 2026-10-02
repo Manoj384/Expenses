@@ -85,7 +85,7 @@ export function calculateGamificationBadges({
   return { badges, unlockedCount, userLevel, budgetStreak }
 }
 
-export default function SpendingStreakModal({ isOpen, onClose, data }) {
+export default function SpendingStreakModal({ isOpen, onClose, data, isEmbedded = false }) {
   const stats = useMemo(() => {
     return calculateGamificationBadges(data || {})
   }, [data])
@@ -93,7 +93,7 @@ export default function SpendingStreakModal({ isOpen, onClose, data }) {
   if (!isOpen) return null
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Habit Streaks & Financial Achievements" maxWidth="max-w-2xl">
+    <Modal isOpen={isOpen} isEmbedded={isEmbedded} onClose={onClose} title="Habit Streaks & Financial Achievements" maxWidth="max-w-2xl">
       <div className="space-y-6 text-xs text-gray-700 dark:text-slate-300">
         {/* Streak Hero Banner */}
         <div className="p-6 rounded-2xl bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-6">

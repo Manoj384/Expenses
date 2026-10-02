@@ -27,6 +27,8 @@ const Reports      = lazy(() => import('./pages/Reports'))
 const Splitwise    = lazy(() => import('./pages/Splitwise'))
 const BillReminders = lazy(() => import('./pages/BillReminders'))
 const Reminders    = lazy(() => import('./pages/Reminders'))
+const AiCopilotPage = lazy(() => import('./pages/AiCopilotPage'))
+const FinancialPlanningPage = lazy(() => import('./pages/FinancialPlanningPage'))
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -62,21 +64,23 @@ function AppRoutes() {
         <Route path="/login"  element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        <Route path="/"              element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/dashboard"     element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="/transactions"  element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
-        <Route path="/reminders"     element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
-        <Route path="/mutual-funds"  element={<ProtectedRoute><MutualFunds /></ProtectedRoute>} />
-        <Route path="/net-worth"     element={<ProtectedRoute><NetWorth /></ProtectedRoute>} />
-        <Route path="/goals"         element={<ProtectedRoute><Goals /></ProtectedRoute>} />
-        <Route path="/budgets"       element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
-        <Route path="/splitwise"     element={<ProtectedRoute><Splitwise /></ProtectedRoute>} />
-        <Route path="/bills"         element={<ProtectedRoute><BillReminders /></ProtectedRoute>} />
-        <Route path="/past-expenses" element={<ProtectedRoute><PastExpenses /></ProtectedRoute>} />
-        <Route path="/sips"          element={<ProtectedRoute><SIPs /></ProtectedRoute>} />
-        <Route path="/debts"         element={<ProtectedRoute><Debts /></ProtectedRoute>} />
-        <Route path="/statements"    element={<ProtectedRoute><Statements /></ProtectedRoute>} />
-        <Route path="/reports"       element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/"                   element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/dashboard"          element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/ai-copilot"         element={<ProtectedRoute><AiCopilotPage /></ProtectedRoute>} />
+        <Route path="/financial-planning" element={<ProtectedRoute><FinancialPlanningPage /></ProtectedRoute>} />
+        <Route path="/transactions"       element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+        <Route path="/reminders"          element={<ProtectedRoute><Reminders /></ProtectedRoute>} />
+        <Route path="/mutual-funds"       element={<ProtectedRoute><MutualFunds /></ProtectedRoute>} />
+        <Route path="/net-worth"          element={<ProtectedRoute><NetWorth /></ProtectedRoute>} />
+        <Route path="/goals"              element={<ProtectedRoute><Goals /></ProtectedRoute>} />
+        <Route path="/budgets"            element={<ProtectedRoute><Budgets /></ProtectedRoute>} />
+        <Route path="/splitwise"          element={<ProtectedRoute><Splitwise /></ProtectedRoute>} />
+        <Route path="/bills"              element={<ProtectedRoute><BillReminders /></ProtectedRoute>} />
+        <Route path="/past-expenses"      element={<ProtectedRoute><PastExpenses /></ProtectedRoute>} />
+        <Route path="/sips"               element={<ProtectedRoute><SIPs /></ProtectedRoute>} />
+        <Route path="/debts"              element={<ProtectedRoute><Debts /></ProtectedRoute>} />
+        <Route path="/statements"         element={<ProtectedRoute><Statements /></ProtectedRoute>} />
+        <Route path="/reports"            element={<ProtectedRoute><Reports /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

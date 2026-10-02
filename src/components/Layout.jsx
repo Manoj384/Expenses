@@ -14,52 +14,154 @@ import TelegramWhatsAppBotModal from './TelegramWhatsAppBotModal'
 import QuickAddFAB from './QuickAddFAB'
 import { useAdmin } from '../context/AdminContext'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
-import { useDesktopMode } from '../context/DesktopModeContext'
-import { useToast } from '../context/ToastContext'
-import CashFlowCalendarModal from './CashFlowCalendarModal'
-import FireSimulatorModal from './FireSimulatorModal'
-import SubscriptionLeakModal from './SubscriptionLeakModal'
+import AiFinancialCopilotModal from './AiFinancialCopilotModal'
+import FinancialToolkitModal from './FinancialToolkitModal'
 import BiometricAppLockOverlay from './BiometricAppLockOverlay'
-import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut, HelpCircle, Compass, Monitor, Smartphone, Bot, MessageSquare, Calendar, Flame, Skull, Fingerprint, Lock } from 'lucide-react'
+import { wakeWordService } from '../utils/wakeWordDetector'
+import { backgroundAiWorker } from '../utils/backgroundAiWorker'
+import { Menu } from 'lucide-react'
 
 export default function Layout({ children, title }) {
+  const { user } = useAuth()
   const { isAdmin } = useAdmin()
-  const { isDark, toggleTheme } = useTheme()
-  const { isDesktopSite, toggleDesktopSite } = useDesktopMode()
-  const toast = useToast()
   const { logout } = useAuth()
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
-  const [showBotModal, setShowBotModal] = useState(false)
-  const [showCalendarModal, setShowCalendarModal] = useState(false)
-  const [showFireModal, setShowFireModal] = useState(false)
-  const [showLeakModal, setShowLeakModal] = useState(false)
+
+  // Unified Super Hub Modals
+  const [showCopilotModal, setShowCopilotModal] = useState(false)
+  const [copilotTab, setCopilotTab] = useState('digest')
+  const [showToolkitModal, setShowToolkitModal] = useState(false)
+  const [toolkitTab, setToolkitTab] = useState('forecast')
+  const [voiceAutoStart, setVoiceAutoStart] = useState(false)
   const [isAppLocked, setIsAppLocked] = useState(false)
 
-  // Listen for global custom events
+  // Start Autonomous Background AI Supervisor & Hands-free Wake Word Listener ("Hey Manoj")
   useEffect(() => {
-    const handleOpenBot = () => setShowBotModal(true)
-    const handleOpenCal = () => setShowCalendarModal(true)
-    const handleOpenFire = () => setShowFireModal(true)
-    const handleOpenLeak = () => setShowLeakModal(true)
-    const handleLock = () => setIsAppLocked(true)
-    window.addEventListener('open-bot-modal', handleOpenBot)
-    window.addEventListener('open-calendar-modal', handleOpenCal)
-    window.addEventListener('open-fire-simulator', handleOpenFire)
-    window.addEventListener('open-subscription-leak', handleOpenLeak)
-    window.addEventListener('open-app-lock', handleLock)
+    // 1. Start background AI maintenance supervisor
+    backgroundAiWorker.start()
+
+    // 2. Start hands-free wake word listener for "Hey Manoj" / "Hey Alexa"
+    wakeWordService.start((command) => {
+      setCopilotTab('voice')
+      setVoiceAutoStart(true)
+      setShowCopilotModal(true)
+    })
+
     return () => {
-      window.removeEventListener('open-bot-modal', handleOpenBot)
-      window.removeEventListener('open-calendar-modal', handleOpenCal)
-      window.removeEventListener('open-fire-simulator', handleOpenFire)
-      window.removeEventListener('open-subscription-leak', handleOpenLeak)
-      window.removeEventListener('open-app-lock', handleLock)
+      backgroundAiWorker.stop()
+      wakeWordService.stop()
     }
   }, [])
 
+  // Listen for global custom events and route into the 2 Super Hubs
+  useEffect(() => {
+    // AI Financial Copilot Hub events
+    const handleOpenCopilot = (e) => {
+      setCopilotTab(e?.detail?.tab || 'digest')
+      setShowCopilotModal(true)
+    }
+    const handleOpenBot = () => {
+      setCopilotTab('bot')
+      setShowCopilotModal(true)
+    }
+    const handleOpenCard = () => {
+      setCopilotTab('cards')
+      setShowCopilotModal(true)
+    }
+    const handleOpenSentinel = () => {
+      setCopilotTab('sentinel')
+      setShowCopilotModal(true)
+    }
+    const handleOpenAutoPilot = () => {
+      setCopilotTab('digest')
+      setShowCopilotModal(true)
+    }
+    const handleOpenVoice = () => {
+      setCopilotTab('voice')
+      setVoiceAutoStart(true)
+      setShowCopilotModal(true)
+    }
+
+    // Financial Planning Toolkit Hub events
+    const handleOpenToolkit = (e) => {
+      setToolkitTab(e?.detail?.tab || 'forecast')
+      setShowToolkitModal(true)
+    }
+    const handleOpenForecast = () => {
+      setToolkitTab('forecast')
+      setShowToolkitModal(true)
+    }
+    const handleOpenTax = () => {
+      setToolkitTab('tax')
+      setShowToolkitModal(true)
+    }
+    const handleOpenFire = () => {
+      setToolkitTab('fire')
+      setShowToolkitModal(true)
+    }
+    const handleOpenHealth = () => {
+      setToolkitTab('health')
+      setShowToolkitModal(true)
+    }
+    const handleOpenLeak = () => {
+      setToolkitTab('zombie')
+      setShowToolkitModal(true)
+    }
+    const handleOpenCal = () => {
+      setToolkitTab('calendar')
+      setShowToolkitModal(true)
+    }
+    const handleOpenStreak = () => {
+      setToolkitTab('streaks')
+      setShowToolkitModal(true)
+    }
+    const handleLock = () => setIsAppLocked(true)
+
+    // Register listeners
+    window.addEventListener('open-ai-copilot', handleOpenCopilot)
+    window.addEventListener('open-bot-modal', handleOpenBot)
+    window.addEventListener('open-card-optimizer', handleOpenCard)
+    window.addEventListener('open-anomaly-sentinel', handleOpenSentinel)
+    window.addEventListener('open-autopilot-digest', handleOpenAutoPilot)
+    window.addEventListener('open-voice-companion', handleOpenVoice)
+
+    window.addEventListener('open-financial-toolkit', handleOpenToolkit)
+    window.addEventListener('open-forecast-modal', handleOpenForecast)
+    window.addEventListener('open-cashflow-forecast', handleOpenForecast)
+    window.addEventListener('open-tax-planner', handleOpenTax)
+    window.addEventListener('open-fire-simulator', handleOpenFire)
+    window.addEventListener('open-health-modal', handleOpenHealth)
+    window.addEventListener('open-health-score', handleOpenHealth)
+    window.addEventListener('open-subscription-leak', handleOpenLeak)
+    window.addEventListener('open-calendar-modal', handleOpenCal)
+    window.addEventListener('open-streak-modal', handleOpenStreak)
+    window.addEventListener('open-app-lock', handleLock)
+
+    return () => {
+      window.removeEventListener('open-ai-copilot', handleOpenCopilot)
+      window.removeEventListener('open-bot-modal', handleOpenBot)
+      window.removeEventListener('open-card-optimizer', handleOpenCard)
+      window.removeEventListener('open-anomaly-sentinel', handleOpenSentinel)
+      window.removeEventListener('open-autopilot-digest', handleOpenAutoPilot)
+      window.removeEventListener('open-voice-companion', handleOpenVoice)
+
+      window.removeEventListener('open-financial-toolkit', handleOpenToolkit)
+      window.removeEventListener('open-forecast-modal', handleOpenForecast)
+      window.removeEventListener('open-cashflow-forecast', handleOpenForecast)
+      window.removeEventListener('open-tax-planner', handleOpenTax)
+      window.removeEventListener('open-fire-simulator', handleOpenFire)
+      window.removeEventListener('open-health-modal', handleOpenHealth)
+      window.removeEventListener('open-health-score', handleOpenHealth)
+      window.removeEventListener('open-subscription-leak', handleOpenLeak)
+      window.removeEventListener('open-calendar-modal', handleOpenCal)
+      window.removeEventListener('open-streak-modal', handleOpenStreak)
+      window.removeEventListener('open-app-lock', handleLock)
+    }
+  }, [])
 
   // Global keyboard listener for Shift + ?
   useEffect(() => {
@@ -73,177 +175,50 @@ export default function Layout({ children, title }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-
-  const handleLogout = () => {
-    logout()
-  }
-
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-slate-100 transition-colors duration-200">
-      <Sidebar />
+      {/* Left Sidebar (Desktop Fixed Sidebar & Mobile Slide-Over Drawer with all tools) */}
+      <Sidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+        onOpenAdmin={() => setShowAdminModal(true)}
+        onOpenBackup={() => setShowBackupModal(true)}
+        onOpenShortcuts={() => setShowShortcutsModal(true)}
+        onOpenOnboarding={() => setShowOnboardingModal(true)}
+        onOpenBot={() => setShowBotModal(true)}
+        onOpenCalendar={() => setShowCalendarModal(true)}
+        onOpenTaxPlanner={() => setShowTaxModal(true)}
+        onOpenCardOptimizer={() => setShowCardModal(true)}
+        onOpenSentinel={() => setShowSentinelModal(true)}
+        onOpenAutoPilot={() => setShowAutoPilotModal(true)}
+        onOpenVoice={() => setShowVoiceModal(true)}
+        onLockApp={() => setIsAppLocked(true)}
+      />
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-3 md:px-6 py-2.5 md:py-3 sticky top-0 z-30 flex items-center justify-between shadow-xs">
-          <div className="flex items-center gap-2 md:gap-3 min-w-0">
-            <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-white truncate">{title}</h1>
+        {/* Clean Top Header Bar — No Duplicate Buttons */}
+        <header className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 md:px-6 py-3 sticky top-0 z-30 flex items-center justify-between shadow-2xs">
+          {/* Left: 3-line hamburger button on mobile + Title & Network Status */}
+          <div className="flex items-center gap-3 min-w-0">
+            {/* 3-Line Hamburger Menu Button for Mobile */}
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="md:hidden p-2 -ml-1.5 rounded-xl text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors focus:outline-hidden focus:ring-2 focus:ring-blue-500/30"
+              title="Open Navigation Menu"
+              aria-label="Open Sidebar Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 dark:text-white truncate">
+              {title}
+            </h1>
             <NetworkStatusIndicator />
           </div>
 
-          {/* Header Action Badges */}
-          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-            {/* Notification Center Bell & Due Date Alerts */}
+          {/* Right: Only Notification Center Bell */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             <NotificationCenter />
-
-            {/* Financial Dues & Cash Flow Calendar Quick Launcher */}
-            <button
-              onClick={() => setShowCalendarModal(true)}
-              className="p-2 sm:p-1.5 rounded-xl text-gray-600 hover:text-gray-900 dark:text-slate-300 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 transition-colors"
-              title="Financial Dues & Cash Flow Calendar"
-              aria-label="Cash Flow Calendar"
-            >
-              <Calendar className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-            </button>
-
-            {/* Desktop Site Mode Toggle Button */}
-            <button
-              onClick={() => {
-                toggleDesktopSite()
-                if (!isDesktopSite) {
-                  toast.info('Desktop Site View enabled (1280px layout)')
-                } else {
-                  toast.info('Mobile Responsive View restored')
-                }
-              }}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                isDesktopSite
-                  ? 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-700 shadow-xs'
-                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700'
-              }`}
-              title={isDesktopSite ? 'Switch back to Mobile Responsive View' : 'Switch to Desktop Site View (Full 1280px layout)'}
-              aria-label="Toggle Desktop Site Mode"
-            >
-              {isDesktopSite ? (
-                <>
-                  <Smartphone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                  <span className="hidden sm:inline">Mobile View</span>
-                </>
-              ) : (
-                <>
-                  <Monitor className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                  <span className="hidden sm:inline">Desktop Site</span>
-                </>
-              )}
-            </button>
-
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 border border-gray-200 dark:border-slate-700 transition-colors"
-              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              aria-label="Toggle Theme"
-            >
-              {isDark ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
-            </button>
-
-            {/* Logout Button — always visible */}
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/60 border border-red-100 dark:border-red-900/40 transition-colors"
-              title="Log Out"
-              aria-label="Log Out"
-            >
-              <LogOut className="h-4 w-4 flex-shrink-0" />
-              <span className="hidden sm:inline">Log Out</span>
-            </button>
-
-            {/* Quick Command Palette Launcher */}
-            <button
-              onClick={() => {
-                const event = new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true })
-                window.dispatchEvent(event)
-              }}
-              className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-500 bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 border border-gray-200 dark:border-slate-700 transition-colors"
-              title="Search and Run commands (Ctrl + K)"
-            >
-              <Search className="h-3.5 w-3.5 text-gray-400" />
-              <span>Quick Search</span>
-              <kbd className="text-[10px] font-mono bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-gray-200 dark:border-slate-600 text-gray-500">
-                Ctrl+K
-              </kbd>
-            </button>
-
-            {/* Telegram & WhatsApp Bot Launcher */}
-            <button
-              onClick={() => setShowBotModal(true)}
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 transition-all shadow-xs"
-              title="Open Telegram & WhatsApp Instant Financial Bot"
-            >
-              <Bot className="h-4 w-4 text-sky-600 dark:text-sky-400" />
-              <span className="hidden sm:inline">Bot Assistant</span>
-            </button>
-
-            {/* Data Backup & Export Button */}
-            <button
-              onClick={() => setShowBackupModal(true)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 dark:bg-slate-800 dark:text-indigo-300 dark:border-slate-700 transition-all"
-              title="1-Click JSON Backup & Disaster Recovery"
-            >
-              <Database className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Backup</span>
-            </button>
-
-            {/* Admin status badge */}
-            <button
-              onClick={() => setShowAdminModal(true)}
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                isAdmin
-                  ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700 shadow-xs'
-                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-slate-700'
-              }`}
-              title={isAdmin ? 'Admin Mode active - Click to lock' : 'Click to enter Admin PIN'}
-            >
-              {isAdmin ? (
-                <>
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                  <span>Admin Mode</span>
-                </>
-              ) : (
-                <>
-                  <Shield className="h-3.5 w-3.5 text-gray-400" />
-                  <span>Admin (Off)</span>
-                </>
-              )}
-            </button>
-            {/* Biometric Quick Lock Button */}
-            <button
-              onClick={() => setIsAppLocked(true)}
-              className="p-1.5 rounded-xl text-gray-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 bg-gray-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-gray-200 dark:border-slate-700 transition-colors"
-              title="Lock Application Screen"
-              aria-label="Lock App"
-            >
-              <Lock className="h-4 w-4" />
-            </button>
-
-            {/* Guided Setup Tour Trigger Button */}
-            <button
-              onClick={() => setShowOnboardingModal(true)}
-              className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 border border-gray-200 dark:border-slate-700 transition-colors hidden sm:flex"
-              title="Guided Onboarding & Setup Tour"
-              aria-label="Setup Tour"
-            >
-              <Compass className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </button>
-
-            {/* Keyboard Shortcuts Trigger Button */}
-            <button
-              onClick={() => setShowShortcutsModal(true)}
-              className="p-1.5 rounded-xl text-gray-500 hover:text-gray-900 dark:text-slate-400 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 border border-gray-200 dark:border-slate-700 transition-colors hidden sm:flex"
-              title="Keyboard Shortcuts Cheatsheet (Shift + ?)"
-              aria-label="Keyboard Shortcuts"
-            >
-              <HelpCircle className="h-4 w-4 text-gray-500 dark:text-slate-400" />
-            </button>
           </div>
         </header>
 
@@ -256,11 +231,7 @@ export default function Layout({ children, title }) {
       <QuickAddFAB />
       <AiChatbotWidget />
 
-      <BottomNav
-        onOpenAi={() => window.dispatchEvent(new CustomEvent('open-ai-chat'))}
-        onOpenAdmin={() => setShowAdminModal(true)}
-        onOpenBackup={() => setShowBackupModal(true)}
-      />
+      <BottomNav />
 
       {/* Global Modals & Command Palette */}
       <CommandPalette />
@@ -285,24 +256,22 @@ export default function Layout({ children, title }) {
         onClose={() => setShowOnboardingModal(false)}
       />
 
-      <TelegramWhatsAppBotModal
-        isOpen={showBotModal}
-        onClose={() => setShowBotModal(false)}
+      {/* 1. Unified AI Financial Copilot Hub */}
+      <AiFinancialCopilotModal
+        isOpen={showCopilotModal}
+        initialTab={copilotTab}
+        voiceAutoStart={voiceAutoStart}
+        onClose={() => {
+          setShowCopilotModal(false)
+          setVoiceAutoStart(false)
+        }}
       />
 
-      <CashFlowCalendarModal
-        isOpen={showCalendarModal}
-        onClose={() => setShowCalendarModal(false)}
-      />
-
-      <FireSimulatorModal
-        isOpen={showFireModal}
-        onClose={() => setShowFireModal(false)}
-      />
-
-      <SubscriptionLeakModal
-        isOpen={showLeakModal}
-        onClose={() => setShowLeakModal(false)}
+      {/* 2. Unified Financial Planning & Toolkit Suite */}
+      <FinancialToolkitModal
+        isOpen={showToolkitModal}
+        initialTab={toolkitTab}
+        onClose={() => setShowToolkitModal(false)}
       />
 
       <BiometricAppLockOverlay
@@ -314,6 +283,3 @@ export default function Layout({ children, title }) {
     </div>
   )
 }
-
-
-

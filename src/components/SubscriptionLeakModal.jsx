@@ -30,7 +30,7 @@ const DEFAULT_SUBSCRIPTIONS = [
   { id: 'sub-9', name: 'Disney+ Hotstar Super', category: 'OTT', cost: 299, frequency: 'monthly', cancelUrl: 'https://www.hotstar.com/in/my-account', isZombie: true, active: true },
 ]
 
-export default function SubscriptionLeakModal({ isOpen, onClose }) {
+export default function SubscriptionLeakModal({ isOpen, onClose, isEmbedded = false }) {
   const [subscriptions, setSubscriptions] = useState(() => {
     try {
       const saved = localStorage.getItem('ft_subscriptions_leak')
@@ -120,7 +120,7 @@ export default function SubscriptionLeakModal({ isOpen, onClose }) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Zombie Subscription & Digital Leak Detector" maxWidth="max-w-4xl">
+    <Modal isOpen={isOpen} isEmbedded={isEmbedded} onClose={onClose} title="Zombie Subscription & Digital Leak Detector" maxWidth="max-w-4xl">
       <div className="space-y-4 text-xs text-gray-700 dark:text-slate-300">
         {/* Top Hero Banner */}
         <div className="p-4 bg-gradient-to-r from-purple-950 via-slate-900 to-slate-900 text-white rounded-2xl border border-purple-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">

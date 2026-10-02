@@ -1,4 +1,4 @@
-import { suggestCategory } from './smsParser'
+import { suggestCategory } from './smsParser.js'
 
 /**
  * Natural Language Voice & Chatbot Expense Parser

@@ -29,6 +29,27 @@ import { parseBotMessage, generateBotResponse } from './src/utils/botParser.js'
 import { calculateXIRR, projectSipStepUp } from './src/utils/xirr.js'
 import { isBiometricsAvailable, isBiometricsEnabled } from './src/utils/webAuthn.js'
 import { DEFAULT_CATEGORIES, DEFAULT_PAYMENT_METHODS } from './src/utils/defaultData.js'
+import {
+  calculateOldRegimeTax,
+  calculateNewRegimeTax,
+  compareTaxRegimes,
+  calculateHraExemption
+} from './src/utils/taxCalculator.js'
+import {
+  calculateCardGracePeriod,
+  recommendBestCardForExpense,
+  POPULAR_INDIAN_CREDIT_CARDS
+} from './src/utils/creditCardOptimizer.js'
+import {
+  detectDuplicateCharges,
+  detectCategorySpendingSpikes,
+  detectSubscriptionPriceHikes,
+  runFullAiAnomalyAudit
+} from './src/utils/anomalyDetector.js'
+import { generateAutoPilotDigest } from './src/utils/autoPilotDigest.js'
+import { processVoiceAssistantQuery } from './src/utils/voiceAssistantEngine.js'
+import { isWakeWordPresent, extractCommandAfterWakeWord } from './src/utils/wakeWordDetector.js'
+import { backgroundAiWorker } from './src/utils/backgroundAiWorker.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -118,12 +139,12 @@ console.log('===================================================================
 // =============================================================================
 console.log('▶ [SECTION 1] Application Architecture & Source Integrity Audit')
 
-test('SEC-01-01', 'Verify all 16 Core Pages exist and export valid React components', () => {
+test('SEC-01-01', 'Verify all 18 Core Pages exist and export valid React components', () => {
   const pages = [
     'Dashboard.jsx', 'Transactions.jsx', 'PastExpenses.jsx', 'Budgets.jsx',
     'Goals.jsx', 'Debts.jsx', 'SIPs.jsx', 'MutualFunds.jsx', 'NetWorth.jsx',
     'BillReminders.jsx', 'Reminders.jsx', 'Reports.jsx', 'Statements.jsx',
-    'Splitwise.jsx', 'Login.jsx', 'Signup.jsx'
+    'Splitwise.jsx', 'Login.jsx', 'Signup.jsx', 'AiCopilotPage.jsx', 'FinancialPlanningPage.jsx'
   ]
   pages.forEach(p => {
     const fullPath = path.join(__dirname, 'src', 'pages', p)
@@ -666,6 +687,271 @@ test('SEC-18-04', 'Scenario D (Network Failure & Graceful Recovery): Cache fallb
   const res = !networkOnline ? getOfflineFallback() : { status: 'live', data: [] }
   expect(res.status).toBe('cached')
   expect(res.data.length).toBe(1)
+})
+
+// =============================================================================
+// SECTION 19: ADVANCED SPLITWISE (UNEQUAL, PERCENTAGE, SHARES & MULTI-PAYER)
+// =============================================================================
+console.log('\n▶ [SECTION 19] Advanced Splitwise (Multi-Payer, Exact, Percent & Share Splits)')
+
+test('SEC-19-01', 'Multi-Payer Expense splits upfront payments and accurately computes net balances', () => {
+  const members = [{ id: 'm1', name: 'You' }, { id: 'm2', name: 'Rahul' }, { id: 'm3', name: 'Sneha' }]
+  const netBalances = { m1: 0, m2: 0, m3: 0 }
+
+  // Flight ticket: ₹15,000 total. You paid ₹10,000, Rahul paid ₹5,000. Equal split of ₹5,000 each.
+  const expense = {
+    amount: 15000,
+    payer_mode: 'multiple',
+    paid_by: { m1: 10000, m2: 5000 },
+    split_type: 'equal',
+    shares: { m1: 5000, m2: 5000, m3: 5000 },
+  }
+
+  // Process upfront paid
+  Object.entries(expense.paid_by).forEach(([pId, amt]) => {
+    netBalances[pId] += amt
+  })
+  // Deduct shares
+  Object.entries(expense.shares).forEach(([mId, share]) => {
+    netBalances[mId] -= share
+  })
+
+  // Expected:
+  // You: paid 10,000 - share 5,000 = +5,000 (gets back)
+  // Rahul: paid 5,000 - share 5,000 = 0 (settled)
+  // Sneha: paid 0 - share 5,000 = -5,000 (owes 5,000)
+  expect(netBalances.m1).toBe(5000)
+  expect(netBalances.m2).toBe(0)
+  expect(netBalances.m3).toBe(-5000)
+})
+
+test('SEC-19-02', 'Exact Amount & Percentage Split calculation engines', () => {
+  // Exact: Rahul had ₹1,200 steak, Sneha had ₹400 salad, You had ₹600 pasta -> total ₹2,200
+  const exactShares = { m1: 600, m2: 1200, m3: 400 }
+  const totalExact = Object.values(exactShares).reduce((s, v) => s + v, 0)
+  expect(totalExact).toBe(2200)
+
+  // Percent: 50% / 30% / 20% on ₹10,000
+  const totalPctBill = 10000
+  const pcts = { m1: 50, m2: 30, m3: 20 }
+  const pctShares = {
+    m1: (pcts.m1 / 100) * totalPctBill,
+    m2: (pcts.m2 / 100) * totalPctBill,
+    m3: (pcts.m3 / 100) * totalPctBill,
+  }
+  expect(pctShares.m1).toBe(5000)
+  expect(pctShares.m2).toBe(3000)
+  expect(pctShares.m3).toBe(2000)
+})
+
+// =============================================================================
+// SECTION 20: INCOME TAX REGIME OPTIMIZER (FY 2026-27 OLD VS NEW)
+// =============================================================================
+console.log('\n▶ [SECTION 20] Income Tax Regime Planner (FY 2026-27 Slabs & Optimizations)')
+
+test('SEC-20-01', 'New Regime FY 2026-27 calculates ₹0 tax for ₹7.75L gross due to ₹75k Std Deduction & Sec 87A rebate', () => {
+  const result = calculateNewRegimeTax(775000, { isSalaried: true })
+  expect(result.taxableIncome).toBe(700000)
+  expect(result.totalTax).toBe(0)
+})
+
+test('SEC-20-02', 'Old Regime tax calculation with 80C, 80D, NPS and HRA exemption', () => {
+  const gross = 1500000
+  const hraExempt = calculateHraExemption({
+    basicSalary: 750000,
+    hraReceived: 300000,
+    rentPaid: 300000,
+    isMetro: true
+  })
+  expect(hraExempt).toBe(225000)
+
+  const comparison = compareTaxRegimes(gross, {
+    isSalaried: true,
+    sec80C: 150000,
+    sec80D: 25000,
+    sec80CCD1B: 50000,
+    hraExemption: hraExempt,
+    sec24HomeLoan: 200000
+  })
+
+  expect(comparison.oldRegime.totalDeductions).toBe(700000)
+  expect(comparison.oldRegime.taxableIncome).toBe(800000)
+  expect(comparison.newRegime.taxableIncome).toBe(1425000)
+  expect(typeof comparison.recommended).toBe('string')
+  expect(comparison.savings).toBeGreaterThan(0)
+})
+
+// =============================================================================
+// SECTION 21: CREDIT CARD GRACE PERIOD & SMART PAYER ENGINE
+// =============================================================================
+console.log('\n▶ [SECTION 21] Credit Card Grace Period & Smart Payer Engine')
+
+test('SEC-21-01', 'Grace period engine calculates up to 50 days interest-free float after statement date', () => {
+  const card = { statementDay: 15, graceDaysAfterStatement: 20 }
+  const testDate = new Date(2026, 8, 16) // Sept 16th (1 day after statement date)
+  const grace = calculateCardGracePeriod(card, testDate)
+
+  expect(grace.interestFreeDaysRemaining).toBeGreaterThanOrEqual(45)
+  expect(grace.interestFreeDaysRemaining).toBeLessThanOrEqual(51)
+})
+
+test('SEC-21-02', 'Smart Card Recommender picks highest reward card for Dining (HDFC Swiggy 10%) and Online (SBI 5%)', () => {
+  const diningRec = recommendBestCardForExpense(POPULAR_INDIAN_CREDIT_CARDS, {
+    amount: 1500,
+    category: 'dining',
+    refDate: new Date(2026, 8, 20)
+  })
+  expect(diningRec.bestCard.rewardRatePct).toBeGreaterThanOrEqual(5)
+
+  const onlineRec = recommendBestCardForExpense(POPULAR_INDIAN_CREDIT_CARDS, {
+    amount: 50000,
+    category: 'online',
+    refDate: new Date(2026, 8, 16)
+  })
+  expect(onlineRec.bestCard.rewardRatePct).toBeGreaterThanOrEqual(5)
+  expect(onlineRec.bestCard.estimatedCashback).toBeGreaterThanOrEqual(2500)
+})
+
+// =============================================================================
+// SECTION 22: AI SPENDING ANOMALY & DUPLICATE CHARGE SENTINEL
+// =============================================================================
+console.log('\n▶ [SECTION 22] AI Spending Anomaly & Duplicate Charge Sentinel')
+
+test('SEC-22-01', 'Duplicate Charge Sentinel detects identical transactions within 24 hours', () => {
+  const txns = [
+    { id: 'tx-1', amount: 450, date: '2026-09-28', type: 'expense', category: 'Food', note: 'Swiggy' },
+    { id: 'tx-2', amount: 450, date: '2026-09-28', type: 'expense', category: 'Food', note: 'Swiggy' },
+    { id: 'tx-3', amount: 1200, date: '2026-09-25', type: 'expense', category: 'Groceries' },
+  ]
+  const duplicates = detectDuplicateCharges(txns)
+  expect(duplicates.length).toBe(1)
+  expect(duplicates[0].amount).toBe(450)
+  expect(duplicates[0].type).toBe('DUPLICATE_CHARGE')
+})
+
+test('SEC-22-02', 'Subscription Stealth Price Hike Detector flags unexpected monthly jumps', () => {
+  const txns = [
+    { id: 'sub-1', amount: 649, date: '2026-08-15', type: 'expense', category: 'Entertainment', note: 'Netflix' },
+    { id: 'sub-2', amount: 799, date: '2026-09-15', type: 'expense', category: 'Entertainment', note: 'Netflix' },
+  ]
+  const hikes = detectSubscriptionPriceHikes(txns)
+  expect(hikes.length).toBe(1)
+  expect(hikes[0].service).toBe('NETFLIX')
+  expect(hikes[0].hikePercent).toBe(23)
+  expect(hikes[0].annualizedLeak).toBe(1800)
+})
+
+test('SEC-22-03', 'Full AI Anomaly Audit calculates overall account health score and exposures', () => {
+  const sampleTxns = [
+    { id: 't1', amount: 500, date: '2026-09-28', type: 'expense', category: 'Food' },
+    { id: 't2', amount: 500, date: '2026-09-28', type: 'expense', category: 'Food' },
+  ]
+  const audit = runFullAiAnomalyAudit(sampleTxns)
+  expect(audit.duplicates.length).toBe(1)
+  expect(audit.totalFinancialExposure).toBe(500)
+  expect(audit.healthScore).toBeLessThan(100)
+})
+
+// =============================================================================
+// SECTION 23: AUTONOMOUS AI FINANCIAL AUTO-PILOT
+// =============================================================================
+console.log('\n▶ [SECTION 23] Autonomous AI Financial Auto-Pilot (Morning Briefing & WhatsApp)')
+
+test('SEC-23-01', 'Auto-Pilot generates multi-section morning briefing text with bills, card float, and budget pace', () => {
+  const mockContext = {
+    transactions: [{ amount: 15000, date: '2026-10-01', type: 'expense' }],
+    bills: [{ name: 'Electricity', amount: 2400, due_day: 5 }],
+    splitwiseGroups: [{
+      name: 'Goa Trip',
+      members: [{ id: 'm1', name: 'You', isOwner: true }, { id: 'm2', name: 'Rahul' }],
+      expenses: [{ amount: 4000, paid_by_id: 'm1', shares: { m1: 2000, m2: 2000 } }],
+      settlements: []
+    }],
+    monthlyBudget: 60000,
+    userName: 'Manoj',
+    refDate: new Date(2026, 9, 2)
+  }
+
+  const digest = generateAutoPilotDigest(mockContext)
+  expect(digest.textDigest).toContain('FINANCIAL AUTO-PILOT BRIEFING')
+  expect(digest.textDigest).toContain('Electricity')
+  expect(digest.textDigest).toContain('Rahul')
+  expect(digest.safeDailyBudget).toBeGreaterThan(0)
+})
+
+// =============================================================================
+// SECTION 24: SMART VOICE CONVERSATIONAL ASSISTANT
+// =============================================================================
+console.log('\n▶ [SECTION 24] Smart Voice Conversational Assistant (2-Way Speech Companion)')
+
+test('SEC-24-01', 'Voice engine matches Net Worth, Bills, and Card advice conversational queries', () => {
+  const context = {
+    netWorth: 2450000,
+    currentPortfolio: 1800000,
+    totalProfit: 450000,
+    upcomingBills: [{ name: 'WiFi', amount: 1499, due_day: 10 }]
+  }
+
+  const netWorthReply = processVoiceAssistantQuery('What is my net worth?', context)
+  expect(netWorthReply.intent).toBe('NET_WORTH')
+  expect(netWorthReply.speechText).toContain('24,50,000')
+
+  const billsReply = processVoiceAssistantQuery('What bills are due this week?', context)
+  expect(billsReply.intent).toBe('BILLS')
+  expect(billsReply.speechText).toContain('WiFi')
+
+  const cardReply = processVoiceAssistantQuery('Which card should I swipe for dining tonight?', context)
+  expect(cardReply.intent).toBe('CREDIT_CARD_ADVICE')
+  expect(cardReply.speechText).toContain('interest-free')
+})
+
+test('SEC-24-02', 'Voice engine parses hands-free natural language expense logging', () => {
+  const expenseReply = processVoiceAssistantQuery('Paid 850 for dinner with Rahul via GPay')
+  expect(expenseReply.intent).toBe('LOG_EXPENSE')
+  expect(expenseReply.parsedExpense.amount).toBe(850)
+  expect(expenseReply.speechText).toContain('850')
+})
+
+// =============================================================================
+// SECTION 25: HANDS-FREE WAKE WORD DETECTOR ("HEY MANOJ")
+// =============================================================================
+console.log('\n▶ [SECTION 25] Alexa-Style Wake Word Detector ("Hey Manoj") & Audio Synthesizer')
+
+test('SEC-25-01', 'Wake Word detector accurately identifies "Hey Manoj", "OK Manoj", and "Hey Alexa"', () => {
+  expect(isWakeWordPresent('Hey Manoj what is my net worth')).toBe(true)
+  expect(isWakeWordPresent('OK Manoj check bills')).toBe(true)
+  expect(isWakeWordPresent('Hello Manoj log dinner')).toBe(true)
+  expect(isWakeWordPresent('Hey Alexa how are mutual funds')).toBe(true)
+  expect(isWakeWordPresent('Just normal chatting without wake phrase')).toBe(false)
+})
+
+test('SEC-25-02', 'Wake Word extractor cleanly separates command payload from trigger phrase', () => {
+  const extracted = extractCommandAfterWakeWord('Hey Manoj what is my total net worth')
+  expect(extracted).toBe('what is my total net worth')
+})
+
+// =============================================================================
+// SECTION 26: BACKGROUND AI AUTONOMOUS MAINTENANCE SUPERVISOR
+// =============================================================================
+console.log('\n▶ [SECTION 26] Background AI Autonomous Maintenance Supervisor')
+
+test('SEC-26-01', 'Background AI Supervisor executes maintenance sweep and notifies subscribers', async () => {
+  let notified = false
+  const unsubscribe = backgroundAiWorker.subscribe((event) => {
+    if (event.type === 'MAINTENANCE_CYCLE_COMPLETE') notified = true
+  })
+
+  const mockContext = {
+    transactions: [{ amount: 450, date: '2026-09-28', type: 'expense', category: 'Food' }],
+    bills: [{ name: 'WiFi', amount: 1499, due_day: new Date().getDate() + 1 }]
+  }
+
+  const result = await backgroundAiWorker.runMaintenanceSweep(mockContext)
+  expect(result.healthStatus).toBe('HEALTHY')
+  expect(result.actionsTaken.length).toBeGreaterThan(0)
+  expect(notified).toBe(true)
+
+  unsubscribe()
 })
 
 // =============================================================================

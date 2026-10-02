@@ -4,10 +4,9 @@ import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
-import SkeletonPage from '../components/SkeletonLoader'
+import SplitwiseStatementModal from '../components/SplitwiseStatementModal'
 import { formatCurrency } from '../utils/formatCurrency'
 import { formatDate, today } from '../utils/dateUtils'
-import { retryFetch } from '../utils/retryFetch'
 import {
   Users,
   Plus,
@@ -26,6 +25,14 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   UserPlus,
+  Download,
+  Printer,
+  FileSpreadsheet,
+  AlertCircle,
+  PieChart,
+  Percent,
+  Sliders,
+  Scale,
 } from 'lucide-react'
 
 const DEFAULT_GROUPS = [
@@ -44,6 +51,7 @@ const DEFAULT_GROUPS = [
         id: 'exp-1',
         title: 'Villa Stay & Airbnb Booking',
         amount: 24000,
+        payer_mode: 'single',
         paid_by_id: 'm-1',
         date: '2026-09-20',
         split_type: 'equal',
@@ -53,15 +61,17 @@ const DEFAULT_GROUPS = [
         id: 'exp-2',
         title: 'Seafood Beach Shack Dinner',
         amount: 6800,
-        paid_by_id: 'm-2',
+        payer_mode: 'multiple',
+        paid_by: { 'm-1': 4000, 'm-2': 2800 },
         date: '2026-09-21',
-        split_type: 'equal',
-        shares: { 'm-1': 1700, 'm-2': 1700, 'm-3': 1700, 'm-4': 1700 },
+        split_type: 'exact',
+        shares: { 'm-1': 2000, 'm-2': 1800, 'm-3': 1500, 'm-4': 1500 },
       },
       {
         id: 'exp-3',
         title: 'Scooters & Fuel',
         amount: 3600,
+        payer_mode: 'single',
         paid_by_id: 'm-3',
         date: '2026-09-22',
         split_type: 'equal',
@@ -84,6 +94,7 @@ const DEFAULT_GROUPS = [
         id: 'exp-4',
         title: 'High-Speed Broadband WiFi',
         amount: 1499,
+        payer_mode: 'single',
         paid_by_id: 'm-1',
         date: '2026-09-01',
         split_type: 'equal',
@@ -93,6 +104,7 @@ const DEFAULT_GROUPS = [
         id: 'exp-5',
         title: 'Monthly Supermarket Supplies',
         amount: 4500,
+        payer_mode: 'single',
         paid_by_id: 'm-5',
         date: '2026-09-12',
         split_type: 'equal',
@@ -126,7 +138,6 @@ export default function Splitwise() {
     }
   })
 
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -135,6 +146,7 @@ export default function Splitwise() {
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [showMemberModal, setShowMemberModal] = useState(false)
   const [showSettleModal, setShowSettleModal] = useState(false)
+  const [showStatementModal, setShowStatementModal] = useState(false)
   const [editGroupTarget, setEditGroupTarget] = useState(null)
   const [deleteGroupTarget, setDeleteGroupTarget] = useState(null)
   const [deleteExpenseTarget, setDeleteExpenseTarget] = useState(null)
@@ -142,21 +154,29 @@ export default function Splitwise() {
   // Form states
   const [groupForm, setGroupForm] = useState({ name: '', description: '' })
   const [memberForm, setMemberForm] = useState({ name: '', phone: '' })
+  const [settleForm, setSettleForm] = useState({ from_id: '', to_id: '', amount: '' })
+
+  // Advanced Expense Form State
   const [expenseForm, setExpenseForm] = useState({
     title: '',
     amount: '',
-    paid_by_id: '',
     date: today(),
-    split_type: 'equal',
+    payer_mode: 'single', // 'single' | 'multiple'
+    paid_by_id: '', // for single payer
+    paid_by: {}, // { [memberId]: number } for multiple payers
+    split_type: 'equal', // 'equal' | 'exact' | 'percent' | 'shares'
+    selected_members: [], // member IDs participating
+    exact_shares: {}, // { [memberId]: number } for exact split
+    percent_shares: {}, // { [memberId]: number } for percent split
+    ratio_shares: {}, // { [memberId]: number } for shares split
   })
-  const [settleForm, setSettleForm] = useState({ from_id: '', to_id: '', amount: '' })
 
   const flash = (msg) => {
     setSuccess(msg)
     setTimeout(() => setSuccess(''), 4000)
   }
 
-  // Sync to cloud / storage
+  // Sync to storage
   const saveGroups = useCallback((newGroups) => {
     setGroups(newGroups)
     try {
@@ -169,7 +189,7 @@ export default function Splitwise() {
     return groups.find(g => g.id === activeGroupId) || groups[0] || null
   }, [groups, activeGroupId])
 
-  // Compute Balances & Who Owes Whom
+  // Compute Balances & Simplified Settlement Matrix
   const balanceDetails = useMemo(() => {
     if (!activeGroup) return { totalSpend: 0, netBalances: {}, debts: [] }
 
@@ -185,9 +205,19 @@ export default function Splitwise() {
     expenses.forEach(exp => {
       const amt = parseFloat(exp.amount) || 0
       totalSpend += amt
-      const payerId = exp.paid_by_id
-      if (netBalances[payerId] !== undefined) {
-        netBalances[payerId] += amt
+
+      // Process Upfront Payer(s)
+      if (exp.payer_mode === 'multiple' && exp.paid_by && typeof exp.paid_by === 'object') {
+        Object.entries(exp.paid_by).forEach(([pId, pAmt]) => {
+          if (netBalances[pId] !== undefined) {
+            netBalances[pId] += parseFloat(pAmt) || 0
+          }
+        })
+      } else {
+        const payerId = exp.paid_by_id
+        if (payerId && netBalances[payerId] !== undefined) {
+          netBalances[payerId] += amt
+        }
       }
 
       // Deduct each member's share
@@ -319,16 +349,129 @@ export default function Splitwise() {
     flash(`Added ${newMember.name} to ${activeGroup.name}!`)
   }
 
-  const handleRemoveMember = (memberId) => {
-    if (!activeGroup) return
-    const updated = groups.map(g =>
-      g.id === activeGroup.id
-        ? { ...g, members: (g.members || []).filter(m => m.id !== memberId) }
-        : g
-    )
-    saveGroups(updated)
-    flash('Member removed.')
+  // Open Expense Modal with Preloaded Defaults
+  const openNewExpenseModal = () => {
+    if (!activeGroup || !activeGroup.members?.length) return
+    const members = activeGroup.members
+    const defaultSelected = members.map(m => m.id)
+    const initialExact = {}
+    const initialPercent = {}
+    const initialShares = {}
+    const initialPaidBy = {}
+
+    members.forEach(m => {
+      initialExact[m.id] = ''
+      initialPercent[m.id] = (100 / members.length).toFixed(1)
+      initialShares[m.id] = 1
+      initialPaidBy[m.id] = ''
+    })
+
+    setExpenseForm({
+      title: '',
+      amount: '',
+      date: today(),
+      payer_mode: 'single',
+      paid_by_id: members[0]?.id || '',
+      paid_by: initialPaidBy,
+      split_type: 'equal',
+      selected_members: defaultSelected,
+      exact_shares: initialExact,
+      percent_shares: initialPercent,
+      ratio_shares: initialShares,
+    })
+    setShowExpenseModal(true)
   }
+
+  // --- Dynamic Multi-Payer Validation & Calculation ---
+  const multiPayerAllocatedTotal = useMemo(() => {
+    if (expenseForm.payer_mode !== 'multiple') return Number(expenseForm.amount) || 0
+    return Object.values(expenseForm.paid_by || {}).reduce((sum, v) => sum + (parseFloat(v) || 0), 0)
+  }, [expenseForm.payer_mode, expenseForm.paid_by, expenseForm.amount])
+
+  // --- Dynamic Split Breakdown Calculation ---
+  const calculatedSplitShares = useMemo(() => {
+    const total = parseFloat(expenseForm.amount) || 0
+    const activeMembers = activeGroup?.members || []
+    const selectedIds = (expenseForm.selected_members || []).filter(id => activeMembers.some(m => m.id === id))
+    const shares = {}
+
+    if (total <= 0 || selectedIds.length === 0) return { shares: {}, isValid: false, message: 'Enter a valid amount and select participants.' }
+
+    if (expenseForm.split_type === 'equal') {
+      const perHead = Math.round((total / selectedIds.length) * 100) / 100
+      let allocated = 0
+      selectedIds.forEach((id, idx) => {
+        if (idx === selectedIds.length - 1) {
+          shares[id] = Math.round((total - allocated) * 100) / 100
+        } else {
+          shares[id] = perHead
+          allocated += perHead
+        }
+      })
+      return { shares, isValid: true, message: `Split equally (${formatCurrency(perHead)} / person)` }
+    }
+
+    if (expenseForm.split_type === 'exact') {
+      let sum = 0
+      selectedIds.forEach(id => {
+        const val = parseFloat(expenseForm.exact_shares?.[id]) || 0
+        shares[id] = val
+        sum += val
+      })
+      const diff = Math.round((total - sum) * 100) / 100
+      const isValid = Math.abs(diff) < 0.05
+      return {
+        shares,
+        isValid,
+        allocatedSum: sum,
+        diff,
+        message: isValid ? 'Exact amounts match total bill.' : `Remaining to allocate: ${formatCurrency(diff)}`
+      }
+    }
+
+    if (expenseForm.split_type === 'percent') {
+      let sumPct = 0
+      selectedIds.forEach(id => {
+        const pct = parseFloat(expenseForm.percent_shares?.[id]) || 0
+        sumPct += pct
+        shares[id] = Math.round(((pct / 100) * total) * 100) / 100
+      })
+      const diffPct = Math.round((100 - sumPct) * 10) / 10
+      const isValid = Math.abs(diffPct) < 0.1
+      return {
+        shares,
+        isValid,
+        sumPct,
+        diffPct,
+        message: isValid ? 'Percentages add up to 100%.' : `Remaining percent: ${diffPct}%`
+      }
+    }
+
+    if (expenseForm.split_type === 'shares') {
+      let totalUnits = 0
+      selectedIds.forEach(id => {
+        const u = parseFloat(expenseForm.ratio_shares?.[id]) || 0
+        totalUnits += u
+      })
+
+      if (totalUnits <= 0) return { shares: {}, isValid: false, message: 'Total shares must be greater than 0.' }
+
+      let allocated = 0
+      selectedIds.forEach((id, idx) => {
+        const u = parseFloat(expenseForm.ratio_shares?.[id]) || 0
+        if (idx === selectedIds.length - 1) {
+          shares[id] = Math.round((total - allocated) * 100) / 100
+        } else {
+          const personShare = Math.round(((u / totalUnits) * total) * 100) / 100
+          shares[id] = personShare
+          allocated += personShare
+        }
+      })
+      return { shares, isValid: true, totalUnits, message: `Allocated across ${totalUnits} total shares.` }
+    }
+
+    return { shares: {}, isValid: false, message: '' }
+  }, [expenseForm, activeGroup])
 
   // --- Expense Handlers ---
   const handleAddExpense = (e) => {
@@ -336,35 +479,31 @@ export default function Splitwise() {
     const amt = parseFloat(expenseForm.amount)
     if (!expenseForm.title.trim() || !amt || amt <= 0 || !activeGroup) return
 
-    const members = activeGroup.members || []
-    if (members.length === 0) {
-      setError('Please add at least one member to split with.')
-      return
+    // Validate Multi-Payer
+    if (expenseForm.payer_mode === 'multiple') {
+      const diffPaid = Math.abs(amt - multiPayerAllocatedTotal)
+      if (diffPaid > 0.05) {
+        setError(`Upfront contributions sum (${formatCurrency(multiPayerAllocatedTotal)}) does not match total amount (${formatCurrency(amt)}).`)
+        return
+      }
     }
 
-    const payerId = expenseForm.paid_by_id || members[0]?.id
-
-    // Equal split across all members
-    const perPersonShare = Math.round((amt / members.length) * 100) / 100
-    const shares = {}
-    let allocated = 0
-    members.forEach((m, idx) => {
-      if (idx === members.length - 1) {
-        shares[m.id] = Math.round((amt - allocated) * 100) / 100
-      } else {
-        shares[m.id] = perPersonShare
-        allocated += perPersonShare
-      }
-    })
+    // Validate Split
+    if (!calculatedSplitShares.isValid) {
+      setError(calculatedSplitShares.message || 'Please check split allocations.')
+      return
+    }
 
     const newExpense = {
       id: `exp_${Date.now()}`,
       title: expenseForm.title.trim(),
       amount: amt,
-      paid_by_id: payerId,
       date: expenseForm.date || today(),
-      split_type: 'equal',
-      shares,
+      payer_mode: expenseForm.payer_mode,
+      paid_by_id: expenseForm.payer_mode === 'single' ? expenseForm.paid_by_id : null,
+      paid_by: expenseForm.payer_mode === 'multiple' ? expenseForm.paid_by : null,
+      split_type: expenseForm.split_type,
+      shares: calculatedSplitShares.shares,
     }
 
     const updated = groups.map(g =>
@@ -374,8 +513,7 @@ export default function Splitwise() {
     )
     saveGroups(updated)
     setShowExpenseModal(false)
-    setExpenseForm({ title: '', amount: '', paid_by_id: '', date: today(), split_type: 'equal' })
-    flash(`Expense "${newExpense.title}" (${formatCurrency(amt)}) recorded & split!`)
+    flash(`Expense "${newExpense.title}" (${formatCurrency(amt)}) recorded!`)
   }
 
   const handleDeleteExpense = () => {
@@ -424,12 +562,22 @@ export default function Splitwise() {
     setShowSettleModal(true)
   }
 
+  const handleExportCsv = () => {
+    if (!activeGroup) return
+    setShowStatementModal(true)
+  }
+
   return (
     <Layout title="Splitwise & Group Bill Splitting">
-      {error && <div className="bg-red-50 text-red-700 text-xs p-3 rounded-lg mb-4">{error}</div>}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs p-3 rounded-xl mb-4 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="font-bold text-sm">×</button>
+        </div>
+      )}
       {success && (
-        <div className="bg-emerald-50 text-emerald-800 text-xs p-3 rounded-lg mb-4 flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+        <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs p-3 rounded-xl mb-4 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
           <span>{success}</span>
         </div>
       )}
@@ -493,19 +641,16 @@ export default function Splitwise() {
               {/* Group Quick Actions */}
               <div className="flex flex-wrap items-center gap-2.5">
                 <button
-                  onClick={() => {
-                    setExpenseForm({
-                      title: '',
-                      amount: '',
-                      paid_by_id: activeGroup.members?.[0]?.id || '',
-                      date: today(),
-                      split_type: 'equal',
-                    })
-                    setShowExpenseModal(true)
-                  }}
+                  onClick={openNewExpenseModal}
                   className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all"
                 >
                   <Plus className="h-4 w-4" /> Add Expense
+                </button>
+                <button
+                  onClick={() => setShowStatementModal(true)}
+                  className="bg-white/10 hover:bg-white/20 text-white font-semibold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 backdrop-blur-sm transition-all"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-300" /> Statement & CSV
                 </button>
                 <button
                   onClick={() => setShowMemberModal(true)}
@@ -548,6 +693,7 @@ export default function Splitwise() {
                   const bal = balanceDetails.netBalances[m.id] || 0
                   const isPositive = bal > 0.5
                   const isNegative = bal < -0.5
+
                   return (
                     <div key={m.id} className="py-2.5 flex items-center justify-between text-xs">
                       <div>
@@ -650,16 +796,7 @@ export default function Splitwise() {
                 Shared Expenses ({activeGroup.expenses?.length || 0})
               </h3>
               <button
-                onClick={() => {
-                  setExpenseForm({
-                    title: '',
-                    amount: '',
-                    paid_by_id: activeGroup.members?.[0]?.id || '',
-                    date: today(),
-                    split_type: 'equal',
-                  })
-                  setShowExpenseModal(true)
-                }}
+                onClick={openNewExpenseModal}
                 className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
               >
                 <Plus className="h-3.5 w-3.5" /> Add Bill
@@ -674,13 +811,36 @@ export default function Splitwise() {
             ) : (
               <div className="divide-y divide-gray-50 dark:divide-slate-800">
                 {activeGroup.expenses.map(exp => {
-                  const payer = activeGroup.members?.find(m => m.id === exp.paid_by_id) || { name: 'Unknown' }
+                  let payerSummary = ''
+                  if (exp.payer_mode === 'multiple' && exp.paid_by) {
+                    const payerList = Object.entries(exp.paid_by).map(([pId, pAmt]) => {
+                      const mName = activeGroup.members?.find(m => m.id === pId)?.name || pId
+                      return `${mName} (₹${pAmt})`
+                    })
+                    payerSummary = `Paid by ${payerList.join(', ')}`
+                  } else {
+                    const payer = activeGroup.members?.find(m => m.id === exp.paid_by_id) || { name: 'Unknown' }
+                    payerSummary = `Paid by ${payer.name}`
+                  }
+
+                  const splitTypeBadge = {
+                    equal: 'Equal Split',
+                    exact: 'Exact Amounts',
+                    percent: 'Percentage %',
+                    shares: 'Share Ratios',
+                  }[exp.split_type || 'equal']
+
                   return (
                     <div key={exp.id} className="py-3 flex items-center justify-between gap-3 text-xs hover:bg-gray-50/50 dark:hover:bg-slate-800/30 px-2 rounded-xl transition-colors">
                       <div className="space-y-0.5">
-                        <strong className="text-sm font-bold text-gray-900 dark:text-white block">{exp.title}</strong>
+                        <div className="flex items-center gap-2">
+                          <strong className="text-sm font-bold text-gray-900 dark:text-white">{exp.title}</strong>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-900">
+                            {splitTypeBadge}
+                          </span>
+                        </div>
                         <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                          Paid by <span className="font-semibold text-gray-800 dark:text-slate-200">{payer.name}</span> on {formatDate(exp.date)}
+                          {payerSummary} • {formatDate(exp.date)}
                         </p>
                       </div>
 
@@ -690,7 +850,7 @@ export default function Splitwise() {
                             {formatCurrency(exp.amount)}
                           </strong>
                           <span className="text-[10px] text-gray-400">
-                            Split {activeGroup.members?.length} ways
+                            Split {Object.keys(exp.shares || {}).length} ways
                           </span>
                         </div>
 
@@ -798,31 +958,33 @@ export default function Splitwise() {
         </form>
       </Modal>
 
-      {/* Add Expense Modal */}
+      {/* Advanced Expense Modal with Unequal, Exact, Percent & Multi-Payer */}
       <Modal
         isOpen={showExpenseModal}
         onClose={() => setShowExpenseModal(false)}
         title={`Add Expense to ${activeGroup?.name}`}
+        size="lg"
       >
-        <form onSubmit={handleAddExpense} className="space-y-4 text-xs">
-          <div>
-            <label className="label">Expense Title *</label>
-            <input
-              type="text"
-              placeholder="e.g. Dinner at Beach Shack, Villa Booking"
-              value={expenseForm.title}
-              onChange={(e) => setExpenseForm(prev => ({ ...prev, title: e.target.value }))}
-              className="input-field text-xs font-semibold"
-              required
-            />
-          </div>
+        <form onSubmit={handleAddExpense} className="space-y-4 text-xs max-h-[80vh] overflow-y-auto pr-1">
+          {/* Title & Amount */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label">Expense Title *</label>
+              <input
+                type="text"
+                placeholder="e.g. Beach Shack Seafood, Flights"
+                value={expenseForm.title}
+                onChange={(e) => setExpenseForm(prev => ({ ...prev, title: e.target.value }))}
+                className="input-field text-xs font-semibold"
+                required
+              />
+            </div>
 
-          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Total Amount (₹) *</label>
               <input
                 type="number"
-                placeholder="2400"
+                placeholder="15000"
                 value={expenseForm.amount}
                 onChange={(e) => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))}
                 className="input-field text-xs font-bold text-emerald-600"
@@ -830,44 +992,281 @@ export default function Splitwise() {
                 step="any"
               />
             </div>
+          </div>
 
-            <div>
-              <label className="label">Date</label>
-              <input
-                type="date"
-                value={expenseForm.date}
-                onChange={(e) => setExpenseForm(prev => ({ ...prev, date: e.target.value }))}
-                className="input-field text-xs"
-              />
+          {/* Date */}
+          <div>
+            <label className="label">Expense Date</label>
+            <input
+              type="date"
+              value={expenseForm.date}
+              onChange={(e) => setExpenseForm(prev => ({ ...prev, date: e.target.value }))}
+              className="input-field text-xs"
+            />
+          </div>
+
+          {/* 1. PAYER MODE: Single vs Multi-Payer */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-gray-800 dark:text-white uppercase tracking-wider text-[11px]">
+                1. Who Paid Upfront?
+              </span>
+              <div className="flex items-center gap-1 bg-white dark:bg-slate-700 p-0.5 rounded-lg border border-gray-200 dark:border-slate-600">
+                <button
+                  type="button"
+                  onClick={() => setExpenseForm(prev => ({ ...prev, payer_mode: 'single' }))}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                    expenseForm.payer_mode === 'single'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-slate-300'
+                  }`}
+                >
+                  Single Payer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExpenseForm(prev => ({ ...prev, payer_mode: 'multiple' }))}
+                  className={`px-2 py-1 rounded-md text-[11px] font-bold transition-all ${
+                    expenseForm.payer_mode === 'multiple'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-slate-300'
+                  }`}
+                >
+                  Multiple Payers
+                </button>
+              </div>
+            </div>
+
+            {expenseForm.payer_mode === 'single' ? (
+              <select
+                value={expenseForm.paid_by_id}
+                onChange={(e) => setExpenseForm(prev => ({ ...prev, paid_by_id: e.target.value }))}
+                className="input-field text-xs font-semibold"
+              >
+                {activeGroup?.members?.map(m => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="space-y-2 pt-1">
+                <p className="text-[11px] text-gray-500">Enter amount contributed upfront by each member:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {activeGroup?.members?.map(m => (
+                    <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
+                      <span className="font-semibold text-gray-800 dark:text-slate-200 truncate">{m.name}</span>
+                      <div className="flex items-center gap-1 w-28">
+                        <span className="text-gray-400">₹</span>
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={expenseForm.paid_by?.[m.id] || ''}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setExpenseForm(prev => ({
+                              ...prev,
+                              paid_by: { ...prev.paid_by, [m.id]: val }
+                            }))
+                          }}
+                          className="input-field text-xs py-1 px-2 text-right font-bold"
+                          step="any"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Multi-payer allocation balance check */}
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-gray-500">
+                    Allocated: <strong>{formatCurrency(multiPayerAllocatedTotal)}</strong> of {formatCurrency(expenseForm.amount || 0)}
+                  </span>
+                  <span className={`font-bold ${
+                    Math.abs(multiPayerAllocatedTotal - (parseFloat(expenseForm.amount) || 0)) < 0.05
+                      ? 'text-emerald-600'
+                      : 'text-rose-600'
+                  }`}>
+                    {Math.abs(multiPayerAllocatedTotal - (parseFloat(expenseForm.amount) || 0)) < 0.05
+                      ? '✓ Matched'
+                      : `Difference: ${formatCurrency((parseFloat(expenseForm.amount) || 0) - multiPayerAllocatedTotal)}`}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. SPLIT STRATEGY: Equal, Exact, Percent, Shares */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-gray-800 dark:text-white uppercase tracking-wider text-[11px]">
+                2. Split Strategy
+              </span>
+              <div className="flex items-center gap-1 bg-white dark:bg-slate-700 p-0.5 rounded-lg border border-gray-200 dark:border-slate-600 flex-wrap">
+                {[
+                  { id: 'equal', label: 'Equal', icon: Scale },
+                  { id: 'exact', label: 'Exact ₹', icon: DollarSign },
+                  { id: 'percent', label: 'Percent %', icon: Percent },
+                  { id: 'shares', label: 'Shares', icon: Sliders },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setExpenseForm(prev => ({ ...prev, split_type: id }))}
+                    className={`px-2 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all ${
+                      expenseForm.split_type === id
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-slate-300'
+                    }`}
+                  >
+                    <Icon className="h-3 w-3" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Member Participation Checkboxes */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between text-[11px] text-gray-500">
+                <span>Select who was involved in this bill:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allIds = activeGroup?.members?.map(m => m.id) || []
+                    setExpenseForm(prev => ({
+                      ...prev,
+                      selected_members: prev.selected_members.length === allIds.length ? [] : allIds
+                    }))
+                  }}
+                  className="text-blue-600 font-bold hover:underline"
+                >
+                  {expenseForm.selected_members.length === activeGroup?.members?.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                {activeGroup?.members?.map(m => {
+                  const isSelected = expenseForm.selected_members.includes(m.id)
+                  return (
+                    <div
+                      key={m.id}
+                      className={`p-2 rounded-xl border flex items-center justify-between gap-3 transition-all ${
+                        isSelected
+                          ? 'bg-white dark:bg-slate-900 border-blue-200 dark:border-blue-900/60 shadow-2xs'
+                          : 'bg-gray-100/60 dark:bg-slate-800/40 border-gray-200 dark:border-slate-800 opacity-60'
+                      }`}
+                    >
+                      <label className="flex items-center gap-2 cursor-pointer select-none flex-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            const checked = e.target.checked
+                            setExpenseForm(prev => ({
+                              ...prev,
+                              selected_members: checked
+                                ? [...prev.selected_members, m.id]
+                                : prev.selected_members.filter(id => id !== m.id)
+                            }))
+                          }}
+                          className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
+                        />
+                        <span className="font-semibold text-gray-900 dark:text-white text-xs">{m.name}</span>
+                      </label>
+
+                      {/* Custom inputs per mode */}
+                      {isSelected && (
+                        <div className="flex items-center gap-1.5">
+                          {expenseForm.split_type === 'exact' && (
+                            <div className="flex items-center gap-1 w-28">
+                              <span className="text-gray-400 font-bold">₹</span>
+                              <input
+                                type="number"
+                                placeholder="0"
+                                value={expenseForm.exact_shares?.[m.id] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setExpenseForm(prev => ({
+                                    ...prev,
+                                    exact_shares: { ...prev.exact_shares, [m.id]: val }
+                                  }))
+                                }}
+                                className="input-field text-xs py-1 px-2 text-right font-bold text-emerald-600"
+                                step="any"
+                              />
+                            </div>
+                          )}
+
+                          {expenseForm.split_type === 'percent' && (
+                            <div className="flex items-center gap-1 w-24">
+                              <input
+                                type="number"
+                                placeholder="0"
+                                value={expenseForm.percent_shares?.[m.id] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setExpenseForm(prev => ({
+                                    ...prev,
+                                    percent_shares: { ...prev.percent_shares, [m.id]: val }
+                                  }))
+                                }}
+                                className="input-field text-xs py-1 px-2 text-right font-bold"
+                                step="any"
+                              />
+                              <span className="text-gray-400 font-bold">%</span>
+                            </div>
+                          )}
+
+                          {expenseForm.split_type === 'shares' && (
+                            <div className="flex items-center gap-1 w-24">
+                              <input
+                                type="number"
+                                placeholder="1"
+                                value={expenseForm.ratio_shares?.[m.id] || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value
+                                  setExpenseForm(prev => ({
+                                    ...prev,
+                                    ratio_shares: { ...prev.ratio_shares, [m.id]: val }
+                                  }))
+                                }}
+                                className="input-field text-xs py-1 px-2 text-right font-bold"
+                                step="any"
+                              />
+                              <span className="text-[10px] text-gray-400">shr</span>
+                            </div>
+                          )}
+
+                          <span className="text-[11px] font-bold text-gray-700 dark:text-slate-300 min-w-16 text-right">
+                            {formatCurrency(calculatedSplitShares.shares?.[m.id] || 0)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Status helper banner */}
+              <div className={`p-2.5 rounded-xl text-xs flex items-center justify-between ${
+                calculatedSplitShares.isValid
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
+              }`}>
+                <span>{calculatedSplitShares.message}</span>
+                {calculatedSplitShares.isValid && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="label">Paid By *</label>
-            <select
-              value={expenseForm.paid_by_id}
-              onChange={(e) => setExpenseForm(prev => ({ ...prev, paid_by_id: e.target.value }))}
-              className="input-field text-xs font-semibold"
-            >
-              {activeGroup?.members?.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 text-blue-900 dark:text-blue-200">
-            <span className="font-bold block mb-1">Split Strategy: Equal Share</span>
-            <p className="text-[11px]">
-              Total amount will be split equally across all {activeGroup?.members?.length || 1} members (
-              {expenseForm.amount && activeGroup?.members?.length
-                ? formatCurrency(parseFloat(expenseForm.amount) / activeGroup.members.length)
-                : '₹0'} / person).
-            </p>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
             <button type="button" onClick={() => setShowExpenseModal(false)} className="btn-secondary text-xs">Cancel</button>
-            <button type="submit" className="btn-primary text-xs">Record & Split Bill</button>
+            <button
+              type="submit"
+              disabled={!calculatedSplitShares.isValid}
+              className="btn-primary text-xs disabled:opacity-50"
+            >
+              Record & Split Bill
+            </button>
           </div>
         </form>
       </Modal>
@@ -930,6 +1329,14 @@ export default function Splitwise() {
           </div>
         </form>
       </Modal>
+
+      {/* Group Itemized Statement Modal */}
+      <SplitwiseStatementModal
+        isOpen={showStatementModal}
+        onClose={() => setShowStatementModal(false)}
+        group={activeGroup}
+        balanceDetails={balanceDetails}
+      />
 
       {/* Delete Group Confirm */}
       <ConfirmDialog

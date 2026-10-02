@@ -26,7 +26,7 @@ import {
   Check,
 } from 'lucide-react'
 
-export default function TelegramWhatsAppBotModal({ isOpen, onClose }) {
+export default function TelegramWhatsAppBotModal({ isOpen, onClose, isEmbedded = false }) {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('simulator') // 'simulator' | 'telegram' | 'whatsapp' | 'webhook_code'
   const [messages, setMessages] = useState([
@@ -377,7 +377,7 @@ serve(async (req) => {
 })`
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="🤖 Telegram & WhatsApp Financial Bot" size="2xl">
+    <Modal isOpen={isOpen} isEmbedded={isEmbedded} onClose={onClose} title="🤖 Telegram & WhatsApp Financial Bot" size="2xl">
       <div className="space-y-4">
         {/* Navigation Tabs */}
         <div className="flex border-b border-gray-200 dark:border-slate-800 gap-2 pb-2">

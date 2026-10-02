@@ -25,10 +25,18 @@ import {
   FileSpreadsheet,
   Flame,
   Skull,
+  Lock,
+  ShieldAlert,
+  Mic,
+  SunMedium,
 } from 'lucide-react'
 
 const ACTIONS = [
   { id: 'dash', label: 'Dashboard & Cockpit', category: 'Navigation', icon: LayoutDashboard, path: '/' },
+  { id: 'autopilot', label: 'Autonomous AI Financial Auto-Pilot (Morning Briefing & WhatsApp)', category: 'AI Tools', icon: SunMedium, customEvent: 'open-autopilot-digest' },
+  { id: 'voice', label: 'Smart Voice Conversational Assistant (2-Way Speech Companion)', category: 'AI Tools', icon: Mic, customEvent: 'open-voice-companion' },
+  { id: 'sentinel', label: 'AI Spending Anomaly & Duplicate Charge Sentinel', category: 'Security', icon: ShieldAlert, customEvent: 'open-anomaly-sentinel' },
+  { id: 'card-opt', label: 'Credit Card Grace Period & 50-Day Float Optimizer', category: 'Cards', icon: CreditCard, customEvent: 'open-card-optimizer' },
   { id: 'lock', label: 'Lock App Screen (Biometrics & Security PIN)', category: 'Security', icon: Lock, customEvent: 'open-app-lock' },
   { id: 'zombie', label: 'Zombie Subscriptions & Digital Leak Detector', category: 'Audit', icon: Skull, customEvent: 'open-subscription-leak' },
   { id: 'fire', label: 'FIRE & Financial Freedom Simulator (Monte Carlo)', category: 'Wealth', icon: Flame, customEvent: 'open-fire-simulator' },
@@ -37,6 +45,7 @@ const ACTIONS = [
   { id: 'bills', label: 'Recurring Bill Reminders & Autopay', category: 'Planning', icon: Receipt, path: '/bills' },
   { id: 'ai', label: 'Ask AI Financial Advisor & Wealth Copilot', category: 'AI Tools', icon: Sparkles, path: '/statements' },
   { id: 'mf', label: 'Mutual Funds & Live AMFI NAVs', category: 'Portfolio', icon: LineChart, path: '/mutual-funds' },
+  { id: 'income-tax', label: 'Income Tax Regime Planner (Old vs New FY 2026-27)', category: 'Planning', icon: Calculator, customEvent: 'open-tax-planner' },
   { id: 'tax', label: 'Tax & Capital Gains Estimator (LTCG / STCG)', category: 'Tools', icon: Calculator, path: '/mutual-funds' },
   { id: 'networth', label: 'Consolidated Net Worth Hub', category: 'Wealth', icon: Landmark, path: '/net-worth' },
   { id: 'goals', label: 'Financial Goals & Target Trackers', category: 'Planning', icon: Target, path: '/goals' },
@@ -60,7 +69,7 @@ export default function CommandPalette() {
   const { toggleTheme, isDark } = useTheme()
   const inputRef = useRef(null)
 
-  // Listen for Ctrl+K or Cmd+K
+  // Listen for Ctrl+K or Cmd+K or open-command-palette event
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -70,8 +79,13 @@ export default function CommandPalette() {
         setIsOpen(false)
       }
     }
+    const handleCustomOpen = () => setIsOpen(true)
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('open-command-palette', handleCustomOpen)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('open-command-palette', handleCustomOpen)
+    }
   }, [isOpen])
 
   useEffect(() => {

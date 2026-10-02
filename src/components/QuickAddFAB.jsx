@@ -267,13 +267,8 @@ export default function QuickAddFAB({ onSuccess }) {
               : 'bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 shadow-indigo-500/40 hover:scale-105'
           }`}
           title="Drag to move anywhere • Click to open menu"
-          aria-label="Draggable Action Button"
+          aria-label="Action Button"
         >
-          {/* Subtle Move Grip Indicator */}
-          <div className="absolute -top-1.5 px-1.5 py-0.2 rounded-full bg-slate-900/90 text-[9px] text-gray-300 font-bold tracking-tighter opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
-            DRAG
-          </div>
-
           <Plus className="h-7 w-7 text-white transition-transform duration-200" />
 
           {/* Glowing Pulse when idle */}

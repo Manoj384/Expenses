@@ -118,7 +118,7 @@ export function calculateFinancialHealthScore({
   }
 }
 
-export default function FinancialHealthScoreModal({ isOpen, onClose, metrics }) {
+export default function FinancialHealthScoreModal({ isOpen, onClose, metrics, isEmbedded = false }) {
   const result = useMemo(() => {
     return calculateFinancialHealthScore(metrics || {})
   }, [metrics])
@@ -126,7 +126,7 @@ export default function FinancialHealthScoreModal({ isOpen, onClose, metrics }) 
   if (!isOpen) return null
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Financial Health & Wealth Score" maxWidth="max-w-2xl">
+    <Modal isOpen={isOpen} isEmbedded={isEmbedded} onClose={onClose} title="Financial Health & Wealth Score" maxWidth="max-w-2xl">
       <div className="space-y-6 text-xs text-gray-700 dark:text-slate-300">
         {/* Score Header Banner */}
         <div className={`p-6 rounded-2xl border ${result.gradeBg} flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xs`}>
