@@ -71,6 +71,13 @@ export default function Goals() {
       return {}
     }
   })
+  const [goalNotes, setGoalNotes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ft_goal_notes') || '{}')
+    } catch {
+      return {}
+    }
+  })
   const [selectedSipId, setSelectedSipId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -114,7 +121,20 @@ export default function Goals() {
       ])
 
       if (goalsRes.error) throw goalsRes.error
-      setGoals(goalsRes.data || [])
+      const savedNotes = (() => {
+        try {
+          return JSON.parse(localStorage.getItem('ft_goal_notes') || '{}')
+        } catch {
+          return {}
+        }
+      })()
+
+      const enrichedGoals = (goalsRes.data || []).map((g) => ({
+        ...g,
+        notes: savedNotes[g.id] || g.notes || '',
+      }))
+
+      setGoals(enrichedGoals)
       setSips(sipsRes.data?.length ? sipsRes.data : defaultSips)
     } catch {
       setError('Unable to load goals. Please try again.')
@@ -149,6 +169,7 @@ export default function Goals() {
     setSaving(true)
     setError('')
     try {
+      // Supabase payload only contains columns present in schema
       const payload = {
         user_id: user.id,
         name: form.name.trim(),
@@ -156,7 +177,6 @@ export default function Goals() {
         current_amount: parseFloat(form.current_amount) || 0,
         target_date: form.target_date || null,
         category: form.category || 'Savings',
-        notes: form.notes.trim() || null,
       }
 
       let savedId = editTarget?.id
@@ -164,22 +184,26 @@ export default function Goals() {
         const { error: upErr } = await supabase
           .from('goals').update(payload).eq('id', editTarget.id)
         if (upErr) throw upErr
-        setGoals(prev => prev.map(g => g.id === editTarget.id ? { ...g, ...payload } : g))
+        setGoals(prev => prev.map(g => g.id === editTarget.id ? { ...g, ...payload, notes: form.notes } : g))
         flash('Financial Goal updated!')
       } else {
         const { data, error: insErr } = await supabase
           .from('goals').insert(payload).select()
         if (insErr) throw insErr
         savedId = data[0]?.id
-        setGoals(prev => [data[0], ...prev])
+        setGoals(prev => [{ ...data[0], notes: form.notes }, ...prev])
         flash('New Financial Goal created!')
       }
 
-      // Persist SIP linkage
+      // Persist SIP linkage & Notes locally
       if (savedId) {
-        const updated = { ...sipLinks, [savedId]: selectedSipId || null }
-        setSipLinks(updated)
-        localStorage.setItem('ft_goal_sip_links', JSON.stringify(updated))
+        const updatedLinks = { ...sipLinks, [savedId]: selectedSipId || null }
+        setSipLinks(updatedLinks)
+        localStorage.setItem('ft_goal_sip_links', JSON.stringify(updatedLinks))
+
+        const updatedNotes = { ...goalNotes, [savedId]: form.notes.trim() || null }
+        setGoalNotes(updatedNotes)
+        localStorage.setItem('ft_goal_notes', JSON.stringify(updatedNotes))
       }
 
       setShowAddModal(false)

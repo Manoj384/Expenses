@@ -7,6 +7,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import savedGrowwData from '../data/groww_holdings.json'
+import { enrichFundsWithCachedNavs } from '../utils/mfApi'
 import FdRdTrackerModal from '../components/FdRdTrackerModal'
 
 import {
@@ -28,6 +29,7 @@ import {
   CreditCard,
   Target,
   Landmark,
+  Flame,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -64,7 +66,20 @@ export default function NetWorth() {
   const [success, setSuccess] = useState('')
 
   // Data sets
-  const [mutualFundsTotal, setMutualFundsTotal] = useState(112341.29)
+  const [mutualFundsTotal, setMutualFundsTotal] = useState(() => {
+    try {
+      const cached = localStorage.getItem('ft_cached_mutual_funds')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const enriched = enrichFundsWithCachedNavs(parsed)
+          return enriched.reduce((s, f) => s + parseFloat(f.current_value || (f.units * f.current_nav) || 0), 0)
+        }
+      }
+    } catch {}
+    const defaultEnriched = enrichFundsWithCachedNavs(savedGrowwData)
+    return defaultEnriched.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
+  })
   const [debtsTotal, setDebtsTotal] = useState(0)
   const [customAssets, setCustomAssets] = useState([])
 
@@ -86,14 +101,11 @@ export default function NetWorth() {
     setError('')
     try {
       // 1. Fetch MF Total
-      const { data: mfData } = await supabase.from('mutual_funds').select('current_value, units, current_nav, invested_amount').eq('user_id', user.id)
-      if (mfData && mfData.length > 0) {
-        const total = mfData.reduce((s, f) => s + parseFloat(f.current_value || (f.units * f.current_nav) || f.invested_amount || 0), 0)
-        setMutualFundsTotal(total > 0 ? total : 112341.29)
-      } else {
-        const localTotal = savedGrowwData.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
-        setMutualFundsTotal(localTotal)
-      }
+      const { data: mfData } = await supabase.from('mutual_funds').select('*').eq('user_id', user.id)
+      const activeMf = (mfData && mfData.length > 0) ? mfData : savedGrowwData
+      const enrichedMf = enrichFundsWithCachedNavs(activeMf)
+      const total = enrichedMf.reduce((s, f) => s + parseFloat(f.current_value || (f.units * f.current_nav) || f.invested_amount || 0), 0)
+      setMutualFundsTotal(total)
 
       // 2. Fetch Debts Total
       const { data: debtData } = await supabase.from('debts').select('outstanding').eq('user_id', user.id)
@@ -120,6 +132,10 @@ export default function NetWorth() {
 
   useEffect(() => {
     fetchData()
+
+    const handleMfUpdated = () => fetchData()
+    window.addEventListener('mutual-funds-updated', handleMfUpdated)
+    return () => window.removeEventListener('mutual-funds-updated', handleMfUpdated)
   }, [fetchData])
 
   const flash = (msg) => {
@@ -242,6 +258,14 @@ export default function NetWorth() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-fire-simulator'))}
+              className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-amber-400/30"
+              title="Calculate Lean, Standard, Fat and Coast FIRE targets"
+            >
+              <Flame className="h-4 w-4 text-amber-200" />
+              <span>FIRE Simulator</span>
+            </button>
             <button
               onClick={() => setShowFdModal(true)}
               className="bg-teal-600 hover:bg-teal-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-teal-400/30"

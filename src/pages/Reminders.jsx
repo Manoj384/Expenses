@@ -160,6 +160,8 @@ export default function Reminders() {
     recurrence: 'monthly',
     priority: 'normal',
     sound: true,
+    syncGoogleCal: true,
+    syncIcs: false,
     notes: '',
   })
 
@@ -279,6 +281,8 @@ export default function Reminders() {
       recurrence: 'monthly',
       priority: 'normal',
       sound: true,
+      syncGoogleCal: false,
+      syncIcs: false,
       notes: '',
     })
     setShowAddModal(true)
@@ -295,6 +299,8 @@ export default function Reminders() {
       recurrence: r.recurrence || 'none',
       priority: r.priority || 'normal',
       sound: r.sound !== false,
+      syncGoogleCal: false,
+      syncIcs: false,
       notes: r.notes || '',
     })
     setShowAddModal(true)
@@ -323,6 +329,22 @@ export default function Reminders() {
       setReminders((prev) => prev.map((r) => (r.id === editTarget.id ? payload : r)))
     } else {
       setReminders((prev) => [payload, ...prev])
+    }
+
+    // Auto-trigger Phone Calendar / Alarm Sync if user checked it
+    if (form.syncGoogleCal) {
+      const gUrl = generateGoogleCalendarUrl({
+        title: payload.title,
+        description: payload.notes || (payload.amount ? `Amount: ₹${payload.amount}` : ''),
+        date: payload.date,
+        time: payload.time,
+        recurrence: payload.recurrence,
+      })
+      window.open(gUrl, '_blank')
+    }
+
+    if (form.syncIcs) {
+      downloadIcsFile(payload)
     }
 
     setShowAddModal(false)
@@ -898,18 +920,51 @@ export default function Reminders() {
             </div>
           </div>
 
-          {/* Sound Alarm Checkbox */}
-          <div className="flex items-center gap-2 p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-900/50">
-            <input
-              type="checkbox"
-              id="soundAlarm"
-              checked={form.sound}
-              onChange={(e) => setForm({ ...form, sound: e.target.checked })}
-              className="h-4 w-4 rounded text-amber-600 focus:ring-amber-500"
-            />
-            <label htmlFor="soundAlarm" className="text-xs font-semibold text-amber-900 dark:text-amber-200 cursor-pointer">
-              🔔 Enable Audio Chime Alarm & Phone Vibration when due
-            </label>
+          {/* Sound Alarm & Phone Clock Sync Controls */}
+          <div className="space-y-2 p-3 bg-amber-50/70 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-900/50">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="soundAlarm"
+                checked={form.sound}
+                onChange={(e) => setForm({ ...form, sound: e.target.checked })}
+                className="h-4 w-4 rounded text-amber-600 focus:ring-amber-500"
+              />
+              <label htmlFor="soundAlarm" className="text-xs font-semibold text-amber-900 dark:text-amber-200 cursor-pointer">
+                🔔 Enable Audio Chime Alarm & Phone Vibration in-app
+              </label>
+            </div>
+
+            <div className="pt-2 border-t border-amber-200/60 dark:border-amber-900/40 space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 block">
+                📱 Alarms when Phone is Locked / App is Off:
+              </span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="syncGoogleCal"
+                  checked={form.syncGoogleCal}
+                  onChange={(e) => setForm({ ...form, syncGoogleCal: e.target.checked })}
+                  className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="syncGoogleCal" className="text-[11px] font-medium text-gray-800 dark:text-slate-200 cursor-pointer">
+                  Sync with Google Calendar Alarm (Rings Android / iOS phone hardware clock)
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="syncIcs"
+                  checked={form.syncIcs}
+                  onChange={(e) => setForm({ ...form, syncIcs: e.target.checked })}
+                  className="h-4 w-4 rounded text-purple-600 focus:ring-purple-500"
+                />
+                <label htmlFor="syncIcs" className="text-[11px] font-medium text-gray-800 dark:text-slate-200 cursor-pointer">
+                  Download Apple Calendar / Clock file (.ics alarm trigger)
+                </label>
+              </div>
+            </div>
           </div>
 
           {/* Notes */}

@@ -12,6 +12,7 @@ import { frequencyLabel } from '../utils/sipUtils'
 import pastData from '../data/past_expenses.json'
 import defaultSips from '../data/default_sips.json'
 import savedGrowwData from '../data/groww_holdings.json'
+import { enrichFundsWithCachedNavs } from '../utils/mfApi'
 import CashflowForecastModal from '../components/CashflowForecastModal'
 import FinancialHealthScoreModal, { calculateFinancialHealthScore } from '../components/FinancialHealthScoreModal'
 import CashFlowCalendarModal from '../components/CashFlowCalendarModal'
@@ -20,7 +21,7 @@ import {
   TrendingUp, TrendingDown, PiggyBank, Wallet, CreditCard,
   ArrowDownRight, Clock, AlertCircle, BarChart3,
   ArrowRight, Target, Sparkles, CalendarDays,
-  Landmark, Zap, LineChart, Award, Calendar, Users, Sliders, Flame
+  Landmark, Zap, LineChart, Award, Calendar, Users, Sliders, Flame, Bot, Skull
 } from 'lucide-react'
 
 const TYPE_STYLES = {
@@ -48,7 +49,18 @@ export default function Dashboard() {
   const [showStreakModal, setShowStreakModal] = useState(false)
   const [householdView, setHouseholdView] = useState(false)
   const [allMonthTxns, setAllMonthTxns] = useState([])
-  const [mfList, setMfList] = useState(savedGrowwData)
+  const [mfList, setMfList] = useState(() => {
+    try {
+      const cached = localStorage.getItem('ft_cached_mutual_funds')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return enrichFundsWithCachedNavs(parsed)
+        }
+      }
+    } catch {}
+    return enrichFundsWithCachedNavs(savedGrowwData)
+  })
   const [goalsList, setGoalsList] = useState([])
 
 
@@ -134,11 +146,29 @@ export default function Dashboard() {
       setRecentTxns(recentRes.data || [])
       setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
-      // Mutual funds live sync
+      // Mutual funds live sync with instant caching
       if (!mfRes.error && mfRes.data && mfRes.data.length > 0) {
-        setMfList(mfRes.data)
+        const enriched = enrichFundsWithCachedNavs(mfRes.data)
+        setMfList(enriched)
+        try {
+          localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(enriched))
+        } catch {}
       } else {
-        setMfList(savedGrowwData)
+        try {
+          const cached = localStorage.getItem('ft_cached_mutual_funds')
+          if (cached) {
+            const parsed = JSON.parse(cached)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setMfList(enrichFundsWithCachedNavs(parsed))
+            } else {
+              setMfList(enrichFundsWithCachedNavs(savedGrowwData))
+            }
+          } else {
+            setMfList(enrichFundsWithCachedNavs(savedGrowwData))
+          }
+        } catch {
+          setMfList(enrichFundsWithCachedNavs(savedGrowwData))
+        }
       }
 
       // Goals live sync (strictly sync with Supabase and purge old localStorage cache)
@@ -183,11 +213,21 @@ export default function Dashboard() {
     }
   }, [fetchData, user])
 
-  // Refresh live data on tab focus
+  // Refresh live data on tab focus and global update events
   useEffect(() => {
     const handleFocus = () => fetchData()
+    const handleMfUpdated = () => fetchData()
+    const handleTxUpdated = () => fetchData()
+
     window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
+    window.addEventListener('mutual-funds-updated', handleMfUpdated)
+    window.addEventListener('transaction-updated', handleTxUpdated)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('mutual-funds-updated', handleMfUpdated)
+      window.removeEventListener('transaction-updated', handleTxUpdated)
+    }
   }, [fetchData])
 
   const netSavings = monthIncome - monthExpense
@@ -294,6 +334,36 @@ export default function Dashboard() {
               >
                 <Flame className="h-4 w-4 text-orange-500 animate-bounce" />
                 <span>5-Day Streak!</span>
+              </button>
+
+              {/* Telegram & WhatsApp Instant Bot Launcher */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-bot-modal'))}
+                className="bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 text-sky-800 dark:text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 border border-sky-200 dark:border-sky-900/50 shadow-xs transition-all"
+                title="Log expenses & query portfolio via Telegram or WhatsApp"
+              >
+                <Bot className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                <span>Telegram & WA Bot</span>
+              </button>
+
+              {/* Zombie Subscription Detector Launcher */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-subscription-leak'))}
+                className="bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 border border-purple-300 dark:border-purple-800/60 shadow-xs transition-all"
+                title="Detect recurring digital subscriptions and annualized burn rate"
+              >
+                <Skull className="h-3.5 w-3.5 text-purple-500" />
+                <span>Zombie Leaks</span>
+              </button>
+
+              {/* FIRE Simulator Launcher */}
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-fire-simulator'))}
+                className="bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 border border-amber-300 dark:border-amber-800/60 shadow-xs transition-all"
+                title="Simulate your Financial Independence & Retire Early (FIRE) Target"
+              >
+                <Flame className="h-3.5 w-3.5 text-amber-500" />
+                <span>FIRE Simulator</span>
               </button>
 
               {/* 90-Day Forecast Launcher */}

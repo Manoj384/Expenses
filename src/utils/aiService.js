@@ -16,9 +16,13 @@ export function getGeminiApiKey() {
   try {
     const saved = localStorage.getItem(STORAGE_API_KEY)
     if (saved && saved.trim()) return saved.trim()
-    return import.meta.env.VITE_GEMINI_API_KEY || ''
+    return import.meta?.env?.VITE_GEMINI_API_KEY || ''
   } catch {
-    return import.meta.env.VITE_GEMINI_API_KEY || ''
+    try {
+      return import.meta?.env?.VITE_GEMINI_API_KEY || ''
+    } catch {
+      return ''
+    }
   }
 }
 
@@ -213,13 +217,17 @@ Do NOT include markdown formatting or explanations, output only raw JSON matchin
   "date": "YYYY-MM-DD",
   "category": "One of: Food & Dining, Shopping, Fuel, Utilities, Travel, Medical, Entertainment, Groceries, Rent, Other",
   "payment_method": "One of: UPI, Card, Cash, Bank Transfer, OneCard, GPay",
-  "note": "Brief description of item(s) bought",
+  "items": [
+    { "name": "Item Description", "price": 45.00, "qty": 1 }
+  ],
+  "tax": 10.50,
+  "note": "Brief description of purchase",
   "confidence": 95
 }
 If any field is unreadable, make the best sensible estimate or use current date.`
 
   try {
-    const rawResponse = await callGemini(prompt, { base64Data, mimeType })
+    const rawResponse = await callAi(prompt, { base64Data, mimeType })
     const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0])

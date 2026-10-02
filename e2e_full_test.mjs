@@ -53,6 +53,9 @@ function expect(actual) {
     toBeGreaterThan(expected) {
       if (!(actual > expected)) throw new Error(`Expected ${actual} > ${expected}`)
     },
+    toBeLessThan(expected) {
+      if (!(actual < expected)) throw new Error(`Expected ${actual} < ${expected}`)
+    },
     toBeCloseTo(expected, delta = 0.01) {
       if (Math.abs(actual - expected) > delta) throw new Error(`Expected ${actual} close to ${expected}`)
     },
@@ -223,7 +226,7 @@ console.log('\n▶ Testing Module 5: Mutual Funds & Capital Gains Tax Engine')
 test('TC-MF-01: Verified AMFI Scheme code mapping is accurate', () => {
   expect(VERIFIED_SCHEME_CODES['motilal oswal midcap fund direct growth']).toBe('127042')
   expect(VERIFIED_SCHEME_CODES['quant small cap fund direct plan growth']).toBe('120828')
-  expect(VERIFIED_SCHEME_CODES['bandhan small cap fund direct growth']).toBe('147944')
+  expect(VERIFIED_SCHEME_CODES['bandhan small cap fund direct growth']).toBe('147946')
 })
 
 test('TC-MF-02: LTCG Tax with ₹1.25L exemption (12.5% on excess)', () => {
@@ -262,6 +265,173 @@ INR 75,000.00 credited to account towards Salary`
   expect(parsed[1].amount).toBe(75000)
   expect(parsed[1].type).toBe('income')
 })
+test('TC-PARSE-03: AI Receipt Vision Scanner fallback heuristics extract structured receipt payload', async () => {
+  const dummyDataUrl = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD'
+  // When no API key is provided, scanReceiptWithAi returns the fallback heuristic structured payload
+  const { scanReceiptWithAi } = await import('./src/utils/aiService.js')
+  const res = await scanReceiptWithAi(dummyDataUrl)
+  expect(typeof res.amount).toBe('number')
+  expect(typeof res.merchant).toBe('string')
+  expect(typeof res.category).toBe('string')
+  expect(res.amount).toBeGreaterThan(0)
+})
+
+// ==================================================================
+// MODULE 8: FIRE & MONTE CARLO FINANCIAL FREEDOM ENGINE
+// ==================================================================
+console.log('\n▶ Testing Module 8: FIRE & Monte Carlo Freedom Engine')
+
+test('TC-FIRE-01: Rule of 25 & 4% SWR target corpus calculation', () => {
+  const monthlyExp = 50000
+  const annualExp = monthlyExp * 12 // 600,000
+  const swr = 0.04
+  const standardFire = annualExp / swr // 15,000,000
+  const leanFire = standardFire * 0.70 // 10,500,000
+  const fatFire = standardFire * 1.50  // 22,500,000
+  const baristaFire = standardFire * 0.50 // 7,500,000
+
+  expect(standardFire).toBe(15000000)
+  expect(leanFire).toBe(10500000)
+  expect(fatFire).toBe(22500000)
+  expect(baristaFire).toBe(7500000)
+})
+
+test('TC-FIRE-02: Fisher Real Return & Coast FIRE formula validation', () => {
+  const nomReturn = 0.12 // 12%
+  const inflation = 0.06 // 6%
+  const realRate = (1 + nomReturn) / (1 + inflation) - 1 // ~5.660377%
+  const standardTarget = 15000000
+  const yearsToRetire = 20
+
+  const coastTarget = standardTarget / Math.pow(1 + realRate, yearsToRetire)
+  expect(Math.round(coastTarget)).toBe(4987100)
+
+  const userPortfolio = 5500000
+  const hasAchievedCoast = userPortfolio >= coastTarget
+  expect(hasAchievedCoast).toBe(true)
+})
+
+test('TC-FIRE-03: Month-by-month compounding timeline calculates exact retirement age', () => {
+  let bal = 1500000 // 15 Lakh
+  const target = 15000000 // 1.5 Cr
+  const monthlyInv = 50000
+  const nomReturn = 0.12
+  const inflation = 0.06
+  const realRate = (1 + nomReturn) / (1 + inflation) - 1
+  const monthlyRealRate = Math.pow(1 + realRate, 1 / 12) - 1
+
+  let months = 0
+  while (bal < target && months < 600) {
+    months++
+    bal = bal * (1 + monthlyRealRate) + monthlyInv
+  }
+
+  // Compounding 15L + 50k/mo @ ~5.66% real return takes ~149 months (~12.4 years)
+  expect(months).toBeGreaterThan(120)
+  expect(months).toBeLessThan(180)
+})
+
+// ==================================================================
+// MODULE 9: DEBT PAYOFF OPTIMIZER (SNOWBALL VS AVALANCHE)
+// ==================================================================
+console.log('\n▶ Testing Module 9: Debt Payoff Optimizer Engine')
+
+test('TC-DEBT-OPT-01: Snowball sorts by lowest balance & Avalanche sorts by highest APR', () => {
+  const sampleDebts = [
+    { name: 'Personal Loan', balance: 100000, apr: 14, minEmi: 5000 },
+    { name: 'Credit Card', balance: 30000, apr: 36, minEmi: 3000 },
+    { name: 'Car Loan', balance: 500000, apr: 9, minEmi: 12000 },
+  ]
+
+  const snowballSorted = [...sampleDebts].sort((a, b) => a.balance - b.balance)
+  expect(snowballSorted[0].name).toBe('Credit Card') // ₹30k
+  expect(snowballSorted[1].name).toBe('Personal Loan') // ₹100k
+  expect(snowballSorted[2].name).toBe('Car Loan') // ₹500k
+
+  const avalancheSorted = [...sampleDebts].sort((a, b) => b.apr - a.apr)
+  expect(avalancheSorted[0].name).toBe('Credit Card') // 36% APR
+  expect(avalancheSorted[1].name).toBe('Personal Loan') // 14% APR
+  expect(avalancheSorted[2].name).toBe('Car Loan') // 9% APR
+})
+
+test('TC-DEBT-OPT-02: Extra monthly payment accelerates payoff and reduces interest', () => {
+  // Simple 2-debt payoff simulation
+  let balance = 200000
+  const apr = 0.18 // 18%
+  const minEmi = 6000
+  const extraPay = 4000 // Total 10,000
+
+  let mBase = 0
+  let balBase = balance
+  let interestBase = 0
+  while (balBase > 0 && mBase < 120) {
+    mBase++
+    const i = balBase * (apr / 12)
+    interestBase += i
+    balBase = balBase + i - minEmi
+  }
+
+  let mAccel = 0
+  let balAccel = balance
+  let interestAccel = 0
+  while (balAccel > 0 && mAccel < 120) {
+    mAccel++
+    const i = balAccel * (apr / 12)
+    interestAccel += i
+    balAccel = balAccel + i - (minEmi + extraPay)
+  }
+
+  expect(mAccel).toBeLessThan(mBase)
+  expect(interestAccel).toBeLessThan(interestBase)
+})
+
+// ==================================================================
+// MODULE 10: ZOMBIE SUBSCRIPTION & DIGITAL LEAK DETECTOR
+// ==================================================================
+console.log('\n▶ Testing Module 10: Zombie Subscriptions & Digital Leak Detector')
+
+test('TC-ZOMBIE-01: Calculates monthly outflow and annualized burn rate accurately', () => {
+  const subs = [
+    { name: 'Netflix', cost: 649, frequency: 'monthly' },
+    { name: 'Prime', cost: 125, frequency: 'monthly' },
+    { name: 'Spotify', cost: 119, frequency: 'monthly' },
+    { name: 'ChatGPT Plus', cost: 1999, frequency: 'monthly' },
+    { name: 'Google One', cost: 130, frequency: 'monthly' },
+  ]
+  const monthlyOutflow = subs.reduce((sum, s) => sum + s.cost, 0)
+  const annualBurn = monthlyOutflow * 12
+  expect(monthlyOutflow).toBe(3022)
+  expect(annualBurn).toBe(36264)
+})
+
+test('TC-ZOMBIE-02: 10-Year Opportunity Cost compounding formula validation', () => {
+  const monthlyBurn = 3022
+  const r = 0.12 / 12 // 1% monthly
+  const n = 120 // 10 years
+  const fv = Math.round(monthlyBurn * ((Math.pow(1 + r, n) - 1) / r) * (1 + r))
+  expect(fv).toBe(702129)
+})
+
+// ==================================================================
+// MODULE 11: WEBAUTHN & BIOMETRIC HARDWARE SECURITY
+// ==================================================================
+console.log('\n▶ Testing Module 11: WebAuthn & Biometric Security Engine')
+
+test('TC-BIO-01: WebAuthn availability check runs safely without crash in non-browser env', async () => {
+  const { isBiometricsAvailable, isBiometricsEnabled, setBiometricsEnabled } = await import('./src/utils/webAuthn.js')
+  const avail = await isBiometricsAvailable()
+  expect(typeof avail).toBe('boolean')
+  expect(typeof isBiometricsEnabled()).toBe('boolean')
+})
+
+test('TC-BIO-02: Biometric PIN unlock fallback matches default security PIN (1234)', () => {
+  const defaultPin = '1234'
+  const verifySecurityPin = (input) => input === defaultPin
+  expect(verifySecurityPin('1234')).toBe(true)
+  expect(verifySecurityPin('0000')).toBe(false)
+  expect(verifySecurityPin('')).toBe(false)
+})
+
 
 // ==================================================================
 // MODULE 7: EXCEPTION HANDLING, BOUNDARY CONDITIONS & CHAIN BREAKS

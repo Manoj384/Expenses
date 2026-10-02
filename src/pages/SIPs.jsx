@@ -12,6 +12,7 @@ import { formatDate, today } from '../utils/dateUtils'
 import { calculateNextDueDate } from '../utils/sipUtils'
 import defaultSips from '../data/default_sips.json'
 import savedGrowwData from '../data/groww_holdings.json'
+import { enrichFundsWithCachedNavs } from '../utils/mfApi'
 import { Plus, Trash2, Layers, CheckCircle2, Sparkles, CloudUpload } from 'lucide-react'
 
 const FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'yearly']
@@ -20,7 +21,18 @@ const emptyForm = { name: '', amount: '', frequency: 'monthly', start_date: toda
 export default function SIPs() {
   const { user } = useAuth()
   const [sips, setSips] = useState([])
-  const [mutualFunds, setMutualFunds] = useState([])
+  const [mutualFunds, setMutualFunds] = useState(() => {
+    try {
+      const cached = localStorage.getItem('ft_cached_mutual_funds')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return enrichFundsWithCachedNavs(parsed)
+        }
+      }
+    } catch {}
+    return enrichFundsWithCachedNavs(savedGrowwData)
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -42,25 +54,69 @@ export default function SIPs() {
   }
 
   const fetchSipsAndFunds = useCallback(async () => {
-    if (!user) return
+    if (!user) {
+      try {
+        const cached = localStorage.getItem('ft_cached_sips')
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSips(parsed)
+            return
+          }
+        }
+      } catch {}
+      return
+    }
     setLoading(true)
     try {
       const [sipsRes, mfRes] = await Promise.all([
         supabase
           .from('sips')
-          .select('*, mutual_funds(id, scheme_name, current_nav, current_value, units, invested_amount)')
+          .select('*')
           .eq('user_id', user.id)
           .order('active', { ascending: false })
           .order('next_due_date'),
         supabase
           .from('mutual_funds')
-          .select('id, scheme_name, scheme_code, current_nav, units, invested_amount')
+          .select('*')
           .eq('user_id', user.id)
           .order('scheme_name'),
       ])
 
-      setSips(sipsRes.data || [])
-      setMutualFunds(mfRes.data || [])
+      const mfs = mfRes.data && mfRes.data.length > 0 ? enrichFundsWithCachedNavs(mfRes.data) : enrichFundsWithCachedNavs(savedGrowwData)
+      setMutualFunds(mfs)
+
+      if (!sipsRes.data || sipsRes.data.length === 0) {
+        // Auto-seed default SIPs with user_id into Supabase without fund_id
+        const toInsert = defaultSips.map((s) => ({
+          user_id: user.id,
+          name: s.name,
+          amount: s.amount,
+          frequency: s.frequency,
+          start_date: s.start_date,
+          next_due_date: s.next_due_date,
+          active: true,
+        }))
+
+        const { data: insertedSips, error: insErr } = await supabase
+          .from('sips')
+          .insert(toInsert)
+          .select('*')
+
+        if (!insErr && insertedSips && insertedSips.length > 0) {
+          setSips(insertedSips)
+          try {
+            localStorage.setItem('ft_cached_sips', JSON.stringify(insertedSips))
+          } catch {}
+        } else {
+          setSips(defaultSips)
+        }
+      } else {
+        setSips(sipsRes.data)
+        try {
+          localStorage.setItem('ft_cached_sips', JSON.stringify(sipsRes.data))
+        } catch {}
+      }
     } catch {
       setError('Unable to load SIP investments.')
     } finally {
@@ -70,21 +126,37 @@ export default function SIPs() {
 
   useEffect(() => {
     fetchSipsAndFunds()
+
+    const handleMfUpdated = () => fetchSipsAndFunds()
+    window.addEventListener('mutual-funds-updated', handleMfUpdated)
+    return () => window.removeEventListener('mutual-funds-updated', handleMfUpdated)
   }, [fetchSipsAndFunds])
 
-  // Active dataset: fallback to pre-configured Groww SIPs if DB is empty
-  const displaySips = sips.length > 0 ? sips : defaultSips.map(s => {
-    const matchedMf = savedGrowwData.find(g => g.scheme_name.toLowerCase().includes(s.name.split(' ')[0].toLowerCase()))
+  // Active dataset: automatically enrich SIPs with matching mutual fund stats by scheme name
+  const displaySips = (sips.length > 0 ? sips : defaultSips).map((s) => {
+    const normSipName = (s.name || '').toLowerCase().trim()
+    const activeMfList = mutualFunds.length > 0 ? enrichFundsWithCachedNavs(mutualFunds) : enrichFundsWithCachedNavs(savedGrowwData)
+    const matchedMf = activeMfList.find((g) => {
+      const normMfName = (g.scheme_name || '').toLowerCase().trim()
+      return (
+        normMfName.includes(normSipName) ||
+        normSipName.includes(normMfName) ||
+        normMfName.split(' ')[0] === normSipName.split(' ')[0]
+      )
+    })
+
     return {
       ...s,
-      mutual_funds: matchedMf ? {
-        id: s.id,
-        scheme_name: matchedMf.scheme_name,
-        current_nav: matchedMf.current_nav,
-        current_value: matchedMf.current_value,
-        units: matchedMf.units,
-        invested_amount: matchedMf.invested_amount,
-      } : null,
+      mutual_funds: matchedMf
+        ? {
+            id: matchedMf.id,
+            scheme_name: matchedMf.scheme_name,
+            current_nav: matchedMf.current_nav,
+            current_value: matchedMf.current_value,
+            units: matchedMf.units,
+            invested_amount: matchedMf.invested_amount,
+          }
+        : null,
     }
   })
 
@@ -104,7 +176,7 @@ export default function SIPs() {
   const fetchHistory = async (sip) => {
     setHistoryTarget(sip)
     setHistLoading(true)
-    if (sips.length > 0 && sip.id && !sip.id.startsWith('sip_')) {
+    if (sips.length > 0 && sip.id && !String(sip.id).startsWith('sip_')) {
       const { data } = await supabase
         .from('sip_payments')
         .select('*')
@@ -126,8 +198,10 @@ export default function SIPs() {
     setForm((p) => {
       const updated = { ...p, [name]: value }
       if (name === 'fund_id' && value) {
-        const found = mutualFunds.find((m) => m.id === value)
-        if (found) updated.name = found.scheme_name
+        const found = displayMutualFunds.find((m) => m.id === value || m.scheme_name === value)
+        if (found) {
+          updated.name = found.scheme_name
+        }
       }
       return updated
     })
@@ -151,31 +225,47 @@ export default function SIPs() {
     setSaving(true)
     try {
       const payload = {
-        user_id: user.id,
         name: form.name.trim(),
         amount: Number(form.amount),
         frequency: form.frequency,
         start_date: form.start_date,
-        next_due_date: editTarget ? form.next_due_date || form.start_date : form.start_date,
+        next_due_date: editTarget ? (form.next_due_date || form.start_date) : form.start_date,
         active: editTarget ? (form.active !== undefined ? form.active : true) : true,
-        fund_id: form.fund_id || null,
       }
 
-      if (editTarget?.id && !editTarget.id.startsWith('sip_')) {
-        const { error: updErr } = await supabase.from('sips').update(payload).eq('id', editTarget.id)
-        if (updErr) throw updErr
-        flash('SIP updated successfully.')
+      if (user) {
+        payload.user_id = user.id
+
+        if (editTarget?.id && !String(editTarget.id).startsWith('sip_')) {
+          const { error: updErr } = await supabase.from('sips').update(payload).eq('id', editTarget.id)
+          if (updErr) throw updErr
+          flash('✅ SIP updated successfully!')
+        } else {
+          const { error: insErr } = await supabase.from('sips').insert([payload])
+          if (insErr) throw insErr
+          flash('✅ New recurring SIP scheduled!')
+        }
       } else {
-        const { error: insErr } = await supabase.from('sips').insert(payload)
-        if (insErr) throw insErr
-        flash('New recurring SIP scheduled!')
+        // Guest mode fallback
+        const newGuestSip = {
+          ...payload,
+          id: editTarget?.id || `sip_${Date.now()}`,
+        }
+        if (editTarget) {
+          setSips((prev) => prev.map((s) => (s.id === editTarget.id ? newGuestSip : s)))
+        } else {
+          setSips((prev) => [newGuestSip, ...prev])
+        }
+        flash('✅ New recurring SIP scheduled!')
       }
+
       setShowAdd(false)
       setEditTarget(null)
       setForm(emptyForm)
-      fetchSipsAndFunds()
-    } catch {
-      setFormErr('Unable to save SIP. Please check connection.')
+      await fetchSipsAndFunds()
+    } catch (saveErr) {
+      console.warn('SIP Save Error:', saveErr)
+      setFormErr(saveErr?.message || 'Unable to save SIP. Please check details.')
     } finally {
       setSaving(false)
     }
@@ -197,7 +287,7 @@ export default function SIPs() {
 
   const handleDelete = async (id) => {
     try {
-      if (!id.startsWith('sip_')) {
+      if (id && !String(id).startsWith('sip_')) {
         const { error: delErr } = await supabase.from('sips').delete().eq('id', id)
         if (delErr) throw delErr
       }
@@ -208,21 +298,73 @@ export default function SIPs() {
     }
   }
 
-  // Handle Mark Paid + Auto-Buy Units into Linked Mutual Fund
+  // Handle Mark Paid + Auto-Advance Date + Auto-Buy Units into Linked Mutual Fund
   const handleMarkPaid = async (id) => {
     try {
       const targetSip = displaySips.find((s) => s.id === id)
       if (!targetSip) return
 
-      if (user && !id.startsWith('sip_')) {
-        await supabase.from('sip_payments').insert({
-          sip_id: id,
-          amount: targetSip.amount,
-          paid_on: today(),
-        })
+      const nextDate = calculateNextDueDate(targetSip.next_due_date || today(), targetSip.frequency || 'monthly')
 
-        const nextDate = calculateNextDueDate(targetSip.next_due_date, targetSip.frequency)
-        await supabase.from('sips').update({ next_due_date: nextDate }).eq('id', id)
+      // 1. Immediately advance local state so UI updates the date with zero delay
+      const updatedList = displaySips.map((s) =>
+        s.id === id ? { ...s, next_due_date: nextDate } : s
+      )
+      setSips(updatedList)
+      try {
+        localStorage.setItem('ft_cached_sips', JSON.stringify(updatedList))
+      } catch {}
+
+      if (user) {
+        let realSipId = id
+
+        // If this SIP was an un-persisted preset, insert it to get a real database ID
+        if (String(id).startsWith('sip_')) {
+          const { data: insData } = await supabase
+            .from('sips')
+            .insert([
+              {
+                user_id: user.id,
+                name: targetSip.name,
+                amount: targetSip.amount,
+                frequency: targetSip.frequency,
+                start_date: targetSip.start_date || today(),
+                next_due_date: nextDate,
+                active: true,
+              },
+            ])
+            .select()
+
+          if (insData && insData[0]) {
+            realSipId = insData[0].id
+          }
+        } else {
+          // Update next due date in Supabase
+          await supabase.from('sips').update({ next_due_date: nextDate }).eq('id', id)
+        }
+
+        // 2. Log payment in sip_payments
+        if (realSipId && !String(realSipId).startsWith('sip_')) {
+          await supabase.from('sip_payments').insert({
+            sip_id: realSipId,
+            amount: targetSip.amount,
+            paid_on: today(),
+          })
+        }
+
+        // 3. Log expense transaction in transactions table
+        const [catsRes, pmsRes] = await Promise.all([
+          supabase.from('categories').select('id, name, type').eq('user_id', user.id),
+          supabase.from('payment_methods').select('id, name, type').eq('user_id', user.id),
+        ])
+        const investmentCat = (catsRes.data || []).find((c) =>
+          c.name.toLowerCase().includes('invest') || c.name.toLowerCase().includes('sip')
+        )
+        const matchedCatId = investmentCat?.id || catsRes.data?.[0]?.id || null
+        const upiPm = (pmsRes.data || []).find((p) =>
+          p.name.toLowerCase().includes('upi') || p.name.toLowerCase().includes('bank') || p.name.toLowerCase().includes('auto')
+        )
+        const matchedPmId = upiPm?.id || pmsRes.data?.[0]?.id || null
 
         await supabase.from('transactions').insert({
           user_id: user.id,
@@ -230,12 +372,65 @@ export default function SIPs() {
           amount: targetSip.amount,
           date: today(),
           note: `SIP Paid: ${targetSip.name}`,
+          category_id: matchedCatId,
+          payment_method_id: matchedPmId,
         })
+
+        // 4. Credit Units into Linked Mutual Fund
+        const linkedFund =
+          targetSip.mutual_funds ||
+          mutualFunds.find((m) =>
+            m.scheme_name.toLowerCase().includes(targetSip.name.split(' ')[0].toLowerCase())
+          )
+
+        if (linkedFund && (linkedFund.id || linkedFund.scheme_name)) {
+          const nav = Number(linkedFund.current_nav || linkedFund.avg_nav || 100)
+          const unitsBought = nav > 0 ? targetSip.amount / nav : 0
+          const currentUnits = Number(linkedFund.units || 0)
+          const currentInvested = Number(linkedFund.invested_amount || 0)
+
+          const newUnits = parseFloat((currentUnits + unitsBought).toFixed(3))
+          const newInvested = currentInvested + targetSip.amount
+          const newCurrentVal = parseFloat((newUnits * nav).toFixed(2))
+
+          if (linkedFund.id && !String(linkedFund.id).startsWith('sip_')) {
+            await supabase
+              .from('mutual_funds')
+              .update({
+                units: newUnits,
+                invested_amount: newInvested,
+                current_value: newCurrentVal,
+                last_updated: new Date().toISOString(),
+              })
+              .eq('id', linkedFund.id)
+          }
+
+          // Update cached mutual funds in localStorage
+          try {
+            const cachedMfs = JSON.parse(localStorage.getItem('ft_cached_mutual_funds') || '[]')
+            const updatedMfs = cachedMfs.map((m) => {
+              if (m.id === linkedFund.id || m.scheme_name === linkedFund.scheme_name) {
+                return {
+                  ...m,
+                  units: newUnits,
+                  invested_amount: newInvested,
+                  current_value: newCurrentVal,
+                }
+              }
+              return m
+            })
+            localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(updatedMfs))
+          } catch {}
+        }
+
+        window.dispatchEvent(new CustomEvent('transaction-updated'))
+        window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
       }
 
-      flash(`SIP of ${formatCurrency(targetSip.amount)} marked paid! Next due date updated.`)
+      flash(`✅ SIP of ${formatCurrency(targetSip.amount)} marked paid! Next scheduled date is now ${formatDate(nextDate)}. Units credited!`)
       fetchSipsAndFunds()
-    } catch {
+    } catch (err) {
+      console.warn('SIP mark paid error:', err)
       setError('Unable to process SIP payment. Please try again.')
     }
   }
@@ -263,7 +458,6 @@ export default function SIPs() {
     setSaving(true)
     try {
       for (const p of defaultSips) {
-        const matchedFund = mutualFunds.find((m) => m.scheme_name.toLowerCase().includes(p.name.split(' ')[0].toLowerCase()))
         await supabase.from('sips').insert({
           user_id: user.id,
           name: p.name,
@@ -272,7 +466,6 @@ export default function SIPs() {
           start_date: p.start_date,
           next_due_date: p.next_due_date,
           active: true,
-          fund_id: matchedFund?.id || null,
         })
       }
 
@@ -403,8 +596,8 @@ export default function SIPs() {
                 onChange={handleFormChange}
               >
                 <option value="">— Select Mutual Fund Scheme (Auto-Link) —</option>
-                {displayMutualFunds.map((mf) => (
-                  <option key={mf.id || mf.scheme_name} value={mf.id || mf.scheme_name}>
+                {Array.from(new Map(displayMutualFunds.map((m) => [m.scheme_name, m])).values()).map((mf, idx) => (
+                  <option key={mf.id || `${mf.scheme_name}-${idx}`} value={mf.id || mf.scheme_name}>
                     {mf.scheme_name} (NAV: ₹{parseFloat(mf.current_nav || mf.avg_nav || 0).toFixed(1)})
                   </option>
                 ))}

@@ -364,18 +364,51 @@ export default function AiChatbotWidget() {
       /^(paid|spent|bought|add expense|log expense|record expense|got income|received)\b/i.test(lower) ||
       (/\b(for|on|via|using|at)\b/i.test(lower) && /\b\d+\b/.test(lower) && !lower.includes('?') && !lower.includes('how') && !lower.includes('what') && !lower.includes('why') && !lower.includes('when') && !lower.includes('weather') && !lower.includes('rain'))
 
-    if (isLogIntent) {
+    if (isLogIntent && user) {
       const parsed = parseVoiceExpense(text)
       if (parsed && parsed.amount > 0) {
         try {
+          // Fetch categories and payment methods
+          const [catsRes, pmsRes] = await Promise.all([
+            supabase.from('categories').select('id, name, type').eq('user_id', user.id),
+            supabase.from('payment_methods').select('id, name, type').eq('user_id', user.id),
+          ])
+
+          const categories = catsRes.data || []
+          const paymentMethods = pmsRes.data || []
+          const targetType = parsed.type === 'income' ? 'income' : 'expense'
+
+          let categoryId = null
+          if (categories.length > 0) {
+            const catQuery = (parsed.category || '').toLowerCase().trim()
+            const matched = categories.find((c) =>
+              c.name.toLowerCase() === catQuery ||
+              c.name.toLowerCase().includes(catQuery) ||
+              catQuery.includes(c.name.toLowerCase())
+            )
+            categoryId = matched?.id || categories.find(c => c.type === targetType)?.id || categories[0]?.id || null
+          }
+
+          let paymentMethodId = null
+          if (paymentMethods.length > 0) {
+            const pmQuery = (parsed.paymentMethod || '').toLowerCase().trim()
+            const matched = paymentMethods.find((pm) =>
+              pm.name.toLowerCase() === pmQuery ||
+              pm.name.toLowerCase().includes(pmQuery) ||
+              pmQuery.includes(pm.name.toLowerCase()) ||
+              pm.type.toLowerCase().includes(pmQuery)
+            )
+            paymentMethodId = matched?.id || paymentMethods[0]?.id || null
+          }
+
           const newTxn = {
             user_id: user.id,
-            amount: parsed.amount,
-            type: parsed.type,
-            category: parsed.category,
-            payment_method: parsed.paymentMethod,
-            date: parsed.date,
-            description: parsed.description,
+            amount: Number(parsed.amount),
+            type: targetType,
+            category_id: categoryId,
+            payment_method_id: paymentMethodId,
+            note: parsed.description || 'Voice Logged Expense',
+            date: parsed.date || new Date().toISOString().slice(0, 10),
           }
 
           const { data, error } = await supabase
@@ -385,11 +418,16 @@ export default function AiChatbotWidget() {
 
           if (!error && data && data.length > 0) {
             await loadFinancialContext()
+            window.dispatchEvent(new CustomEvent('transaction-updated'))
             return {
               handled: true,
               isAction: true,
               actionType: 'TRANSACTION_CREATED',
-              transaction: data[0],
+              transaction: {
+                ...data[0],
+                description: parsed.description,
+                category: parsed.category,
+              },
               text: `✅ **Transaction Logged Successfully!**\n\n• **Amount:** ${formatCurrency(parsed.amount)}\n• **Category:** ${parsed.category}\n• **Type:** ${parsed.type.toUpperCase()}\n• **Payment Method:** ${parsed.paymentMethod}\n• **Description:** ${parsed.description}\n• **Date:** ${parsed.date}`,
             }
           }
@@ -485,23 +523,149 @@ export default function AiChatbotWidget() {
     localStorage.removeItem('ft_ai_chat_history')
   }
 
+  // Draggable state for AI Floating Button
+  const [aiPos, setAiPos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ft_draggable_ai_pos')
+      if (saved) {
+        const p = JSON.parse(saved)
+        if (typeof p.x === 'number' && typeof p.y === 'number') {
+          return {
+            x: Math.min(Math.max(16, p.x), typeof window !== 'undefined' ? window.innerWidth - 76 : p.x),
+            y: Math.min(Math.max(16, p.y), typeof window !== 'undefined' ? window.innerHeight - 76 : p.y),
+          }
+        }
+      }
+    } catch {}
+    return {
+      x: typeof window !== 'undefined' ? Math.max(16, window.innerWidth - 150) : 260,
+      y: typeof window !== 'undefined' ? Math.max(16, window.innerHeight - 100) : 600,
+    }
+  })
+
+  const isAiDraggingRef = useRef(false)
+  const hasAiMovedRef = useRef(false)
+  const aiDragStartRef = useRef({ startX: 0, startY: 0, initialPosX: 0, initialPosY: 0 })
+
+  const handleAiMouseDown = (e) => {
+    if (e.button !== 0) return
+    isAiDraggingRef.current = true
+    hasAiMovedRef.current = false
+    aiDragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialPosX: aiPos.x,
+      initialPosY: aiPos.y,
+    }
+
+    const handleMouseMove = (moveEvent) => {
+      if (!isAiDraggingRef.current) return
+      const deltaX = moveEvent.clientX - aiDragStartRef.current.startX
+      const deltaY = moveEvent.clientY - aiDragStartRef.current.startY
+      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+        hasAiMovedRef.current = true
+      }
+      const nextX = Math.min(Math.max(12, aiDragStartRef.current.initialPosX + deltaX), window.innerWidth - 72)
+      const nextY = Math.min(Math.max(12, aiDragStartRef.current.initialPosY + deltaY), window.innerHeight - 72)
+      setAiPos({ x: nextX, y: nextY })
+    }
+
+    const handleMouseUp = () => {
+      if (isAiDraggingRef.current) {
+        isAiDraggingRef.current = false
+        setAiPos((current) => {
+          try {
+            localStorage.setItem('ft_draggable_ai_pos', JSON.stringify(current))
+          } catch {}
+          return current
+        })
+      }
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }
+
+  const handleAiTouchStart = (e) => {
+    const touch = e.touches[0]
+    if (!touch) return
+    isAiDraggingRef.current = true
+    hasAiMovedRef.current = false
+    aiDragStartRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      initialPosX: aiPos.x,
+      initialPosY: aiPos.y,
+    }
+
+    const handleTouchMove = (moveEvent) => {
+      if (!isAiDraggingRef.current) return
+      const t = moveEvent.touches[0]
+      if (!t) return
+      const deltaX = t.clientX - aiDragStartRef.current.startX
+      const deltaY = t.clientY - aiDragStartRef.current.startY
+      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) {
+        hasAiMovedRef.current = true
+      }
+      const nextX = Math.min(Math.max(12, aiDragStartRef.current.initialPosX + deltaX), window.innerWidth - 72)
+      const nextY = Math.min(Math.max(12, aiDragStartRef.current.initialPosY + deltaY), window.innerHeight - 72)
+      setAiPos({ x: nextX, y: nextY })
+    }
+
+    const handleTouchEnd = () => {
+      if (isAiDraggingRef.current) {
+        isAiDraggingRef.current = false
+        setAiPos((current) => {
+          try {
+            localStorage.setItem('ft_draggable_ai_pos', JSON.stringify(current))
+          } catch {}
+          return current
+        })
+      }
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
+    window.addEventListener('touchend', handleTouchEnd)
+  }
+
   return (
     <>
-      {/* Floating Action Trigger Avatar (Bottom-Right) */}
+      {/* Movable / Draggable AI Floating Avatar */}
       {!isOpen && (
-        <div className="fixed z-40 bottom-20 right-20 md:bottom-6 md:right-24 flex items-center gap-2 animate-in fade-in zoom-in duration-300">
-          <button
-            onClick={() => setIsOpen(true)}
-            className="group relative flex items-center justify-center h-13 w-13 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 transition-all duration-200 border-2 border-white/20"
-            title="Ask AI Financial Advisor & Copilot (Ctrl + J)"
+        <div
+          style={{
+            position: 'fixed',
+            left: `${aiPos.x}px`,
+            top: `${aiPos.y}px`,
+            zIndex: 44,
+            touchAction: 'none',
+          }}
+          className="select-none animate-in fade-in zoom-in duration-300"
+        >
+          <div
+            onMouseDown={handleAiMouseDown}
+            onTouchStart={handleAiTouchStart}
+            onClick={() => {
+              if (hasAiMovedRef.current) return
+              setIsOpen(true)
+            }}
+            className="group relative flex items-center justify-center h-13 w-13 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-105 active:scale-95 transition-transform duration-150 border-2 border-white/30 cursor-grab active:cursor-grabbing"
+            title="Drag to move anywhere • Click to Ask AI Financial Advisor (Ctrl + J)"
             aria-label="Open AI Financial Copilot"
           >
+            <div className="absolute -top-1.5 px-1 py-0.2 rounded-full bg-slate-900/90 text-[8px] text-gray-300 font-bold tracking-tighter opacity-70 hover:opacity-100 transition-opacity pointer-events-none">
+              DRAG
+            </div>
             <Sparkles className="h-6 w-6 text-amber-300 animate-pulse" />
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
             </span>
-          </button>
+          </div>
         </div>
       )}
 

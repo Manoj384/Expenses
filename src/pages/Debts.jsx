@@ -9,6 +9,7 @@ import Modal from '../components/Modal'
 import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import SplitBillModal from '../components/SplitBillModal'
+import DebtPayoffOptimizerModal from '../components/DebtPayoffOptimizerModal'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { fireMilestoneConfetti } from '../utils/confetti'
 import {
@@ -24,6 +25,7 @@ import {
   DollarSign,
   HelpCircle,
   CheckCircle2,
+  Zap,
 } from 'lucide-react'
 
 const emptyForm = {
@@ -134,11 +136,18 @@ export default function Debts() {
 
   const [showModal, setShowModal] = useState(false)
   const [showSplitModal, setShowSplitModal] = useState(false)
+  const [showOptimizerModal, setShowOptimizerModal] = useState(false)
   const [detailsTarget, setDetailsTarget] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [formErr, setFormErr] = useState('')
+
+  useEffect(() => {
+    const handleOpenOpt = () => setShowOptimizerModal(true)
+    window.addEventListener('open-debt-optimizer', handleOpenOpt)
+    return () => window.removeEventListener('open-debt-optimizer', handleOpenOpt)
+  }, [])
 
   const fetchDebts = useCallback(async () => {
     if (!user) return
@@ -479,6 +488,13 @@ export default function Debts() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowOptimizerModal(true)}
+            className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold text-xs flex items-center gap-1.5 py-2 px-3 rounded-xl transition-all shadow-xs"
+            title="Compare Snowball vs Avalanche payoff strategies and interest savings"
+          >
+            <Zap className="h-4 w-4 text-indigo-600 dark:text-indigo-400" /> Payoff Optimizer
+          </button>
+          <button
             onClick={() => setShowSplitModal(true)}
             className="btn-secondary text-xs flex items-center gap-1.5 py-2"
             title="Split an expense among friends & send WhatsApp payment links"
@@ -781,6 +797,13 @@ export default function Debts() {
         onClose={() => setShowSplitModal(false)}
         onSaveSplits={handleSaveSplits}
       />
+      {/* Debt Payoff Optimizer Modal */}
+      <DebtPayoffOptimizerModal
+        isOpen={showOptimizerModal}
+        onClose={() => setShowOptimizerModal(false)}
+        debts={debts}
+      />
+
     </Layout>
   )
 }

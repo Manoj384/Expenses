@@ -88,6 +88,15 @@ export default function Sidebar() {
               {label}
             </NavLink>
           ))}
+
+          {/* Quick Bot Trigger */}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-bot-modal'))}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 border border-sky-200 dark:border-sky-800 transition-all shadow-2xs mt-2"
+          >
+            <span className="text-base">🤖</span>
+            <span>Telegram & WA Bot</span>
+          </button>
         </nav>
 
         {/* Admin Mode Quick Access Box */}

@@ -16,14 +16,25 @@ import {
   Calculator,
   Users,
   CalendarDays,
+  Calendar,
+  Clock,
+  Receipt,
   Sun,
   Moon,
   Sparkles,
   FileSpreadsheet,
+  Flame,
+  Skull,
 } from 'lucide-react'
 
 const ACTIONS = [
   { id: 'dash', label: 'Dashboard & Cockpit', category: 'Navigation', icon: LayoutDashboard, path: '/' },
+  { id: 'lock', label: 'Lock App Screen (Biometrics & Security PIN)', category: 'Security', icon: Lock, customEvent: 'open-app-lock' },
+  { id: 'zombie', label: 'Zombie Subscriptions & Digital Leak Detector', category: 'Audit', icon: Skull, customEvent: 'open-subscription-leak' },
+  { id: 'fire', label: 'FIRE & Financial Freedom Simulator (Monte Carlo)', category: 'Wealth', icon: Flame, customEvent: 'open-fire-simulator' },
+  { id: 'cal', label: 'Financial Dues & Cash Flow Calendar', category: 'Planning', icon: Calendar, customEvent: 'open-calendar-modal' },
+  { id: 'reminders', label: 'Reminders & Audio Alarms Hub', category: 'Planning', icon: Clock, path: '/reminders' },
+  { id: 'bills', label: 'Recurring Bill Reminders & Autopay', category: 'Planning', icon: Receipt, path: '/bills' },
   { id: 'ai', label: 'Ask AI Financial Advisor & Wealth Copilot', category: 'AI Tools', icon: Sparkles, path: '/statements' },
   { id: 'mf', label: 'Mutual Funds & Live AMFI NAVs', category: 'Portfolio', icon: LineChart, path: '/mutual-funds' },
   { id: 'tax', label: 'Tax & Capital Gains Estimator (LTCG / STCG)', category: 'Tools', icon: Calculator, path: '/mutual-funds' },
@@ -31,7 +42,9 @@ const ACTIONS = [
   { id: 'goals', label: 'Financial Goals & Target Trackers', category: 'Planning', icon: Target, path: '/goals' },
   { id: 'budgets', label: 'Budget Caps & Overspend Alerts', category: 'Budgeting', icon: Zap, path: '/budgets' },
   { id: 'split', label: 'Split Bill with Friends & WhatsApp Link', category: 'Tools', icon: Users, path: '/debts' },
+  { id: 'splitwise', label: 'Splitwise Group Expenses Manager', category: 'Tools', icon: Users, path: '/splitwise' },
   { id: 'debts', label: 'Debts, EMIs & Money Lent', category: 'Liabilities', icon: CreditCard, path: '/debts' },
+  { id: 'debt-opt', label: 'Debt Payoff Optimizer (Snowball vs Avalanche)', category: 'Liabilities', icon: Zap, customEvent: 'open-debt-optimizer' },
   { id: 'statements', label: 'Statements & AI Receipt Multi-Parser', category: 'AI Tools', icon: FileSpreadsheet, path: '/statements' },
   { id: 'sips', label: 'SIP Recurring Schedules', category: 'Investments', icon: TrendingUp, path: '/sips' },
   { id: 'past', label: 'Past Expenses (2024–2026 Archive)', category: 'History', icon: History, path: '/past-expenses' },
@@ -76,7 +89,9 @@ export default function CommandPalette() {
 
   const handleSelect = (action) => {
     setIsOpen(false)
-    if (action.path) {
+    if (action.customEvent) {
+      window.dispatchEvent(new CustomEvent(action.customEvent))
+    } else if (action.path) {
       navigate(action.path)
     }
   }

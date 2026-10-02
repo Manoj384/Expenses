@@ -58,31 +58,44 @@ export default function SmsUpiParserModal({ isOpen, onClose, onTransactionsImpor
     setImporting(true)
     setError('')
     try {
-      // Fetch or auto-resolve category IDs if possible
+      // Fetch or auto-resolve category and payment method IDs
       let categoryMap = {}
+      let paymentMethodsList = []
       if (user) {
-        const { data: catData } = await supabase.from('categories').select('id, name').eq('user_id', user.id)
-        if (catData) {
-          catData.forEach(c => { categoryMap[c.name.toLowerCase()] = c.id })
+        const [catsRes, pmsRes] = await Promise.all([
+          supabase.from('categories').select('id, name, type').eq('user_id', user.id),
+          supabase.from('payment_methods').select('id, name, type').eq('user_id', user.id),
+        ])
+        if (catsRes.data) {
+          catsRes.data.forEach(c => { categoryMap[c.name.toLowerCase()] = c.id })
         }
+        paymentMethodsList = pmsRes.data || []
       }
 
       const rowsToInsert = selected.map(item => {
         const matchedCatId = categoryMap[item.category.toLowerCase()] || null
+        let pmId = null
+        if (paymentMethodsList.length > 0) {
+          const pmName = item.source?.toLowerCase().includes('upi') || item.source?.toLowerCase().includes('pay') ? 'upi' : 'bank'
+          const matchedPm = paymentMethodsList.find(p => p.name.toLowerCase().includes(pmName) || p.type.toLowerCase().includes(pmName))
+          pmId = matchedPm?.id || paymentMethodsList[0]?.id || null
+        }
+
         return {
           user_id: user?.id,
           amount: parseFloat(item.amount),
           type: item.type,
           category_id: matchedCatId,
-          description: `${item.merchant} (${item.source})`,
+          payment_method_id: pmId,
+          note: `${item.merchant} (${item.source})`,
           date: item.date,
-          payment_method: item.source.toLowerCase().includes('upi') || item.source.toLowerCase().includes('pay') ? 'UPI' : 'Bank Transfer',
         }
       })
 
       if (user) {
         const { error: insErr } = await supabase.from('transactions').insert(rowsToInsert)
         if (insErr) throw insErr
+        window.dispatchEvent(new CustomEvent('transaction-updated'))
       }
 
       setSuccessCount(rowsToInsert.length)

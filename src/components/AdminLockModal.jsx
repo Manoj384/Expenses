@@ -1,7 +1,13 @@
-import { useState } from 'react'
-import { ShieldCheck, ShieldAlert, KeyRound, Lock, Unlock } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ShieldCheck, ShieldAlert, KeyRound, Lock, Unlock, Fingerprint } from 'lucide-react'
 import { useAdmin } from '../context/AdminContext'
 import Modal from './Modal'
+import {
+  isBiometricsAvailable,
+  isBiometricsEnabled,
+  registerBiometrics,
+  setBiometricsEnabled,
+} from '../utils/webAuthn'
 
 export default function AdminLockModal({ isOpen, onClose }) {
   const { isAdmin, enterAdmin, exitAdmin, changePin } = useAdmin()
@@ -10,6 +16,34 @@ export default function AdminLockModal({ isOpen, onClose }) {
   const [success, setSuccess] = useState('')
   const [showChangePin, setShowChangePin] = useState(false)
   const [pinChangeForm, setPinChangeForm] = useState({ oldPin: '', newPin: '', confirmPin: '' })
+  const [bioEnabled, setBioEnabled] = useState(isBiometricsEnabled())
+  const [bioSupported, setBioSupported] = useState(false)
+  const [registeringBio, setRegisteringBio] = useState(false)
+
+  useEffect(() => {
+    isBiometricsAvailable().then((supported) => setBioSupported(supported))
+    setBioEnabled(isBiometricsEnabled())
+  }, [isOpen])
+
+  const handleToggleBiometrics = async () => {
+    setError('')
+    setSuccess('')
+    if (bioEnabled) {
+      setBiometricsEnabled(false)
+      setBioEnabled(false)
+      setSuccess('Biometric authentication disabled.')
+    } else {
+      setRegisteringBio(true)
+      const res = await registerBiometrics('Personal Wealth User')
+      setRegisteringBio(false)
+      if (res.success) {
+        setBioEnabled(true)
+        setSuccess('Biometric authentication enabled successfully!')
+      } else {
+        setError(res.error || 'Failed to register biometrics.')
+      }
+    }
+  }
 
   const handleUnlock = (e) => {
     e.preventDefault()
@@ -77,6 +111,34 @@ export default function AdminLockModal({ isOpen, onClose }) {
                 </p>
               </div>
             </div>
+            {/* Biometric WebAuthn Hardware Lock Switcher */}
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <Fingerprint className="h-5 w-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                <div>
+                  <strong className="text-xs font-bold text-gray-900 dark:text-white block">
+                    Biometric App Lock
+                  </strong>
+                  <span className="text-[11px] text-gray-500 dark:text-slate-400">
+                    Unlock with Fingerprint, Face ID, or Windows Hello
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleBiometrics}
+                disabled={registeringBio}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  bioEnabled
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300'
+                }`}
+              >
+                {registeringBio ? 'Registering...' : bioEnabled ? 'Enabled' : 'Enable'}
+              </button>
+            </div>
+
 
             {!showChangePin ? (
               <div className="flex flex-col gap-2 pt-2">

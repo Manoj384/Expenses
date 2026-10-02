@@ -7,7 +7,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { formatCurrency } from '../utils/formatCurrency'
-import { searchMutualFunds, getLatestNav, refreshFundNavs } from '../utils/mfApi'
+import { searchMutualFunds, getLatestNav, refreshFundNavs, enrichFundsWithCachedNavs, resolveSchemeCode } from '../utils/mfApi'
 import { parseGrowwCsv, parseGrowwExcel } from '../utils/growwParser'
 import savedGrowwData from '../data/groww_holdings.json'
 import GrowwPortfolioGrowthChart from '../components/GrowwPortfolioGrowthChart'
@@ -45,17 +45,31 @@ import {
 const PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1']
 
 function createDefaultHoldings(userId) {
-  return savedGrowwData.map((h) => ({
+  let baseData = savedGrowwData
+  try {
+    const cached = localStorage.getItem('ft_cached_mutual_funds')
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        baseData = parsed
+      }
+    }
+  } catch {}
+
+  const enriched = enrichFundsWithCachedNavs(baseData)
+
+  return enriched.map((h) => ({
     user_id: userId,
+    scheme_code: h.scheme_code || resolveSchemeCode(h),
     scheme_name: h.scheme_name,
     fund_house: h.fund_house,
-    category: h.category,
-    folio_number: h.folio_number,
-    units: h.units,
-    avg_nav: h.avg_nav,
-    invested_amount: h.invested_amount,
-    current_nav: h.current_nav,
-    current_value: h.current_value,
+    category: h.category || 'Equity',
+    folio_number: h.folio_number || null,
+    units: parseFloat(h.units) || 0,
+    avg_nav: parseFloat(h.avg_nav) || 0,
+    invested_amount: parseFloat(h.invested_amount) || 0,
+    current_nav: parseFloat(h.current_nav) || 0,
+    current_value: parseFloat(h.current_value) || (parseFloat(h.units) * parseFloat(h.current_nav)) || 0,
     last_updated: new Date().toISOString(),
   }))
 }
@@ -87,7 +101,18 @@ function buildFundPayload(form, userId, liveNav, currentVal) {
 
 export default function MutualFunds() {
   const { user } = useAuth()
-  const [funds, setFunds] = useState(savedGrowwData)
+  const [funds, setFunds] = useState(() => {
+    try {
+      const cached = localStorage.getItem('ft_cached_mutual_funds')
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return enrichFundsWithCachedNavs(parsed)
+        }
+      }
+    } catch {}
+    return enrichFundsWithCachedNavs(savedGrowwData)
+  })
   const [loading, setLoading] = useState(false)
   const [refreshingNav, setRefreshingNav] = useState(false)
   const [error, setError] = useState('')
@@ -128,10 +153,20 @@ export default function MutualFunds() {
   const [parsedPreview, setParsedPreview] = useState([])
   const [importing, setImporting] = useState(false)
 
-  // Fetch mutual funds from Supabase with automatic database auto-healing
+  // Fetch mutual funds from Supabase and automatically refresh live AMFI NAVs
   const fetchFunds = useCallback(async () => {
     if (!user) {
-      setFunds(savedGrowwData)
+      try {
+        const cached = localStorage.getItem('ft_cached_mutual_funds')
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setFunds(enrichFundsWithCachedNavs(parsed))
+            return
+          }
+        }
+      } catch {}
+      setFunds(enrichFundsWithCachedNavs(savedGrowwData))
       return
     }
     setError('')
@@ -144,36 +179,72 @@ export default function MutualFunds() {
 
       if (fetchErr) throw fetchErr
 
-      if (!data || data.length < savedGrowwData.length) {
-        await supabase.from('mutual_funds').delete().eq('user_id', user.id)
+      let baseList = data
+      if (!data || data.length === 0) {
         const toInsert = createDefaultHoldings(user.id)
         const { data: insertedData, error: insErr } = await supabase
           .from('mutual_funds')
           .insert(toInsert)
-          .select()
+          .select('*')
 
         if (!insErr && insertedData && insertedData.length > 0) {
-          setFunds(insertedData)
+          baseList = insertedData
         } else {
-          setFunds(savedGrowwData)
+          baseList = toInsert
         }
-      } else {
-        setFunds(data)
+      }
+
+      // Step 1: Immediately set instant synchronous live-enriched funds
+      const fastFunds = enrichFundsWithCachedNavs(baseList)
+      setFunds(fastFunds)
+      try {
+        localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(fastFunds))
+      } catch {}
+
+      // Step 2: Refresh with fresh AMFI network calls in parallel
+      const liveFunds = await refreshFundNavs(baseList)
+      setFunds(liveFunds)
+
+      try {
+        localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(liveFunds))
+      } catch {}
+
+      // Step 3: Background persist live NAVs to Supabase
+      if (user && Array.isArray(liveFunds)) {
+        await Promise.allSettled(
+          liveFunds.filter((f) => f.id && f.current_nav).map((f) =>
+            supabase
+              .from('mutual_funds')
+              .update({
+                scheme_code: f.scheme_code,
+                current_nav: f.current_nav,
+                current_value: f.current_value,
+                last_updated: new Date().toISOString(),
+              })
+              .eq('id', f.id)
+          )
+        )
       }
     } catch {
-      setFunds(savedGrowwData)
+      try {
+        const cached = localStorage.getItem('ft_cached_mutual_funds')
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setFunds(enrichFundsWithCachedNavs(parsed))
+            return
+          }
+        }
+      } catch {}
+      setFunds(enrichFundsWithCachedNavs(savedGrowwData))
     } finally {
       setLoading(false)
     }
   }, [user])
 
   useEffect(() => {
-    let ignore = false
     if (user) {
       fetchFunds()
-    }
-    return () => {
-      ignore = true
     }
   }, [fetchFunds, user])
 
@@ -182,8 +253,8 @@ export default function MutualFunds() {
     setTimeout(() => setSuccess(''), 4000)
   }
 
-  // Active dataset: always full 8 distinct folios
-  const rawFunds = (funds && funds.length >= savedGrowwData.length) ? funds : savedGrowwData
+  // Active dataset: always use current enriched funds list
+  const rawFunds = (funds && funds.length > 0) ? enrichFundsWithCachedNavs(funds) : enrichFundsWithCachedNavs(savedGrowwData)
 
   // Refresh Live Daily NAVs from AMFI safely
   const handleRefreshLiveNavs = async () => {
@@ -192,7 +263,12 @@ export default function MutualFunds() {
     try {
       const updated = await refreshFundNavs(rawFunds)
 
-      if (funds.length > 0 && user) {
+      // Save to localStorage immediately so page refresh never reverts
+      try {
+        localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(updated))
+      } catch {}
+
+      if (user) {
         for (const f of updated) {
           if (f.id && f.current_nav) {
             await supabase
@@ -204,12 +280,24 @@ export default function MutualFunds() {
                 last_updated: new Date().toISOString(),
               })
               .eq('id', f.id)
+          } else if (f.folio_number) {
+            await supabase
+              .from('mutual_funds')
+              .update({
+                scheme_code: f.scheme_code,
+                current_nav: f.current_nav,
+                current_value: f.current_value,
+                last_updated: new Date().toISOString(),
+              })
+              .eq('user_id', user.id)
+              .eq('folio_number', f.folio_number)
           }
         }
       }
 
       setFunds(updated)
-      flash('All fund NAVs refreshed with live market prices from AMFI!')
+      window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
+      flash('✅ All fund NAVs refreshed and saved with live market prices from AMFI!')
     } catch {
       setError('Unable to refresh live NAVs. Please try again.')
     } finally {

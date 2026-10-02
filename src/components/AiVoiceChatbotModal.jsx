@@ -118,35 +118,72 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
     setSaving(true)
     setError('')
     try {
-      // Find category ID if exists
+      if (!user) {
+        throw new Error('Please log in to save transactions.')
+      }
+
+      // Fetch user's categories & payment methods to resolve UUID foreign keys
+      const [catsRes, pmsRes] = await Promise.all([
+        supabase.from('categories').select('id, name, type').eq('user_id', user.id),
+        supabase.from('payment_methods').select('id, name, type').eq('user_id', user.id),
+      ])
+
+      const categories = catsRes.data || []
+      const paymentMethods = pmsRes.data || []
+
+      const targetType = parsedResult.type === 'income' ? 'income' : 'expense'
+
+      // 1. Resolve category_id
       let categoryId = null
-      if (user) {
-        const { data: catData } = await supabase
-          .from('categories')
-          .select('id, name')
-          .eq('user_id', user.id)
-        if (catData) {
-          const matched = catData.find(c => c.name.toLowerCase() === parsedResult.category.toLowerCase())
-          if (matched) categoryId = matched.id
+      if (categories.length > 0) {
+        const catQuery = (parsedResult.category || '').toLowerCase().trim()
+        const matched = categories.find((c) =>
+          c.name.toLowerCase() === catQuery ||
+          c.name.toLowerCase().includes(catQuery) ||
+          catQuery.includes(c.name.toLowerCase())
+        )
+        if (matched) {
+          categoryId = matched.id
+        } else {
+          const fallback = categories.find((c) => c.type === targetType)
+          categoryId = fallback?.id || categories[0]?.id || null
+        }
+      }
+
+      // 2. Resolve payment_method_id
+      let paymentMethodId = null
+      if (paymentMethods.length > 0) {
+        const pmQuery = (parsedResult.paymentMethod || '').toLowerCase().trim()
+        const matched = paymentMethods.find((pm) =>
+          pm.name.toLowerCase() === pmQuery ||
+          pm.name.toLowerCase().includes(pmQuery) ||
+          pmQuery.includes(pm.name.toLowerCase()) ||
+          pm.type.toLowerCase().includes(pmQuery)
+        )
+        if (matched) {
+          paymentMethodId = matched.id
+        } else {
+          paymentMethodId = paymentMethods[0]?.id || null
         }
       }
 
       const payload = {
-        user_id: user?.id,
-        amount: parsedResult.amount,
-        type: parsedResult.type,
+        user_id: user.id,
+        amount: Number(parsedResult.amount),
+        type: targetType,
         category_id: categoryId,
-        description: parsedResult.description,
-        date: parsedResult.date,
-        payment_method: parsedResult.paymentMethod,
+        payment_method_id: paymentMethodId,
+        note: parsedResult.description || 'Voice Logged Expense',
+        date: parsedResult.date || new Date().toISOString().slice(0, 10),
       }
 
-      if (user) {
-        const { error: insErr } = await supabase.from('transactions').insert([payload])
-        if (insErr) throw insErr
-      }
+      const { error: insErr } = await supabase.from('transactions').insert([payload])
+      if (insErr) throw insErr
 
-      setSuccess(`Logged ${formatCurrency(parsedResult.amount)} for ${parsedResult.description}!`)
+      // Dispatch global event so all pages (Dashboard, Transactions, Reports) refresh live
+      window.dispatchEvent(new CustomEvent('transaction-updated'))
+
+      setSuccess(`✅ Successfully added ${formatCurrency(parsedResult.amount)} for "${parsedResult.description}" to your Transactions!`)
       if (onTransactionCreated) onTransactionCreated()
       setTimeout(() => {
         setSuccess('')

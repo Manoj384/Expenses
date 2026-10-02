@@ -68,9 +68,52 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
+// Handle mobile push notifications & background reminders
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { title: '⏰ Reminder Alarm', body: event.data ? event.data.text() : 'You have a scheduled reminder!' }
+  }
+
+  const options = {
+    body: data.body || 'Time to check your scheduled expense or task!',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
+    vibrate: [200, 100, 200, 100, 200],
+    tag: data.tag || 'reminder-alarm',
+    renotify: true,
+    data: data.url || '/',
+    actions: [
+      { action: 'open', title: 'Open App' },
+      { action: 'dismiss', title: 'Dismiss' },
+    ],
+  }
+
+  event.waitUntil(self.registration.showNotification(data.title || '⏰ Reminder Alarm', options))
+})
+
+// Handle background notification triggers from window
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SHOW_REMINDER_NOTIFICATION') {
+    const { title, body, tag } = event.data
+    self.registration.showNotification(title || '⏰ Reminder Alarm', {
+      body: body || 'Time to complete your task!',
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      vibrate: [300, 150, 300],
+      tag: tag || 'reminder-alarm',
+      renotify: true,
+    })
+  }
+})
+
 // Handle mobile push notification clicks
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
+  if (event.action === 'dismiss') return
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

@@ -10,13 +10,18 @@ import AiChatbotWidget from './AiChatbotWidget'
 import KeyboardShortcutsModal from './KeyboardShortcutsModal'
 import OnboardingWizardModal from './OnboardingWizardModal'
 import AlarmRingingModal from './AlarmRingingModal'
+import TelegramWhatsAppBotModal from './TelegramWhatsAppBotModal'
 import QuickAddFAB from './QuickAddFAB'
 import { useAdmin } from '../context/AdminContext'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useDesktopMode } from '../context/DesktopModeContext'
 import { useToast } from '../context/ToastContext'
-import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut, HelpCircle, Compass, Monitor, Smartphone, Bot } from 'lucide-react'
+import CashFlowCalendarModal from './CashFlowCalendarModal'
+import FireSimulatorModal from './FireSimulatorModal'
+import SubscriptionLeakModal from './SubscriptionLeakModal'
+import BiometricAppLockOverlay from './BiometricAppLockOverlay'
+import { ShieldCheck, Shield, Database, Search, Moon, Sun, Sparkles, LogOut, HelpCircle, Compass, Monitor, Smartphone, Bot, MessageSquare, Calendar, Flame, Skull, Fingerprint, Lock } from 'lucide-react'
 
 export default function Layout({ children, title }) {
   const { isAdmin } = useAdmin()
@@ -28,6 +33,32 @@ export default function Layout({ children, title }) {
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showOnboardingModal, setShowOnboardingModal] = useState(false)
+  const [showBotModal, setShowBotModal] = useState(false)
+  const [showCalendarModal, setShowCalendarModal] = useState(false)
+  const [showFireModal, setShowFireModal] = useState(false)
+  const [showLeakModal, setShowLeakModal] = useState(false)
+  const [isAppLocked, setIsAppLocked] = useState(false)
+
+  // Listen for global custom events
+  useEffect(() => {
+    const handleOpenBot = () => setShowBotModal(true)
+    const handleOpenCal = () => setShowCalendarModal(true)
+    const handleOpenFire = () => setShowFireModal(true)
+    const handleOpenLeak = () => setShowLeakModal(true)
+    const handleLock = () => setIsAppLocked(true)
+    window.addEventListener('open-bot-modal', handleOpenBot)
+    window.addEventListener('open-calendar-modal', handleOpenCal)
+    window.addEventListener('open-fire-simulator', handleOpenFire)
+    window.addEventListener('open-subscription-leak', handleOpenLeak)
+    window.addEventListener('open-app-lock', handleLock)
+    return () => {
+      window.removeEventListener('open-bot-modal', handleOpenBot)
+      window.removeEventListener('open-calendar-modal', handleOpenCal)
+      window.removeEventListener('open-fire-simulator', handleOpenFire)
+      window.removeEventListener('open-subscription-leak', handleOpenLeak)
+      window.removeEventListener('open-app-lock', handleLock)
+    }
+  }, [])
 
 
   // Global keyboard listener for Shift + ?
@@ -63,6 +94,16 @@ export default function Layout({ children, title }) {
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             {/* Notification Center Bell & Due Date Alerts */}
             <NotificationCenter />
+
+            {/* Financial Dues & Cash Flow Calendar Quick Launcher */}
+            <button
+              onClick={() => setShowCalendarModal(true)}
+              className="p-2 sm:p-1.5 rounded-xl text-gray-600 hover:text-gray-900 dark:text-slate-300 dark:hover:text-white bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 transition-colors"
+              title="Financial Dues & Cash Flow Calendar"
+              aria-label="Cash Flow Calendar"
+            >
+              <Calendar className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            </button>
 
             {/* Desktop Site Mode Toggle Button */}
             <button
@@ -132,6 +173,16 @@ export default function Layout({ children, title }) {
               </kbd>
             </button>
 
+            {/* Telegram & WhatsApp Bot Launcher */}
+            <button
+              onClick={() => setShowBotModal(true)}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800 transition-all shadow-xs"
+              title="Open Telegram & WhatsApp Instant Financial Bot"
+            >
+              <Bot className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+              <span className="hidden sm:inline">Bot Assistant</span>
+            </button>
+
             {/* Data Backup & Export Button */}
             <button
               onClick={() => setShowBackupModal(true)}
@@ -164,6 +215,16 @@ export default function Layout({ children, title }) {
                 </>
               )}
             </button>
+            {/* Biometric Quick Lock Button */}
+            <button
+              onClick={() => setIsAppLocked(true)}
+              className="p-1.5 rounded-xl text-gray-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-300 bg-gray-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-gray-200 dark:border-slate-700 transition-colors"
+              title="Lock Application Screen"
+              aria-label="Lock App"
+            >
+              <Lock className="h-4 w-4" />
+            </button>
+
             {/* Guided Setup Tour Trigger Button */}
             <button
               onClick={() => setShowOnboardingModal(true)}
@@ -222,6 +283,31 @@ export default function Layout({ children, title }) {
       <OnboardingWizardModal
         isOpen={showOnboardingModal}
         onClose={() => setShowOnboardingModal(false)}
+      />
+
+      <TelegramWhatsAppBotModal
+        isOpen={showBotModal}
+        onClose={() => setShowBotModal(false)}
+      />
+
+      <CashFlowCalendarModal
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+      />
+
+      <FireSimulatorModal
+        isOpen={showFireModal}
+        onClose={() => setShowFireModal(false)}
+      />
+
+      <SubscriptionLeakModal
+        isOpen={showLeakModal}
+        onClose={() => setShowLeakModal(false)}
+      />
+
+      <BiometricAppLockOverlay
+        isLocked={isAppLocked}
+        onUnlock={() => setIsAppLocked(false)}
       />
 
       <AlarmRingingModal />

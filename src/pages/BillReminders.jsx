@@ -26,6 +26,7 @@ import {
   Bell,
   Check,
   RotateCcw,
+  Skull,
 } from 'lucide-react'
 
 const BILL_CATEGORIES = [
@@ -316,16 +317,26 @@ export default function BillReminders() {
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              setEditTarget(null)
-              setForm({ name: '', amount: '', due_day: '5', category: 'utilities', frequency: 'monthly', auto_log_transaction: true, notes: '' })
-              setShowAddModal(true)
-            }}
-            className="bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all self-start md:self-auto"
-          >
-            <Plus className="h-4 w-4" /> Add Recurring Bill
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('open-subscription-leak'))}
+              className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all border border-purple-400/30"
+              title="Audit digital streaming, SaaS, and gym subscriptions"
+            >
+              <Skull className="h-4 w-4 text-purple-200" />
+              <span>Zombie Leaks</span>
+            </button>
+            <button
+              onClick={() => {
+                setEditTarget(null)
+                setForm({ name: '', amount: '', due_day: '5', category: 'utilities', frequency: 'monthly', auto_log_transaction: true, notes: '' })
+                setShowAddModal(true)
+              }}
+              className="bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all"
+            >
+              <Plus className="h-4 w-4" /> Add Recurring Bill
+            </button>
+          </div>
         </div>
       </div>
 

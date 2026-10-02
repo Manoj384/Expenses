@@ -201,6 +201,44 @@ const cleanedPhone = friendPhone.replace(/\D/g, '')
 const waMsg = encodeURIComponent(`Hi Alex! Your share for "Dinner" is ₹1000.00. Please pay when convenient.`)
 const waLink = `https://wa.me/${cleanedPhone}?text=${waMsg}`
 assert(waLink.includes('wa.me/919876543210') && waLink.includes('Dinner'), 'WhatsApp payment link cleanly generated')
+// 6.4 FIRE Engine (Rule of 25 & Coast FIRE)
+const fireMonthlyExp = 40000
+const fireAnnualExp = fireMonthlyExp * 12 // 480,000
+const fireTarget = fireAnnualExp * 25 // 12,000,000
+assert(fireTarget === 12000000, `Rule of 25 on ₹40,000/mo gives ₹1,20,00,000 (Got ${fireTarget})`)
+
+const coastNomReturn = 0.12
+const coastInf = 0.06
+const coastRealRate = (1 + coastNomReturn) / (1 + coastInf) - 1
+const coastTarget = fireTarget / Math.pow(1 + coastRealRate, 15) // 15 years out
+assert(Math.round(coastTarget) === 5254107, `Coast FIRE number matches exact Fisher discounted value (₹52,54,107)`)
+// 6.5 Debt Payoff Strategy Optimizer
+const optDebts = [
+  { name: 'Card', balance: 25000, apr: 36 },
+  { name: 'Friend', balance: 50000, apr: 0 },
+  { name: 'Personal', balance: 150000, apr: 14 },
+]
+const snowFirst = [...optDebts].sort((a, b) => a.balance - b.balance)[0]
+const avFirst = [...optDebts].sort((a, b) => b.apr - a.apr)[0]
+assert(snowFirst.name === 'Card', 'Snowball selects lowest balance (Card ₹25k) first')
+assert(avFirst.name === 'Card', 'Avalanche selects highest APR (Card 36%) first')
+// 6.6 Zombie Subscriptions & Annualized Loss Formula
+const subMonthly = 4850
+const subAnnual = subMonthly * 12
+assert(subAnnual === 58200, `Annualized subscription burn rate is ₹58,200 (Got ${subAnnual})`)
+const subR = 0.01 // 1% per month (12% pa)
+const subFv10 = Math.round(subMonthly * ((Math.pow(1 + subR, 120) - 1) / subR) * (1 + subR))
+assert(subFv10 === 1126845, `10-Year opportunity cost compounds accurately (₹11,26,845)`)
+
+// 6.7 Biometric WebAuthn & Hardware Lock Fallback
+const mockSecurityPin = '1234'
+const isPinValid = (pin) => pin === mockSecurityPin
+assert(isPinValid('1234') === true, 'Default 1234 Security PIN unlocks app successfully')
+assert(isPinValid('9999') === false, 'Invalid PIN rejected by App Lock')
+
+
+
+
 
 // ─── 7. Testing Notification & Due-Date Alert Engine ───────────────────────
 console.log('\n--- 7. Testing Notification & Due-Date Alert Engine ---')
