@@ -357,83 +357,76 @@ export default function AiChatbotWidget() {
 
   // Handle direct database action commands (e.g. logging transactions into Supabase)
   const executeDatabaseIntent = async (text) => {
-    const lower = text.toLowerCase().trim()
+    if (!user || !text) return { handled: false }
 
-    // Transaction Logging Intent (e.g. "Spent 400 on petrol", "Paid 1200 for food", "Add expense 500")
-    const isLogIntent =
-      /^(paid|spent|bought|add expense|log expense|record expense|got income|received)\b/i.test(lower) ||
-      (/\b(for|on|via|using|at)\b/i.test(lower) && /\b\d+\b/.test(lower) && !lower.includes('?') && !lower.includes('how') && !lower.includes('what') && !lower.includes('why') && !lower.includes('when') && !lower.includes('weather') && !lower.includes('rain'))
+    const parsed = parseVoiceExpense(text)
+    if (parsed && parsed.amount > 0) {
+      try {
+        // Fetch categories and payment methods
+        const [catsRes, pmsRes] = await Promise.all([
+          supabase.from('categories').select('id, name, type').eq('user_id', user.id),
+          supabase.from('payment_methods').select('id, name, type').eq('user_id', user.id),
+        ])
 
-    if (isLogIntent && user) {
-      const parsed = parseVoiceExpense(text)
-      if (parsed && parsed.amount > 0) {
-        try {
-          // Fetch categories and payment methods
-          const [catsRes, pmsRes] = await Promise.all([
-            supabase.from('categories').select('id, name, type').eq('user_id', user.id),
-            supabase.from('payment_methods').select('id, name, type').eq('user_id', user.id),
-          ])
+        const categories = catsRes.data || []
+        const paymentMethods = pmsRes.data || []
+        const targetType = parsed.type === 'income' ? 'income' : 'expense'
 
-          const categories = catsRes.data || []
-          const paymentMethods = pmsRes.data || []
-          const targetType = parsed.type === 'income' ? 'income' : 'expense'
-
-          let categoryId = null
-          if (categories.length > 0) {
-            const catQuery = (parsed.category || '').toLowerCase().trim()
-            const matched = categories.find((c) =>
-              c.name.toLowerCase() === catQuery ||
-              c.name.toLowerCase().includes(catQuery) ||
-              catQuery.includes(c.name.toLowerCase())
-            )
-            categoryId = matched?.id || categories.find(c => c.type === targetType)?.id || categories[0]?.id || null
-          }
-
-          let paymentMethodId = null
-          if (paymentMethods.length > 0) {
-            const pmQuery = (parsed.paymentMethod || '').toLowerCase().trim()
-            const matched = paymentMethods.find((pm) =>
-              pm.name.toLowerCase() === pmQuery ||
-              pm.name.toLowerCase().includes(pmQuery) ||
-              pmQuery.includes(pm.name.toLowerCase()) ||
-              pm.type.toLowerCase().includes(pmQuery)
-            )
-            paymentMethodId = matched?.id || paymentMethods[0]?.id || null
-          }
-
-          const newTxn = {
-            user_id: user.id,
-            amount: Number(parsed.amount),
-            type: targetType,
-            category_id: categoryId,
-            payment_method_id: paymentMethodId,
-            note: parsed.description || 'Voice Logged Expense',
-            date: parsed.date || new Date().toISOString().slice(0, 10),
-          }
-
-          const { data, error } = await supabase
-            .from('transactions')
-            .insert([newTxn])
-            .select()
-
-          if (!error && data && data.length > 0) {
-            await loadFinancialContext()
-            window.dispatchEvent(new CustomEvent('transaction-updated'))
-            return {
-              handled: true,
-              isAction: true,
-              actionType: 'TRANSACTION_CREATED',
-              transaction: {
-                ...data[0],
-                description: parsed.description,
-                category: parsed.category,
-              },
-              text: `✅ **Transaction Logged Successfully!**\n\n• **Amount:** ${formatCurrency(parsed.amount)}\n• **Category:** ${parsed.category}\n• **Type:** ${parsed.type.toUpperCase()}\n• **Payment Method:** ${parsed.paymentMethod}\n• **Description:** ${parsed.description}\n• **Date:** ${parsed.date}`,
-            }
-          }
-        } catch (dbErr) {
-          console.warn('Direct txn insert failed:', dbErr)
+        let categoryId = null
+        if (categories.length > 0) {
+          const catQuery = (parsed.category || '').toLowerCase().trim()
+          const matched = categories.find((c) =>
+            c.name.toLowerCase() === catQuery ||
+            c.name.toLowerCase().includes(catQuery) ||
+            catQuery.includes(c.name.toLowerCase())
+          )
+          categoryId = matched?.id || categories.find(c => c.type === targetType)?.id || categories[0]?.id || null
         }
+
+        let paymentMethodId = null
+        if (paymentMethods.length > 0) {
+          const pmQuery = (parsed.paymentMethod || '').toLowerCase().trim()
+          const matched = paymentMethods.find((pm) =>
+            pm.name.toLowerCase() === pmQuery ||
+            pm.name.toLowerCase().includes(pmQuery) ||
+            pmQuery.includes(pm.name.toLowerCase()) ||
+            pm.type.toLowerCase().includes(pmQuery)
+          )
+          paymentMethodId = matched?.id || paymentMethods[0]?.id || null
+        }
+
+        const newTxn = {
+          user_id: user.id,
+          amount: Number(parsed.amount),
+          type: targetType,
+          category_id: categoryId,
+          payment_method_id: paymentMethodId,
+          note: parsed.description || 'Voice Logged Expense',
+          date: parsed.date || new Date().toISOString().slice(0, 10),
+        }
+
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert([newTxn])
+          .select()
+
+        if (!error && data && data.length > 0) {
+          await loadFinancialContext()
+          window.dispatchEvent(new CustomEvent('transaction-updated'))
+          return {
+            handled: true,
+            isAction: true,
+            actionType: 'TRANSACTION_CREATED',
+            transaction: {
+              ...data[0],
+              description: parsed.description,
+              category: parsed.category,
+            },
+            text: `✅ **Transaction Logged Successfully!**\n\n• **Amount:** ${formatCurrency(parsed.amount)}\n• **Category:** ${parsed.category}\n• **Type:** ${parsed.type.toUpperCase()}\n• **Payment Method:** ${parsed.paymentMethod}\n• **Description:** ${parsed.description}\n• **Date:** ${parsed.date}`,
+          }
+        }
+      } catch (dbErr) {
+        console.warn('Direct txn insert failed:', dbErr)
       }
     }
 
@@ -617,10 +610,12 @@ export default function AiChatbotWidget() {
                   onChange={(e) => setSelectedModel(e.target.value)}
                   className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="gemini-3.6-flash">Gemini 3.6 Flash (Recommended, High Speed)</option>
-                  <option value="gemini-flash-latest">Gemini Flash Latest</option>
+                  <option value="gemini-3.8-flash">Gemini 3.8 Flash (Latest & Fastest)</option>
+                  <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                  <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                   <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                  <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  <option value="gemini-flash-latest">Gemini Flash Latest</option>
                   <option value="gpt-4o-mini">OpenAI GPT-4o mini (requires sk- key)</option>
                 </select>
               </div>

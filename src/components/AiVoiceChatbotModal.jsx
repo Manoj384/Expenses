@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Modal from './Modal'
 import { processVoiceAssistantQuery } from '../utils/voiceAssistantEngine'
 import { formatCurrency } from '../utils/formatCurrency'
-import { playWakeChime, playSuccessChime } from '../utils/wakeWordDetector'
+import { playWakeChime, playSuccessChime, enrollVoice, getVoiceProfile, deleteVoiceProfile, isVoiceEnrolled, isWakeWordEnabled, setWakeWordEnabled } from '../utils/wakeWordDetector'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
+import { queryGeminiAi, getGeminiApiKey, saveGeminiApiKey } from '../utils/geminiAiService'
 import {
   Mic,
   MicOff,
@@ -22,6 +23,7 @@ import {
   Receipt,
   HelpCircle,
   Radio,
+  Key,
 } from 'lucide-react'
 
 const VOICE_PRESETS = [
@@ -49,6 +51,14 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
   ])
   const [saving, setSaving] = useState(false)
   const [contextData, setContextData] = useState({})
+  const [enrolling, setEnrolling] = useState(false)
+  const [enrollStatus, setEnrollStatus] = useState(null)   // null | 'recording' | 'success' | 'error'
+  const [voiceEnrolled, setVoiceEnrolled] = useState(() => isVoiceEnrolled())
+  const [voiceProfile, setVoiceProfile]   = useState(() => getVoiceProfile())
+  const [wakeWordActive, setWakeWordActive] = useState(() => isWakeWordEnabled())
+  const [apiKeyInput, setApiKeyInput] = useState(() => getGeminiApiKey())
+  const [showApiKeySettings, setShowApiKeySettings] = useState(false)
+  const [isAiThinking, setIsAiThinking] = useState(false)
 
   const recognitionRef = useRef(null)
   const chatEndRef = useRef(null)
@@ -163,6 +173,35 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
     window.speechSynthesis.speak(utterance)
   }, [isMuted])
 
+  // ── Voice Fingerprint Enrolment ───────────────────────────────────────────
+  const handleEnrollVoice = async () => {
+    if (enrolling) return
+    setEnrolling(true)
+    setEnrollStatus('recording')
+    const result = await enrollVoice()
+    if (result.ok) {
+      setEnrollStatus('success')
+      setVoiceEnrolled(true)
+      setVoiceProfile(result.profile)
+    } else {
+      setEnrollStatus('error')
+    }
+    setEnrolling(false)
+    setTimeout(() => setEnrollStatus(null), 4000)
+  }
+
+  const handleDeleteVoice = () => {
+    deleteVoiceProfile()
+    setVoiceEnrolled(false)
+    setVoiceProfile(null)
+  }
+
+  const handleToggleWakeWord = () => {
+    const next = !wakeWordActive
+    setWakeWordActive(next)
+    setWakeWordEnabled(next)
+  }
+
   const toggleListening = () => {
     if (!recognitionRef.current) return
     if (isListening) {
@@ -186,14 +225,15 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
     const userMessage = { id: `user-${Date.now()}`, role: 'user', text: userText }
     setHistory(prev => [...prev, userMessage])
     setQuery('')
+    setIsAiThinking(true)
 
-    const response = processVoiceAssistantQuery(userText, contextData)
+    // Check if query is a local expense logging intent first
+    const localResponse = processVoiceAssistantQuery(userText, contextData)
 
-    // If intent was to log an expense, auto-save to database if user is logged in
-    if (response.intent === 'LOG_EXPENSE' && response.parsedExpense && user) {
+    if (localResponse.intent === 'LOG_EXPENSE' && localResponse.parsedExpense && user) {
       try {
         setSaving(true)
-        const p = response.parsedExpense
+        const p = localResponse.parsedExpense
         const [catsRes, pmsRes] = await Promise.all([
           supabase.from('categories').select('id, name, type').eq('user_id', user.id),
           supabase.from('payment_methods').select('id, name').eq('user_id', user.id),
@@ -216,18 +256,41 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
       } catch {} finally {
         setSaving(false)
       }
+
+      const aiMessage = {
+        id: `ai-${Date.now()}`,
+        role: 'assistant',
+        text: localResponse.displayText,
+        intent: localResponse.intent,
+      }
+      setHistory(prev => [...prev, aiMessage])
+      setIsAiThinking(false)
+      speakResponse(localResponse.speechText)
+      return
+    }
+
+    // For analytical / advice questions: try Gemini 1.5 Flash API first!
+    const geminiRes = await queryGeminiAi(userText, contextData)
+
+    let finalDisplayText = localResponse.displayText
+    let finalSpeechText = localResponse.speechText
+
+    if (geminiRes.success && geminiRes.text) {
+      finalDisplayText = `✨ ${geminiRes.text}`
+      finalSpeechText = geminiRes.speechText
     }
 
     const aiMessage = {
       id: `ai-${Date.now()}`,
       role: 'assistant',
-      text: response.displayText,
-      intent: response.intent,
+      text: finalDisplayText,
+      intent: geminiRes.success ? 'GEMINI_AI' : localResponse.intent,
     }
     setHistory(prev => [...prev, aiMessage])
+    setIsAiThinking(false)
 
     // Speak natural audio response
-    speakResponse(response.speechText)
+    speakResponse(finalSpeechText)
   }
 
   return (
@@ -287,18 +350,75 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
             </p>
           </div>
 
-          {/* Mute / Unmute speech toggle button */}
-          <button
-            onClick={() => {
-              if (!isMuted && 'speechSynthesis' in window) window.speechSynthesis.cancel()
-              setIsMuted(prev => !prev)
-            }}
-            className="absolute top-3 right-3 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md transition-all"
-          >
-            {isMuted ? <VolumeX className="h-3.5 w-3.5 text-rose-300" /> : <Volume2 className="h-3.5 w-3.5 text-cyan-300" />}
-            <span>{isMuted ? 'Muted' : 'Voice On'}</span>
-          </button>
+          {/* Header Controls: Gemini Key & Mute */}
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowApiKeySettings(prev => !prev)}
+              className={`p-2 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md transition-all ${
+                apiKeyInput
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
+                  : 'bg-white/10 hover:bg-white/20 text-white'
+              }`}
+              title="Configure Google Gemini API Key"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+              <span>{apiKeyInput ? 'Gemini AI Active' : 'Set Gemini Key'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!isMuted && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+                setIsMuted(prev => !prev)
+              }}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md transition-all"
+            >
+              {isMuted ? <VolumeX className="h-3.5 w-3.5 text-rose-300" /> : <Volume2 className="h-3.5 w-3.5 text-cyan-300" />}
+              <span>{isMuted ? 'Muted' : 'Voice On'}</span>
+            </button>
+          </div>
         </div>
+
+        {/* Gemini API Key Configuration Drawer */}
+        {showApiKeySettings && (
+          <div className="p-3.5 rounded-2xl bg-slate-900 text-white border border-blue-500/30 shadow-lg space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-cyan-400" />
+                <span className="font-bold text-xs text-white">Google Gemini 1.5 Flash API Key</span>
+              </div>
+              <span className="text-[10px] text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded-full border border-cyan-800">
+                100% Free via Google AI Studio
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              Unlock conversational financial reasoning with real AI. Get your free key at{' '}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-cyan-400 underline">
+                aistudio.google.com
+              </a>
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="input-field text-xs flex-1 bg-slate-950 text-white border-slate-700"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  saveGeminiApiKey(apiKeyInput)
+                  setShowApiKeySettings(false)
+                }}
+                className="btn-primary text-xs py-1.5 px-3 whitespace-nowrap"
+              >
+                Save Key
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Conversation Message Feed */}
         <div className="p-4 rounded-2xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 max-h-60 overflow-y-auto space-y-3">
@@ -370,6 +490,96 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
             <span>Ask AI</span>
           </button>
         </form>
+
+        {/* ── Voice Identity Shield (Speaker Verification) ───────────── */}
+        <div className={`rounded-2xl border p-4 space-y-3 text-[11px] ${
+          voiceEnrolled
+            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+            : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Radio className={`h-4 w-4 ${voiceEnrolled ? 'text-emerald-500' : 'text-amber-500'}`} />
+              <span className="font-bold text-gray-800 dark:text-slate-100">Voice Identity Shield</span>
+              {voiceEnrolled && (
+                <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-bold">ACTIVE</span>
+              )}
+            </div>
+            {voiceEnrolled && voiceProfile?.enrolledAt && (
+              <span className="text-gray-400 text-[9px]">
+                Enrolled {new Date(voiceProfile.enrolledAt).toLocaleDateString('en-IN')}
+              </span>
+            )}
+          </div>
+
+          <p className={`leading-relaxed ${voiceEnrolled ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+            {voiceEnrolled
+              ? '✅ "Hey Manoj" now only responds to YOUR voice. No more false triggers from TV, other people, or ambient noise.'
+              : '⚠️ Wake word fires for any speaker. Enrol your voice to restrict "Hey Manoj" to only your unique voice frequency.'}
+          </p>
+
+          {enrollStatus === 'recording' && (
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold animate-pulse">
+              <Mic className="h-4 w-4" />
+              <span>🎙️ Recording your voice for 3.5 seconds… speak naturally now!</span>
+            </div>
+          )}
+          {enrollStatus === 'success' && (
+            <div className="flex items-center gap-2 text-emerald-600 font-semibold">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Voice fingerprint saved! Only your voice will trigger the assistant.</span>
+            </div>
+          )}
+          {enrollStatus === 'error' && (
+            <div className="flex items-center gap-2 text-rose-600 font-semibold">
+              <AlertCircle className="h-4 w-4" />
+              <span>Microphone access required. Please allow mic permission and try again.</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-black/5 dark:border-white/5">
+            <button
+              type="button"
+              onClick={handleToggleWakeWord}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all ${
+                wakeWordActive
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-300'
+              }`}
+            >
+              <Radio className={`h-3.5 w-3.5 ${wakeWordActive ? 'text-white animate-pulse' : 'text-gray-400'}`} />
+              <span>Hands-Free "Hey Manoj": {wakeWordActive ? 'ON' : 'OFF'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleEnrollVoice}
+              disabled={enrolling}
+              className={`px-3 py-1.5 rounded-xl text-white text-[11px] font-bold flex items-center gap-1.5 transition-all disabled:opacity-60 ${
+                voiceEnrolled
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-amber-500 hover:bg-amber-600'
+              }`}
+            >
+              <Mic className="h-3 w-3" />
+              {enrolling ? 'Recording…' : voiceEnrolled ? '🔄 Re-Enrol Voice' : '🎙️ Enrol My Voice (3.5 sec)'}
+            </button>
+
+            {voiceEnrolled && (
+              <button
+                type="button"
+                onClick={handleDeleteVoice}
+                className="px-3 py-1.5 rounded-xl bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-[11px] font-bold hover:bg-rose-200 dark:hover:bg-rose-900/60 transition-all"
+              >
+                🗑️ Remove Voice Profile
+              </button>
+            )}
+          </div>
+
+          <p className="text-gray-400 dark:text-slate-500 text-[10px]">
+            Voice profile is stored locally on your device only — never uploaded to any server.
+          </p>
+        </div>
 
         <div className="flex justify-end pt-1">
           <button type="button" onClick={onClose} className="btn-secondary text-xs">Close</button>

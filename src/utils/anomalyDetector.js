@@ -154,12 +154,49 @@ export function detectSubscriptionPriceHikes(transactions = []) {
   return hikes
 }
 
+export function detectRecurringSpendPatterns(transactions = []) {
+  const recurring = []
+  const merchantMap = {}
+
+  transactions.forEach(t => {
+    if (t.type !== 'expense' && t.type !== 'debit') return
+    const note = (t.note || '').toLowerCase().trim()
+    if (!note || note.length < 3) return
+
+    // Group by first 2 words of merchant note
+    const key = note.split(' ').slice(0, 2).join(' ')
+    if (!merchantMap[key]) merchantMap[key] = []
+    merchantMap[key].push(t)
+  })
+
+  Object.entries(merchantMap).forEach(([merchantKey, txList]) => {
+    if (txList.length >= 3) {
+      const avgAmt = Math.round(txList.reduce((s, t) => s + Number(t.amount || 0), 0) / txList.length)
+      const totalSpend = txList.reduce((s, t) => s + Number(t.amount || 0), 0)
+      recurring.push({
+        id: `rec-${merchantKey}`,
+        type: 'RECURRING_SPEND_PATTERN',
+        severity: 'INFO',
+        title: `Recurring Spend Pattern: "${merchantKey.toUpperCase()}"`,
+        description: `You have transacted ${txList.length} times with "${merchantKey}" totaling ₹${totalSpend.toLocaleString('en-IN')} (Avg: ₹${avgAmt}/txn).`,
+        count: txList.length,
+        avgAmount: avgAmt,
+        totalSpend,
+        recommendation: 'Consider adding a monthly category budget or tracking this as a regular recurring subscription.',
+      })
+    }
+  })
+
+  return recurring
+}
+
 export function runFullAiAnomalyAudit(transactions = []) {
   const duplicates = detectDuplicateCharges(transactions)
   const spikes = detectCategorySpendingSpikes(transactions)
   const hikes = detectSubscriptionPriceHikes(transactions)
+  const recurring = detectRecurringSpendPatterns(transactions)
 
-  const allAnomalies = [...duplicates, ...spikes, ...hikes]
+  const allAnomalies = [...duplicates, ...spikes, ...hikes, ...recurring]
   const totalFinancialExposure = allAnomalies.reduce((sum, a) => {
     if (a.type === 'DUPLICATE_CHARGE') return sum + (a.amount || 0)
     if (a.type === 'SPENDING_SPIKE') return sum + (a.excessAmount || 0)
@@ -172,9 +209,10 @@ export function runFullAiAnomalyAudit(transactions = []) {
     duplicates,
     spikes,
     hikes,
+    recurring,
     totalCount: allAnomalies.length,
     totalFinancialExposure,
-    healthScore: Math.max(20, 100 - allAnomalies.length * 15),
-    status: allAnomalies.length === 0 ? 'CLEAN' : allAnomalies.length <= 2 ? 'ATTENTION_REQUIRED' : 'CRITICAL_RISK',
+    healthScore: Math.max(20, 100 - (duplicates.length + spikes.length + hikes.length) * 15),
+    status: (duplicates.length + spikes.length + hikes.length) === 0 ? 'CLEAN' : 'ATTENTION_REQUIRED',
   }
 }

@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
-import { Plus, Mic, Sparkles, X, Bot, FileText, Move, GripVertical } from 'lucide-react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { Plus, Mic, Sparkles, X, Bot, FileText, Move, GripVertical, Camera, Building2 } from 'lucide-react'
 import Modal from './Modal'
 import TransactionForm from './TransactionForm'
 import AiVoiceChatbotModal from './AiVoiceChatbotModal'
+
+const ReceiptScannerModal = lazy(() => import('./ReceiptScannerModal'))
+const BankStatementImportModal = lazy(() => import('./BankStatementImportModal'))
 
 /**
  * Draggable Floating Action Button & Speed Dial
@@ -12,6 +15,8 @@ import AiVoiceChatbotModal from './AiVoiceChatbotModal'
 export default function QuickAddFAB({ onSuccess }) {
   const [openForm, setOpenForm] = useState(false)
   const [openVoice, setOpenVoice] = useState(false)
+  const [openScanner, setOpenScanner] = useState(false)
+  const [openBankImport, setOpenBankImport] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Floating Position (X, Y in pixels from top-left)
@@ -186,7 +191,58 @@ export default function QuickAddFAB({ onSuccess }) {
               isNearBottom ? 'bottom-16' : 'top-16'
             } ${isNearRight ? 'items-end right-0' : 'items-start left-0'}`}
           >
-            {/* Action 1: Voice AI Expense Dictation */}
+            {/* Action 1: AI Copilot & Financial Advisor */}
+            <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-lg border border-amber-500/30 text-white animate-in fade-in zoom-in-75 duration-150">
+              {isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-amber-200">🤖 AI Copilot</span>}
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('open-ai-chat'))
+                  setIsExpanded(false)
+                }}
+                className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-500 via-orange-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 active:scale-95 shadow-md shadow-amber-500/30 flex items-center justify-center text-white transition-transform hover:scale-105"
+                title="Open AI Financial Copilot"
+                aria-label="AI Copilot"
+              >
+                <Sparkles className="h-5 w-5 text-amber-100" />
+              </button>
+              {!isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-amber-200">🤖 AI Copilot</span>}
+            </div>
+
+            {/* Action 2: Scan Receipt OCR */}
+            <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-lg border border-emerald-500/30 text-white animate-in fade-in zoom-in-75 duration-150">
+              {isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-emerald-200">📸 Scan Receipt</span>}
+              <button
+                onClick={() => {
+                  setOpenScanner(true)
+                  setIsExpanded(false)
+                }}
+                className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 shadow-md shadow-emerald-500/30 flex items-center justify-center text-white transition-transform hover:scale-105"
+                title="Scan Receipt / Bill Photo (OCR)"
+                aria-label="Scan Receipt"
+              >
+                <Camera className="h-5 w-5" />
+              </button>
+              {!isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-emerald-200">📸 Scan Receipt</span>}
+            </div>
+
+            {/* Action 3: Bank Statement Auto-Import */}
+            <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-lg border border-indigo-500/30 text-white animate-in fade-in zoom-in-75 duration-150">
+              {isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-indigo-200">🏦 Bank Import</span>}
+              <button
+                onClick={() => {
+                  setOpenBankImport(true)
+                  setIsExpanded(false)
+                }}
+                className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 active:scale-95 shadow-md shadow-indigo-500/30 flex items-center justify-center text-white transition-transform hover:scale-105"
+                title="Import PDF / Excel Bank Statement"
+                aria-label="Bank Statement Import"
+              >
+                <Building2 className="h-5 w-5" />
+              </button>
+              {!isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-indigo-200">🏦 Bank Import</span>}
+            </div>
+
+            {/* Action 4: Voice AI Expense Dictation */}
             <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-lg border border-purple-500/30 text-white animate-in fade-in zoom-in-75 duration-150">
               {isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-purple-200">Voice AI</span>}
               <button
@@ -195,15 +251,14 @@ export default function QuickAddFAB({ onSuccess }) {
                   setIsExpanded(false)
                 }}
                 className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 active:scale-95 shadow-md shadow-purple-500/30 flex items-center justify-center text-white transition-transform hover:scale-105"
-                title="Speak to Log Expense ('Hey Tracker...')"
+                title="Speak to Log Expense ('Hey Manoj...')"
                 aria-label="Voice AI Dictation"
               >
                 <Mic className="h-5 w-5" />
               </button>
-              {!isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-purple-200">Voice AI</span>}
             </div>
 
-            {/* Action 2: Add Transaction Form */}
+            {/* Action 5: Add Transaction Form */}
             <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-lg border border-blue-500/30 text-white animate-in fade-in zoom-in-75 duration-150">
               {isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-blue-200">Add Transaction</span>}
               <button
@@ -218,40 +273,6 @@ export default function QuickAddFAB({ onSuccess }) {
                 <Plus className="h-5 w-5" />
               </button>
               {!isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-blue-200">Add Transaction</span>}
-            </div>
-
-            {/* Action 3: AI Copilot & Financial Advisor */}
-            <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-lg border border-amber-500/30 text-white animate-in fade-in zoom-in-75 duration-150">
-              {isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-amber-200">AI Copilot</span>}
-              <button
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('open-ai-chat'))
-                  setIsExpanded(false)
-                }}
-                className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-500 to-indigo-600 hover:from-amber-600 hover:to-indigo-700 active:scale-95 shadow-md shadow-amber-500/30 flex items-center justify-center text-white transition-transform hover:scale-105"
-                title="Open AI Financial Copilot"
-                aria-label="AI Copilot"
-              >
-                <Sparkles className="h-5 w-5 text-amber-200" />
-              </button>
-              {!isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-amber-200">AI Copilot</span>}
-            </div>
-
-            {/* Action 4: Telegram & WhatsApp Bot */}
-            <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-full shadow-lg border border-sky-500/30 text-white animate-in fade-in zoom-in-75 duration-150">
-              {isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-sky-200">Telegram Bot</span>}
-              <button
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('open-bot-modal'))
-                  setIsExpanded(false)
-                }}
-                className="h-10 w-10 rounded-full bg-gradient-to-br from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 active:scale-95 shadow-md shadow-sky-500/30 flex items-center justify-center text-white transition-transform hover:scale-105"
-                title="Open Telegram & WhatsApp Bot"
-                aria-label="Telegram Bot"
-              >
-                <Bot className="h-5 w-5 text-sky-100" />
-              </button>
-              {!isNearRight && <span className="text-xs font-semibold whitespace-nowrap text-sky-200">Telegram Bot</span>}
             </div>
           </div>
         )}
@@ -300,6 +321,28 @@ export default function QuickAddFAB({ onSuccess }) {
         onClose={() => setOpenVoice(false)}
         onTransactionCreated={handleSuccess}
       />
+
+      {/* Receipt OCR Scanner Modal */}
+      {openScanner && (
+        <Suspense fallback={null}>
+          <ReceiptScannerModal
+            isOpen={openScanner}
+            onClose={() => setOpenScanner(false)}
+            onTransactionCreated={handleSuccess}
+          />
+        </Suspense>
+      )}
+
+      {/* Bank Statement Auto-Import Modal */}
+      {openBankImport && (
+        <Suspense fallback={null}>
+          <BankStatementImportModal
+            isOpen={openBankImport}
+            onClose={() => setOpenBankImport(false)}
+            onTransactionsImported={handleSuccess}
+          />
+        </Suspense>
+      )}
     </>
   )
 }

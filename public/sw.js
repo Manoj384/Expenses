@@ -1,125 +1,110 @@
-// Cache version — bump this string on every deploy to force cache invalidation
-const CACHE_NAME = 'ft-cache-v3'
-const STATIC_ASSETS = ['/favicon.svg', '/manifest.json']
+/**
+ * Service Worker for Manoj's Finance Hub & AI Copilot
+ * Provides offline caching, network-first strategy for dynamic assets,
+ * and background push notification listeners for bill dues & budget alerts.
+ */
 
-// Install: only cache non-HTML static assets
+const CACHE_NAME = 'manoj-finance-hub-v1'
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/favicon.ico'
+]
+
+// Install Event: pre-cache static shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS)
+    }).then(() => self.skipWaiting())
   )
-  // Immediately take control — don't wait for old SW to die
-  self.skipWaiting()
 })
 
-// Activate: delete ALL old caches so stale content is cleared
+// Activate Event: clean up obsolete caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      )
+    }).then(() => self.clients.claim())
   )
-  self.clients.claim()
 })
 
+// Fetch Event: Network-first with cache fallback for HTML/CSS/JS
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
-
   const url = new URL(event.request.url)
 
-  // ── 1. Supabase / external API calls → always Network Only (never cache)
-  if (url.hostname.includes('supabase.co') || url.hostname.includes('googleapis')) {
-    return
-  }
+  // Ignore chrome-extension or external analytics
+  if (!url.protocol.startsWith('http')) return
 
-  // ── 2. HTML / navigation requests → Network First
-  //    Always try the network so fresh HTML/JS is served after a deploy.
-  //    Only fall back to cache if truly offline.
-  const isNavigation =
-    event.request.mode === 'navigate' ||
-    event.request.headers.get('accept')?.includes('text/html')
-
-  if (isNavigation) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Cache the fresh response for offline fallback
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
-          return response
-        })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
-    )
-    return
-  }
-
-  // ── 3. JS / CSS / image assets → Stale-While-Revalidate
-  //    Serve cached instantly, but ALSO fetch fresh in background and update cache.
-  //    Vite hashes asset filenames so this is always safe.
   event.respondWith(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.match(event.request).then((cached) => {
-        const fetchPromise = fetch(event.request).then((response) => {
-          if (response.ok) cache.put(event.request, response.clone())
-          return response
-        }).catch(() => cached)
-        return cached || fetchPromise
+    fetch(event.request)
+      .then((response) => {
+        // Clone and update cache for same-origin static assets
+        if (response.status === 200 && url.origin === self.location.origin) {
+          const resClone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, resClone)
+          })
+        }
+        return response
       })
-    )
+      .catch(async () => {
+        const cached = await caches.match(event.request)
+        if (cached) return cached
+        if (event.request.headers.get('accept')?.includes('text/html')) {
+          return caches.match('/index.html')
+        }
+        return new Response('Offline - No cached version available', { status: 503, statusText: 'Offline' })
+      })
   )
 })
 
-// Handle mobile push notifications & background reminders
+// Push Notification Event: handles incoming Web Push
 self.addEventListener('push', (event) => {
-  let data = {}
+  let data = { title: 'Finance AI Alert', body: 'You have a new financial reminder.', icon: '/pwa-192x192.png' }
   try {
-    data = event.data ? event.data.json() : {}
+    if (event.data) data = event.data.json()
   } catch {
-    data = { title: '⏰ Reminder Alarm', body: event.data ? event.data.text() : 'You have a scheduled reminder!' }
+    if (event.data) data.body = event.data.text()
   }
 
   const options = {
-    body: data.body || 'Time to check your scheduled expense or task!',
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
-    vibrate: [200, 100, 200, 100, 200],
-    tag: data.tag || 'reminder-alarm',
-    renotify: true,
-    data: data.url || '/',
+    body: data.body,
+    icon: data.icon || '/pwa-192x192.png',
+    badge: '/pwa-192x192.png',
+    vibrate: [100, 50, 100],
+    data: { url: data.url || '/' },
     actions: [
       { action: 'open', title: 'Open App' },
-      { action: 'dismiss', title: 'Dismiss' },
-    ],
+      { action: 'dismiss', title: 'Dismiss' }
+    ]
   }
 
-  event.waitUntil(self.registration.showNotification(data.title || '⏰ Reminder Alarm', options))
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  )
 })
 
-// Handle background notification triggers from window
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SHOW_REMINDER_NOTIFICATION') {
-    const { title, body, tag } = event.data
-    self.registration.showNotification(title || '⏰ Reminder Alarm', {
-      body: body || 'Time to complete your task!',
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      vibrate: [300, 150, 300],
-      tag: tag || 'reminder-alarm',
-      renotify: true,
-    })
-  }
-})
-
-// Handle mobile push notification clicks
+// Notification Click Event: opens the relevant page
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   if (event.action === 'dismiss') return
 
+  const targetUrl = event.notification.data?.url || '/'
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if (client.url && 'focus' in client) return client.focus()
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url === targetUrl && 'focus' in client) {
+          return client.focus()
+        }
       }
-      if (clients.openWindow) return clients.openWindow('/')
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl)
+      }
     })
   )
 })

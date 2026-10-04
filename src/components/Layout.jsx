@@ -10,7 +10,7 @@ import AiChatbotWidget from './AiChatbotWidget'
 import KeyboardShortcutsModal from './KeyboardShortcutsModal'
 import OnboardingWizardModal from './OnboardingWizardModal'
 import AlarmRingingModal from './AlarmRingingModal'
-import TelegramWhatsAppBotModal from './TelegramWhatsAppBotModal'
+
 import QuickAddFAB from './QuickAddFAB'
 import { useAdmin } from '../context/AdminContext'
 import { useAuth } from '../context/AuthContext'
@@ -19,7 +19,8 @@ import FinancialToolkitModal from './FinancialToolkitModal'
 import BiometricAppLockOverlay from './BiometricAppLockOverlay'
 import { wakeWordService } from '../utils/wakeWordDetector'
 import { backgroundAiWorker } from '../utils/backgroundAiWorker'
-import { Menu } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Menu, Sparkles, Bot } from 'lucide-react'
 
 export default function Layout({ children, title }) {
   const { user } = useAuth()
@@ -44,16 +45,29 @@ export default function Layout({ children, title }) {
     // 1. Start background AI maintenance supervisor
     backgroundAiWorker.start()
 
-    // 2. Start hands-free wake word listener for "Hey Manoj" / "Hey Alexa"
-    wakeWordService.start((command) => {
+    const onWake = (command) => {
       setCopilotTab('voice')
       setVoiceAutoStart(true)
       setShowCopilotModal(true)
-    })
+    }
+
+    // 2. Start hands-free wake word listener ONLY if explicitly enabled by the user
+    wakeWordService.start(onWake)
+
+    const handleSettingChange = (e) => {
+      if (e?.detail?.enabled) {
+        wakeWordService.start(onWake)
+      } else {
+        wakeWordService.stop()
+      }
+    }
+
+    window.addEventListener('wake-word-setting-changed', handleSettingChange)
 
     return () => {
       backgroundAiWorker.stop()
       wakeWordService.stop()
+      window.removeEventListener('wake-word-setting-changed', handleSettingChange)
     }
   }, [])
 
@@ -185,13 +199,6 @@ export default function Layout({ children, title }) {
         onOpenBackup={() => setShowBackupModal(true)}
         onOpenShortcuts={() => setShowShortcutsModal(true)}
         onOpenOnboarding={() => setShowOnboardingModal(true)}
-        onOpenBot={() => setShowBotModal(true)}
-        onOpenCalendar={() => setShowCalendarModal(true)}
-        onOpenTaxPlanner={() => setShowTaxModal(true)}
-        onOpenCardOptimizer={() => setShowCardModal(true)}
-        onOpenSentinel={() => setShowSentinelModal(true)}
-        onOpenAutoPilot={() => setShowAutoPilotModal(true)}
-        onOpenVoice={() => setShowVoiceModal(true)}
         onLockApp={() => setIsAppLocked(true)}
       />
 
@@ -216,8 +223,16 @@ export default function Layout({ children, title }) {
             <NetworkStatusIndicator />
           </div>
 
-          {/* Right: Only Notification Center Bell */}
+          {/* Right: AI Copilot Quick Button & Notification Center */}
           <div className="flex items-center gap-2 flex-shrink-0">
+            <Link
+              to="/ai-copilot"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold hover:scale-105 transition-all shadow-sm shadow-blue-500/20"
+              title="Open AI Financial Copilot"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
+              <span className="hidden sm:inline">AI Copilot</span>
+            </Link>
             <NotificationCenter />
           </div>
         </header>

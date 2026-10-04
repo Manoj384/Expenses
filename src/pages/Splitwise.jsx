@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import SplitwiseStatementModal from '../components/SplitwiseStatementModal'
 import { formatCurrency } from '../utils/formatCurrency'
 import { formatDate, today } from '../utils/dateUtils'
+import { SUPPORTED_CURRENCIES, convertToInr } from '../utils/currencyConverter'
 import {
   Users,
   Plus,
@@ -160,6 +161,7 @@ export default function Splitwise() {
   const [expenseForm, setExpenseForm] = useState({
     title: '',
     amount: '',
+    currency: 'INR',
     date: today(),
     payer_mode: 'single', // 'single' | 'multiple'
     paid_by_id: '', // for single payer
@@ -476,14 +478,18 @@ export default function Splitwise() {
   // --- Expense Handlers ---
   const handleAddExpense = (e) => {
     e.preventDefault()
-    const amt = parseFloat(expenseForm.amount)
-    if (!expenseForm.title.trim() || !amt || amt <= 0 || !activeGroup) return
+    let rawAmt = parseFloat(expenseForm.amount)
+    if (!expenseForm.title.trim() || !rawAmt || rawAmt <= 0 || !activeGroup) return
+
+    // Convert to INR if international currency selected
+    const isForeign = expenseForm.currency && expenseForm.currency !== 'INR'
+    const finalInrAmt = isForeign ? Math.round(convertToInr(rawAmt, expenseForm.currency)) : rawAmt
 
     // Validate Multi-Payer
     if (expenseForm.payer_mode === 'multiple') {
-      const diffPaid = Math.abs(amt - multiPayerAllocatedTotal)
+      const diffPaid = Math.abs(rawAmt - multiPayerAllocatedTotal)
       if (diffPaid > 0.05) {
-        setError(`Upfront contributions sum (${formatCurrency(multiPayerAllocatedTotal)}) does not match total amount (${formatCurrency(amt)}).`)
+        setError(`Upfront contributions sum does not match total bill amount.`)
         return
       }
     }
@@ -494,16 +500,27 @@ export default function Splitwise() {
       return
     }
 
+    // Convert individual shares to INR if foreign
+    let finalShares = calculatedSplitShares.shares
+    if (isForeign) {
+      finalShares = {}
+      Object.entries(calculatedSplitShares.shares).forEach(([k, v]) => {
+        finalShares[k] = Math.round(convertToInr(v, expenseForm.currency))
+      })
+    }
+
     const newExpense = {
       id: `exp_${Date.now()}`,
-      title: expenseForm.title.trim(),
-      amount: amt,
+      title: isForeign
+        ? `${expenseForm.title.trim()} (${expenseForm.amount} ${expenseForm.currency})`
+        : expenseForm.title.trim(),
+      amount: finalInrAmt,
       date: expenseForm.date || today(),
       payer_mode: expenseForm.payer_mode,
       paid_by_id: expenseForm.payer_mode === 'single' ? expenseForm.paid_by_id : null,
       paid_by: expenseForm.payer_mode === 'multiple' ? expenseForm.paid_by : null,
       split_type: expenseForm.split_type,
-      shares: calculatedSplitShares.shares,
+      shares: finalShares,
     }
 
     const updated = groups.map(g =>
@@ -981,16 +998,36 @@ export default function Splitwise() {
             </div>
 
             <div>
-              <label className="label">Total Amount (₹) *</label>
-              <input
-                type="number"
-                placeholder="15000"
-                value={expenseForm.amount}
-                onChange={(e) => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))}
-                className="input-field text-xs font-bold text-emerald-600"
-                required
-                step="any"
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="label mb-0">Total Amount *</label>
+                {expenseForm.currency !== 'INR' && expenseForm.amount && (
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                    ≈ ₹{Math.round(convertToInr(expenseForm.amount, expenseForm.currency)).toLocaleString('en-IN')}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={expenseForm.currency}
+                  onChange={(e) => setExpenseForm(prev => ({ ...prev, currency: e.target.value }))}
+                  className="input-field text-xs font-bold w-24 flex-shrink-0 bg-gray-50 dark:bg-slate-800"
+                >
+                  {SUPPORTED_CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} ({c.symbol})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  placeholder="15000"
+                  value={expenseForm.amount}
+                  onChange={(e) => setExpenseForm(prev => ({ ...prev, amount: e.target.value }))}
+                  className="input-field text-xs font-bold text-emerald-600 flex-1"
+                  required
+                  step="any"
+                />
+              </div>
             </div>
           </div>
 

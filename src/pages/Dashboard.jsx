@@ -6,6 +6,7 @@ import Layout from '../components/Layout'
 import SummaryCard from '../components/SummaryCard'
 import SkeletonPage from '../components/SkeletonLoader'
 import EmptyState from '../components/EmptyState'
+import PwaInstallBanner from '../components/PwaInstallBanner'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { formatDate, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../utils/dateUtils'
 import { frequencyLabel } from '../utils/sipUtils'
@@ -254,6 +255,9 @@ export default function Dashboard() {
         <SkeletonPage />
       ) : (
         <>
+          {/* PWA Home Screen Install & Push Alert Banner */}
+          <PwaInstallBanner />
+
           {/* Summary KPI Cards - Starts immediately with Monthly Income */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 mb-6">
             <SummaryCard
