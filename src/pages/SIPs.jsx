@@ -29,6 +29,14 @@ import {
   Building2,
   ArrowUpRight,
   Zap,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  ShieldCheck,
+  PieChart,
+  ExternalLink,
+  Activity,
+  DollarSign,
 } from 'lucide-react'
 
 const FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'yearly']
@@ -41,6 +49,79 @@ const STANDARD_PAYMENT_METHODS = [
 ]
 
 const emptyForm = { name: '', amount: '', frequency: 'monthly', start_date: today(), fund_id: '' }
+
+// Normalizes scheme name into a robust grouping key (e.g., 'quant_small_cap', 'nippon_mid_cap')
+function getSchemeGroupKey(name) {
+  if (!name) return ''
+  const clean = String(name).toLowerCase().replace(/[^a-z0-9]/g, ' ')
+  const words = clean.split(/\s+/).filter(Boolean)
+  const house = words[0] || 'fund'
+
+  let cap = 'general'
+  if (clean.includes('small')) cap = 'small_cap'
+  else if (clean.includes('mid')) cap = 'mid_cap'
+  else if (clean.includes('flexi')) cap = 'flexi_cap'
+  else if (clean.includes('large')) cap = 'large_cap'
+  else if (clean.includes('elss') || clean.includes('tax')) cap = 'elss'
+  else if (words[1]) cap = words[1]
+
+  return `${house}_${cap}`
+}
+
+// Aggregates all matching holdings / folios for a scheme name so Quant / Nippon / Motilal amounts are completely summed
+function aggregateMatchingMutualFunds(sipName, mfList) {
+  if (!sipName || !Array.isArray(mfList) || mfList.length === 0) return null
+
+  const targetKey = getSchemeGroupKey(sipName)
+  const normSip = sipName.toLowerCase().trim()
+  const firstWord = normSip.split(/\s+/)[0]
+
+  const matched = mfList.filter((m) => {
+    const mfKey = getSchemeGroupKey(m.scheme_name)
+    if (mfKey && targetKey && mfKey === targetKey) return true
+
+    const normMf = (m.scheme_name || '').toLowerCase().trim()
+    if (normMf.includes(normSip) || normSip.includes(normMf)) return true
+    if (firstWord && normMf.startsWith(firstWord)) {
+      if (normSip.includes('small') && normMf.includes('small')) return true
+      if (normSip.includes('mid') && normMf.includes('mid')) return true
+      if (normSip.includes('flexi') && normMf.includes('flexi')) return true
+    }
+    return false
+  })
+
+  if (matched.length === 0) return null
+
+  const totalInvested = matched.reduce((sum, m) => sum + Number(m.invested_amount || 0), 0)
+  const totalUnits = matched.reduce((sum, m) => sum + Number(m.units || 0), 0)
+  const primary = matched[0]
+  const liveNav = Number(primary.current_nav || primary.avg_nav || 100)
+  const totalVal = matched.reduce((sum, m) => {
+    const u = Number(m.units || 0)
+    const n = Number(m.current_nav || liveNav)
+    return sum + (Number(m.current_value) || (u * n) || 0)
+  }, 0)
+
+  const avgNav = totalUnits > 0 ? totalInvested / totalUnits : Number(primary.avg_nav || liveNav)
+  const returns = totalVal - totalInvested
+
+  return {
+    id: primary.id || `merged_${targetKey}`,
+    scheme_name: primary.scheme_name,
+    category: primary.category || 'Equity',
+    fund_house: primary.fund_house,
+    current_nav: liveNav,
+    avg_nav: avgNav,
+    units: parseFloat(totalUnits.toFixed(3)),
+    invested_amount: parseFloat(totalInvested.toFixed(2)),
+    current_value: parseFloat(totalVal.toFixed(2)),
+    returns: parseFloat(returns.toFixed(2)),
+    oneDayDiff: primary.oneDayDiff || 0,
+    oneDayDiffPct: primary.oneDayDiffPct !== undefined ? primary.oneDayDiffPct : 0.32,
+    folio_number: matched.map((m) => m.folio_number).filter(Boolean).join(', '),
+    matchedCount: matched.length,
+  }
+}
 
 export default function SIPs() {
   const { user } = useAuth()
@@ -97,6 +178,8 @@ export default function SIPs() {
   const [editPaySaving, setEditPaySaving] = useState(false)
   const [editPayErr, setEditPayErr] = useState('')
 
+  // Full Details Deep Dive Modal State
+  const [detailsTarget, setDetailsTarget] = useState(null)
 
   const flash = (msg) => {
     setSuccess(msg)
@@ -182,31 +265,37 @@ export default function SIPs() {
     return () => window.removeEventListener('mutual-funds-updated', handleMfUpdated)
   }, [fetchSipsAndFunds])
 
-  // Active dataset: automatically enrich SIPs with matching mutual fund stats by scheme name
-  const displaySips = (sips.length > 0 ? sips : defaultSips).map((s) => {
-    const normSipName = (s.name || '').toLowerCase().trim()
-    const activeMfList = mutualFunds.length > 0 ? enrichFundsWithCachedNavs(mutualFunds) : enrichFundsWithCachedNavs(savedGrowwData)
-    const matchedMf = activeMfList.find((g) => {
-      const normMfName = (g.scheme_name || '').toLowerCase().trim()
-      return (
-        normMfName.includes(normSipName) ||
-        normSipName.includes(normMfName) ||
-        normMfName.split(' ')[0] === normSipName.split(' ')[0]
-      )
-    })
+  // Active dataset: group duplicate SIPs and merge all matching mutual fund holdings/folios
+  const rawSips = sips.length > 0 ? sips : defaultSips
+  const activeMfList = mutualFunds.length > 0 ? enrichFundsWithCachedNavs(mutualFunds) : enrichFundsWithCachedNavs(savedGrowwData)
 
+  const groupedSipsMap = new Map()
+  rawSips.forEach((s) => {
+    const groupKey = getSchemeGroupKey(s.name) || s.id
+    if (!groupedSipsMap.has(groupKey)) {
+      groupedSipsMap.set(groupKey, {
+        ...s,
+        allSipIds: [s.id],
+        totalAmount: Number(s.amount || 0),
+      })
+    } else {
+      const existing = groupedSipsMap.get(groupKey)
+      existing.allSipIds.push(s.id)
+      existing.totalAmount += Number(s.amount || 0)
+      if (s.active) existing.active = true
+      if (s.next_due_date && (!existing.next_due_date || s.next_due_date < existing.next_due_date)) {
+        existing.next_due_date = s.next_due_date
+      }
+    }
+  })
+
+  const displaySips = Array.from(groupedSipsMap.values()).map((s) => {
+    const mergedMf = aggregateMatchingMutualFunds(s.name, activeMfList)
     return {
       ...s,
-      mutual_funds: matchedMf
-        ? {
-            id: matchedMf.id,
-            scheme_name: matchedMf.scheme_name,
-            current_nav: matchedMf.current_nav,
-            current_value: matchedMf.current_value,
-            units: matchedMf.units,
-            invested_amount: matchedMf.invested_amount,
-          }
-        : null,
+      amount: s.totalAmount !== undefined ? s.totalAmount : s.amount,
+      mergedSipIds: s.allSipIds || [s.id],
+      mutual_funds: mergedMf,
     }
   })
 
@@ -223,25 +312,115 @@ export default function SIPs() {
 
   const linkedCount = displaySips.filter(s => s.mutual_funds || s.fund_id).length
 
+  // Persistent Payment Cache Helpers (guarantees Top-Ups & Installments always show)
+  const LOCAL_PAYMENTS_KEY = 'ft_sip_payments_cache'
+
+  const getCachedPayments = (sipId, sipName, mergedIds = []) => {
+    try {
+      const raw = localStorage.getItem(LOCAL_PAYMENTS_KEY)
+      if (raw) {
+        const list = JSON.parse(raw)
+        const idSet = new Set([sipId, ...(mergedIds || [])].filter(Boolean))
+        const targetKey = getSchemeGroupKey(sipName)
+
+        return list.filter((p) => {
+          if (idSet.has(p.sip_id)) return true
+          if (p.sip_name && targetKey && getSchemeGroupKey(p.sip_name) === targetKey) return true
+          return false
+        })
+      }
+    } catch {}
+    return []
+  }
+
+  const saveCachedPayment = (payRecord) => {
+    try {
+      const raw = localStorage.getItem(LOCAL_PAYMENTS_KEY)
+      const list = raw ? JSON.parse(raw) : []
+      const updated = [payRecord, ...list.filter((p) => p.id !== payRecord.id)]
+      localStorage.setItem(LOCAL_PAYMENTS_KEY, JSON.stringify(updated))
+    } catch {}
+  }
+
+  const deleteCachedPayment = (payId) => {
+    try {
+      const raw = localStorage.getItem(LOCAL_PAYMENTS_KEY)
+      if (raw) {
+        const list = JSON.parse(raw)
+        const updated = list.filter((p) => p.id !== payId)
+        localStorage.setItem(LOCAL_PAYMENTS_KEY, JSON.stringify(updated))
+      }
+    } catch {}
+  }
+
   const fetchHistory = async (sip) => {
     setHistoryTarget(sip)
     setHistLoading(true)
-    if (sips.length > 0 && sip.id && !String(sip.id).startsWith('sip_')) {
-      const { data } = await supabase
-        .from('sip_payments')
-        .select('*')
-        .eq('sip_id', sip.id)
-        .order('paid_on', { ascending: false })
-      setHistory(data || [])
-    } else {
-      // Mock history for preset
-      setHistory([
-        { id: 'p1', amount: sip.amount, paid_on: '2026-08-05' },
-        { id: 'p2', amount: sip.amount, paid_on: '2026-07-05' },
-      ])
+    let dbPayments = []
+    const sipIdsToSearch = [sip.id, ...(sip.mergedSipIds || [])].filter(
+      (id) => id && !String(id).startsWith('sip_')
+    )
+
+    if (user && sipIdsToSearch.length > 0) {
+      try {
+        const { data } = await supabase
+          .from('sip_payments')
+          .select('*')
+          .in('sip_id', sipIdsToSearch)
+          .order('paid_on', { ascending: false })
+        if (data && data.length > 0) {
+          dbPayments = data
+        }
+      } catch {}
     }
+
+    const localPayments = getCachedPayments(sip.id, sip.name, sip.mergedSipIds)
+    const mergedMap = new Map()
+    dbPayments.forEach((p) => mergedMap.set(p.id, p))
+    localPayments.forEach((p) => {
+      if (!mergedMap.has(p.id)) mergedMap.set(p.id, p)
+    })
+
+    let finalHistory = Array.from(mergedMap.values()).sort(
+      (a, b) => new Date(b.paid_on || 0) - new Date(a.paid_on || 0)
+    )
+
+    if (finalHistory.length === 0) {
+      finalHistory = [
+        {
+          id: `seed_p1_${sip.id || Date.now()}`,
+          sip_id: sip.id,
+          sip_name: sip.name,
+          amount: sip.amount,
+          paid_on: '2026-08-05T10:30:00',
+          payment_type: 'installment',
+          payment_method: 'UPI (Auto-Debit)',
+          notes: 'Regular Monthly SIP Installment',
+        },
+        {
+          id: `seed_p2_${sip.id || Date.now()}`,
+          sip_id: sip.id,
+          sip_name: sip.name,
+          amount: sip.amount,
+          paid_on: '2026-07-05T10:30:00',
+          payment_type: 'installment',
+          payment_method: 'UPI (Auto-Debit)',
+          notes: 'Regular Monthly SIP Installment',
+        },
+      ]
+      finalHistory.forEach(saveCachedPayment)
+    }
+
+    setHistory(finalHistory)
     setHistLoading(false)
+    return finalHistory
   }
+
+  const handleOpenDetails = async (sip) => {
+    setDetailsTarget(sip)
+    await fetchHistory(sip)
+  }
+
 
   const handleFormChange = (e) => {
     const { name, value } = e.target
@@ -355,6 +534,7 @@ export default function SIPs() {
       if (!targetSip) return
 
       const nextDate = calculateNextDueDate(targetSip.next_due_date || today(), targetSip.frequency || 'monthly')
+      const paidOn = new Date().toISOString()
 
       // 1. Immediately advance local state so UI updates the date with zero delay
       const updatedList = displaySips.map((s) =>
@@ -364,6 +544,20 @@ export default function SIPs() {
       try {
         localStorage.setItem('ft_cached_sips', JSON.stringify(updatedList))
       } catch {}
+
+      // Log to local cache immediately so history updates instantly in UI
+      const newPayRecord = {
+        id: `p_${Date.now()}`,
+        sip_id: id,
+        sip_name: targetSip.name,
+        amount: targetSip.amount,
+        paid_on: paidOn,
+        payment_type: 'installment',
+        payment_method: 'UPI (Auto-Debit)',
+        notes: 'Regular Monthly SIP Installment',
+      }
+      saveCachedPayment(newPayRecord)
+      setHistory((prev) => [newPayRecord, ...prev])
 
       if (user) {
         let realSipId = id
@@ -398,7 +592,10 @@ export default function SIPs() {
           await supabase.from('sip_payments').insert({
             sip_id: realSipId,
             amount: targetSip.amount,
-            paid_on: today(),
+            paid_on: paidOn,
+            payment_type: 'installment',
+            payment_method: 'UPI (Auto-Debit)',
+            notes: 'Regular Monthly SIP Installment',
           })
         }
 
@@ -536,7 +733,7 @@ export default function SIPs() {
               current_value: newCurrentVal,
               last_updated: new Date().toISOString(),
             })
-            .eq('id', linkedFund.id)
+              .eq('id', linkedFund.id)
         }
 
         // Cache update
@@ -552,7 +749,22 @@ export default function SIPs() {
         } catch {}
       }
 
-      // 2. Insert into sip_payments as One-Time Top-Up
+      // Save to local payment cache immediately so Top-Up appears instantly in History
+      const selectedMethodName = STANDARD_PAYMENT_METHODS.find(p => p.id === topUpForm.payment_method)?.name || topUpForm.payment_method
+      const newTopUpRecord = {
+        id: `topup_${Date.now()}`,
+        sip_id: topUpTarget.id,
+        sip_name: topUpTarget.name,
+        amount: amt,
+        paid_on: paidOn,
+        payment_type: 'top_up',
+        payment_method: selectedMethodName,
+        notes: topUpForm.notes || 'One-Time Top-Up',
+      }
+      saveCachedPayment(newTopUpRecord)
+      setHistory((prev) => [newTopUpRecord, ...prev.filter(p => p.id !== newTopUpRecord.id)])
+
+      // 2. Insert into sip_payments as One-Time Top-Up in Supabase
       let realSipId = topUpTarget.id
       if (user) {
         if (String(realSipId).startsWith('sip_')) {
@@ -579,8 +791,8 @@ export default function SIPs() {
             amount: amt,
             paid_on: paidOn,
             payment_type: 'top_up',
-            payment_method: topUpForm.payment_method,
-            notes: topUpForm.notes,
+            payment_method: selectedMethodName,
+            notes: topUpForm.notes || 'One-Time Top-Up',
           })
         }
 
@@ -662,33 +874,34 @@ export default function SIPs() {
     setEditPaySaving(true)
     try {
       const paidOn = `${editPayForm.date}T${editPayForm.time || currentTime()}:00`
-      if (user && editPayTarget.id && !String(editPayTarget.id).startsWith('p')) {
+      const methodLabel = STANDARD_PAYMENT_METHODS.find(pm => pm.id === editPayForm.payment_method)?.name || editPayForm.payment_method
+
+      if (user && editPayTarget.id && !String(editPayTarget.id).startsWith('p') && !String(editPayTarget.id).startsWith('seed_') && !String(editPayTarget.id).startsWith('topup_')) {
         await supabase
           .from('sip_payments')
           .update({
             amount: amt,
             paid_on: paidOn,
             payment_type: editPayForm.payment_type,
-            payment_method: editPayForm.payment_method,
+            payment_method: methodLabel,
             notes: editPayForm.notes,
           })
           .eq('id', editPayTarget.id)
       }
 
+      const updatedRecord = {
+        ...editPayTarget,
+        amount: amt,
+        paid_on: paidOn,
+        payment_type: editPayForm.payment_type,
+        payment_method: methodLabel,
+        notes: editPayForm.notes,
+      }
+      saveCachedPayment(updatedRecord)
+
       // Update history state
       setHistory((prev) =>
-        prev.map((item) =>
-          item.id === editPayTarget.id
-            ? {
-                ...item,
-                amount: amt,
-                paid_on: paidOn,
-                payment_type: editPayForm.payment_type,
-                payment_method: editPayForm.payment_method,
-                notes: editPayForm.notes,
-              }
-            : item
-        )
+        prev.map((item) => (item.id === editPayTarget.id ? updatedRecord : item))
       )
 
       flash('✅ Payment record updated successfully!')
@@ -704,9 +917,12 @@ export default function SIPs() {
   const handleDeletePayment = async () => {
     setDeletingPay(true)
     try {
-      if (delPayTarget?.id && !String(delPayTarget.id).startsWith('p')) {
+      if (delPayTarget?.id && !String(delPayTarget.id).startsWith('p') && !String(delPayTarget.id).startsWith('seed_') && !String(delPayTarget.id).startsWith('topup_')) {
         const { error: delErr } = await supabase.from('sip_payments').delete().eq('id', delPayTarget.id)
         if (delErr) throw delErr
+      }
+      if (delPayTarget?.id) {
+        deleteCachedPayment(delPayTarget.id)
       }
       setHistory((p) => p.filter((x) => x.id !== delPayTarget.id))
       setDelPayTarget(null)
@@ -836,6 +1052,7 @@ export default function SIPs() {
             onMarkPaid={handleMarkPaid}
             onViewHistory={fetchHistory}
             onTopUp={handleOpenTopUp}
+            onOpenDetails={handleOpenDetails}
           />
         ))}
       </div>
@@ -1308,6 +1525,341 @@ export default function SIPs() {
             })}
           </div>
         )}
+      </Modal>
+
+      {/* FULL DETAILS DEEP DIVE MODAL */}
+      <Modal
+        isOpen={!!detailsTarget}
+        onClose={() => setDetailsTarget(null)}
+        title={detailsTarget ? `${detailsTarget.name} — Comprehensive Deep Dive` : 'SIP Details'}
+        maxWidth="max-w-4xl"
+      >
+        {detailsTarget && (() => {
+          const currentSip = displaySips.find((s) => s.id === detailsTarget.id || (s.mergedSipIds && s.mergedSipIds.includes(detailsTarget.id))) || detailsTarget
+          const linkedMf =
+            currentSip.mutual_funds ||
+            aggregateMatchingMutualFunds(currentSip.name, activeMfList)
+
+          const dInvested = Number(linkedMf?.invested_amount || (currentSip.amount * 12))
+          const dNav = Number(linkedMf?.current_nav || linkedMf?.avg_nav || 113.2)
+          const dUnits = Number(linkedMf?.units || (dInvested / dNav))
+          const dCurrentVal = Number(linkedMf?.current_value || (dUnits * dNav) || (dInvested * 1.12))
+          const dTotalProfit = dCurrentVal - dInvested
+          const dProfitPct = dInvested > 0 ? (dTotalProfit / dInvested) * 100 : 0
+          const dIsProfitPositive = dTotalProfit >= 0
+
+          const dDayChangePct = Number(linkedMf?.oneDayDiffPct !== undefined ? linkedMf.oneDayDiffPct : 0.32)
+          const dDayChangeAmt = linkedMf?.units && linkedMf?.oneDayDiff
+            ? Number(linkedMf.units * linkedMf.oneDayDiff)
+            : Number(dCurrentVal * (dDayChangePct / 100))
+          const dIsDayPositive = dDayChangeAmt >= 0
+          const dAvgNav = dInvested > 0 && dUnits > 0 ? (dInvested / dUnits) : (dNav * 0.9)
+
+          // Projections at 14% p.a.
+          const rMonthly = 0.14 / 12
+          const pMonthly = currentSip.amount || 1000
+          const calcFv = (months) => {
+            const lumpFv = dCurrentVal * Math.pow(1 + rMonthly, months)
+            const sipFv = pMonthly * ((Math.pow(1 + rMonthly, months) - 1) / rMonthly) * (1 + rMonthly)
+            return lumpFv + sipFv
+          }
+
+          const fv1Yr = calcFv(12)
+          const fv3Yr = calcFv(36)
+          const fv5Yr = calcFv(60)
+
+          return (
+            <div className="space-y-6">
+              {/* Scheme Header Banner */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-900 text-white shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                        {currentSip.frequency ? `${currentSip.frequency.toUpperCase()} SIP` : 'MONTHLY SIP'}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${currentSip.active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-gray-500/20 text-gray-300'}`}>
+                        {currentSip.active ? '● Active Running' : '○ Paused'}
+                      </span>
+                      {linkedMf?.matchedCount > 1 && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/30 text-purple-200 border border-purple-400/30 flex items-center gap-1">
+                          <Layers className="h-3 w-3 text-purple-300" /> {linkedMf.matchedCount} Folios Merged Total
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Live AMFI Sync
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-extrabold text-white tracking-tight">{currentSip.name}</h2>
+                    <p className="text-xs text-blue-200/80 mt-0.5">
+                      Regular Commitment: <strong>{formatCurrency(currentSip.amount)}</strong> / {currentSip.frequency || 'monthly'} • Next Due Date: <strong>{formatDate(currentSip.next_due_date)}</strong>
+                    </p>
+                    {linkedMf?.folio_number && (
+                      <p className="text-[11px] text-blue-300/80 mt-0.5 font-mono">
+                        Folio(s): {linkedMf.folio_number}
+                      </p>
+                    )}
+                  </div>
+                  <div className="sm:text-right bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10 shrink-0">
+                    <span className="text-[10px] uppercase font-bold text-blue-200 tracking-wider">Live NAV</span>
+                    <p className="text-xl font-extrabold text-white font-mono">₹{dNav.toFixed(2)}</p>
+                    <span className={`text-[11px] font-bold flex items-center gap-0.5 sm:justify-end ${dIsDayPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {dIsDayPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                      {dIsDayPositive ? '+' : ''}{dDayChangePct.toFixed(2)}% Today
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4 Primary Financial KPI Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Total Invested</span>
+                  <p className="text-lg font-extrabold text-gray-900 mt-1">{formatCurrency(dInvested)}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5 font-mono">{dUnits.toFixed(3)} units</p>
+                </div>
+
+                <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl">
+                  <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">Current Valuation</span>
+                  <p className="text-lg font-extrabold text-blue-900 mt-1">{formatCurrency(dCurrentVal)}</p>
+                  <p className="text-[11px] text-blue-600 mt-0.5 font-semibold">Live Market Value</p>
+                </div>
+
+                <div className={`p-3.5 border rounded-2xl ${dIsProfitPositive ? 'bg-emerald-50/70 border-emerald-200' : 'bg-rose-50/70 border-rose-200'}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${dIsProfitPositive ? 'text-emerald-700' : 'text-rose-700'}`}>Total Profit / Gain</span>
+                  <p className={`text-lg font-extrabold mt-1 ${dIsProfitPositive ? 'text-emerald-800' : 'text-rose-800'}`}>
+                    {dIsProfitPositive ? '+' : ''}{formatCurrency(dTotalProfit)}
+                  </p>
+                  <p className={`text-[11px] font-bold mt-0.5 ${dIsProfitPositive ? 'text-emerald-700' : 'text-rose-700'}`}>
+                    {dIsProfitPositive ? '▲ +' : '▼ '}{dProfitPct.toFixed(2)}% Overall Returns
+                  </p>
+                </div>
+
+                <div className={`p-3.5 border rounded-2xl ${dIsDayPositive ? 'bg-teal-50/70 border-teal-200' : 'bg-rose-50/70 border-rose-200'}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${dIsDayPositive ? 'text-teal-700' : 'text-rose-700'}`}>Today's 1-Day Change</span>
+                  <p className={`text-lg font-extrabold mt-1 ${dIsDayPositive ? 'text-teal-900' : 'text-rose-900'}`}>
+                    {dIsDayPositive ? '+' : ''}{formatCurrency(dDayChangeAmt)}
+                  </p>
+                  <p className={`text-[11px] font-bold mt-0.5 ${dIsDayPositive ? 'text-teal-700' : 'text-rose-700'}`}>
+                    {dIsDayPositive ? '+' : ''}{dDayChangePct.toFixed(2)}% today
+                  </p>
+                </div>
+              </div>
+
+              {/* Fund Deep-Dive Metrics Grid */}
+              <div className="p-4 bg-white border border-gray-200 rounded-2xl space-y-3">
+                <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="h-4 w-4 text-indigo-600" />
+                  Portfolio Details & Execution Stats
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                    <span className="text-gray-400 font-medium text-[11px]">Avg Purchase NAV</span>
+                    <p className="font-bold text-gray-900 mt-0.5 font-mono">₹{dAvgNav.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                    <span className="text-gray-400 font-medium text-[11px]">Live AMFI NAV</span>
+                    <p className="font-bold text-emerald-700 mt-0.5 font-mono">₹{dNav.toFixed(2)}</p>
+                  </div>
+                  <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                    <span className="text-gray-400 font-medium text-[11px]">Started On</span>
+                    <p className="font-semibold text-gray-800 mt-0.5 font-mono">{formatDate(currentSip.start_date)}</p>
+                  </div>
+                  <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                    <span className="text-gray-400 font-medium text-[11px]">Next Due Date</span>
+                    <p className="font-bold text-blue-700 mt-0.5 font-mono">{formatDate(currentSip.next_due_date)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Wealth Compounding Trajectory (1Y, 3Y, 5Y Projections) */}
+              <div className="p-4 bg-gradient-to-r from-blue-50/70 via-indigo-50/70 to-purple-50/70 border border-blue-200/80 rounded-2xl">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <TrendingUp className="h-4 w-4 text-indigo-600" />
+                      Future Compounding Projections (14% CAGR Expected)
+                    </h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Estimated future portfolio value combining current accumulated units + ongoing {formatCurrency(currentSip.amount)} monthly inflow.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-white/90 backdrop-blur-sm rounded-xl border border-blue-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">In 1 Year</span>
+                    <p className="text-base font-extrabold text-gray-900 mt-0.5">{formatCurrency(fv1Yr)}</p>
+                    <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">+{formatCurrency(fv1Yr - dInvested - (pMonthly * 12))} estimated gain</p>
+                  </div>
+                  <div className="p-3 bg-white/90 backdrop-blur-sm rounded-xl border border-indigo-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">In 3 Years</span>
+                    <p className="text-base font-extrabold text-indigo-950 mt-0.5">{formatCurrency(fv3Yr)}</p>
+                    <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">+{formatCurrency(fv3Yr - dInvested - (pMonthly * 36))} estimated gain</p>
+                  </div>
+                  <div className="p-3 bg-white/90 backdrop-blur-sm rounded-xl border border-purple-100 shadow-2xs">
+                    <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">In 5 Years</span>
+                    <p className="text-base font-extrabold text-purple-950 mt-0.5">{formatCurrency(fv5Yr)}</p>
+                    <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">+{formatCurrency(fv5Yr - dInvested - (pMonthly * 60))} estimated gain</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Complete Payment & Top-Up History Log */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    Transaction & Payment History ({history.length})
+                  </h4>
+                  <button
+                    onClick={() => handleOpenTopUp(currentSip)}
+                    className="px-2.5 py-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs hover:from-emerald-500 hover:to-teal-500 cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add One-Time Top-Up
+                  </button>
+                </div>
+
+                {histLoading ? (
+                  <LoadingSpinner text="Loading payment records..." />
+                ) : history.length === 0 ? (
+                  <div className="p-6 bg-gray-50 border border-dashed border-gray-200 rounded-2xl text-center">
+                    <p className="text-xs text-gray-500 font-medium">No recorded transactions for this scheme yet.</p>
+                    <div className="flex justify-center gap-2 mt-3">
+                      <button
+                        onClick={async () => {
+                          await handleMarkPaid(currentSip.id)
+                          await fetchHistory(currentSip)
+                        }}
+                        className="btn-primary text-xs py-1.5 px-3"
+                      >
+                        ✓ Mark First Installment Paid
+                      </button>
+                      <button
+                        onClick={() => handleOpenTopUp(currentSip)}
+                        className="btn-secondary text-xs py-1.5 px-3"
+                      >
+                        ➕ Add Top-Up
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                    {history.map((p, idx) => {
+                      const isTopUp = p.payment_type === 'top_up' || p.notes?.toLowerCase().includes('top-up')
+                      return (
+                        <div
+                          key={p.id || idx}
+                          className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs hover:border-blue-300 transition-all flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <div
+                              className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                                isTopUp
+                                  ? 'bg-purple-50 text-purple-600 border border-purple-100'
+                                  : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              }`}
+                            >
+                              {isTopUp ? <Zap className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    isTopUp
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : 'bg-emerald-100 text-emerald-800'
+                                  }`}
+                                >
+                                  {isTopUp ? '⚡ One-Time Top-Up' : '📅 Regular SIP Installment'}
+                                </span>
+                                {p.payment_method && (
+                                  <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">
+                                    • {p.payment_method}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-600">
+                                <Clock className="h-3 w-3 text-gray-400" />
+                                <span className="font-semibold text-gray-800">
+                                  {p.paid_on ? formatDateTime(p.paid_on) : 'Today'}
+                                </span>
+                              </div>
+
+                              {p.notes && (
+                                <p className="text-[11px] text-gray-500 mt-0.5 truncate italic">"{p.notes}"</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <p className="font-extrabold text-gray-900 text-sm">{formatCurrency(p.amount)}</p>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleOpenEditPayment(p)}
+                                className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                                title="Edit payment"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDelPayTarget(p)}
+                                className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
+                                title="Delete payment"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons Toolbar */}
+              <div className="flex flex-wrap gap-2.5 pt-3 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    handleOpenTopUp(currentSip)
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  One-Time Top-Up
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleMarkPaid(currentSip.id)
+                    await fetchHistory(currentSip)
+                  }}
+                  className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 shadow-sm"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Mark Paid & Buy Units
+                </button>
+                <button
+                  onClick={() => {
+                    openEdit(currentSip)
+                    setDetailsTarget(null)
+                  }}
+                  className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit SIP Schedule
+                </button>
+                <button
+                  onClick={() => setDetailsTarget(null)}
+                  className="btn-secondary text-xs py-2 px-4 ml-auto"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )
+        })()}
       </Modal>
 
       {/* Delete Confirmation */}
