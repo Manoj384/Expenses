@@ -39,6 +39,8 @@ import ElectronicsLearnings from '../components/emc/ElectronicsLearnings'
 import EmcAiAssistant from '../components/emc/EmcAiAssistant'
 import EmcPdfViewerModal from '../components/emc/EmcPdfViewerModal'
 import { Cispr25Exact2021Chart } from '../components/emc/EmcLimitCharts'
+import { emcDatabaseService } from '../services/emcDatabaseService'
+
 
 // Comprehensive Data for ISO 11452 Series (Parts 1 to 11) Extracted from Official ISO Standards
 const ISO_11452_STANDARDS = [
@@ -523,10 +525,12 @@ export default function EmcStandards() {
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false)
 
   const handleViewPdf = (url, title) => {
-    setViewerPdfUrl(url)
+    const resolvedUrl = emcDatabaseService.resolvePdfUrl(url)
+    setViewerPdfUrl(resolvedUrl)
     setViewerPdfTitle(title)
     setIsPdfModalOpen(true)
   }
+
 
   // Open full-screen deep dive modal
   const handleOpenStandard = (std) => {

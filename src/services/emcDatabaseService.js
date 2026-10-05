@@ -200,4 +200,18 @@ export const emcDatabaseService = {
     localStorage.setItem(LOCAL_STORAGE_KEYS.TEST_RUNS, JSON.stringify(updated))
     return localRun
   },
+
+  /**
+   * Resolves a PDF filename or relative path to its Supabase Storage Public URL
+   */
+  resolvePdfUrl(filePathOrName) {
+    if (!filePathOrName) return ''
+    if (filePathOrName.startsWith('http://') || filePathOrName.startsWith('https://')) {
+      return filePathOrName
+    }
+    const cleanPath = filePathOrName.replace(/^\/?(pdfs\/)?/, '')
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ngizgizqlfufgfslszij.supabase.co'
+    return `${supabaseUrl}/storage/v1/object/public/emc-documents/${cleanPath}`
+  },
 }
+

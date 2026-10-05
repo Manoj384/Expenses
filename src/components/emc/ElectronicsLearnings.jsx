@@ -30,6 +30,8 @@ import {
   Ruler,
   ExternalLink,
 } from 'lucide-react'
+import { emcDatabaseService } from '../../services/emcDatabaseService'
+
 
 
 const SLIDES_MAP = {
@@ -2430,7 +2432,7 @@ export default function ElectronicsLearnings({ onViewPdf }) {
                   <button
                     onClick={() =>
                       onViewPdf(
-                        `/pdfs/${activeLesson.sourcePdf}`,
+                        emcDatabaseService.resolvePdfUrl(activeLesson.sourcePdf),
                         `${activeLesson.num}. ${activeLesson.title}`
                       )
                     }
