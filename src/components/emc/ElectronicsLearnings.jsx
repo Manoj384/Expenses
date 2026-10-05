@@ -257,7 +257,7 @@ const THEORY_ELECTRONICS_MODULES = [
     num: '01',
     courseId: 'theory',
     title: 'Atoms, Electric Charge & Electromagnetism',
-    sourcePdf: '02 - Current, Voltage and Power.pdf (Intro)',
+    sourcePdf: 'theory/02 - Current, Voltage and Power.pdf',
     tags: ['Atoms', 'Electrons', 'Protons', 'Charge (e)', 'Electromagnetism', 'Drift Velocity'],
     summary: 'The physical nature of electric charge, Coulomb attraction/repulsion, and how random electron hopping converts into directed current under electromotive force.',
     equations: [

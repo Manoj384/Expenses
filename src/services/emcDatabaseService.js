@@ -209,9 +209,49 @@ export const emcDatabaseService = {
     if (filePathOrName.startsWith('http://') || filePathOrName.startsWith('https://')) {
       return filePathOrName
     }
-    const cleanPath = filePathOrName.replace(/^\/?(pdfs\/)?/, '')
+
+    let cleanPath = filePathOrName.trim().replace(/^\/?(pdfs\/)?/, '')
+    cleanPath = cleanPath.replace(/\s*\([^)]*\)$/, '')
+
+    const THEORY_FILES = [
+      '02 - Current, Voltage and Power.pdf',
+      '03 - DC and AC - Two Good Friends.pdf',
+      '04 - Resistance - Join the resistance !.pdf',
+      '05 - Capacitance - Storing electrical energy.pdf',
+      '06 - Inductance - The magical magnetic field.pdf',
+      '07 - Semi-Conductors.pdf',
+      '08 - Basic Laws of Electric Circuits.pdf',
+    ]
+    const MICROWAVE_FILES = [
+      'Microwave+Introduction.pdf',
+      'Transmission+Lines.pdf',
+      'Scaterring+Parameters.pdf',
+      'Smith+Chart.pdf',
+      'Waveguides.pdf',
+      'Microwave+Diodes.pdf',
+      'Microwave+Sources.pdf',
+      'Microwave+Measurement.pdf',
+    ]
+    const ISO_PREFIXES = ['ISO-', 'ISO_', 'ISO-FDIS']
+
+    if (!cleanPath.includes('/')) {
+      if (THEORY_FILES.includes(cleanPath)) {
+        cleanPath = `theory/${cleanPath}`
+      } else if (MICROWAVE_FILES.includes(cleanPath)) {
+        cleanPath = `microwave/${cleanPath}`
+      } else if (ISO_PREFIXES.some((p) => cleanPath.startsWith(p))) {
+        cleanPath = `iso/${cleanPath}`
+      }
+    }
+
+    const encodedPath = cleanPath
+      .split('/')
+      .map((seg) => encodeURIComponent(seg))
+      .join('/')
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ngizgizqlfufgfslszij.supabase.co'
-    return `${supabaseUrl}/storage/v1/object/public/emc-documents/${cleanPath}`
+    return `${supabaseUrl}/storage/v1/object/public/emc-documents/${encodedPath}`
   },
 }
+
 
