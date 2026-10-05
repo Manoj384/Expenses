@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
-import { today } from '../utils/dateUtils'
-import { Paperclip, FileText, Image as ImageIcon, X, UploadCloud, Camera, Sparkles } from 'lucide-react'
+import { today, currentTime } from '../utils/dateUtils'
+import { Paperclip, FileText, Image as ImageIcon, X, UploadCloud, Camera, Sparkles, Clock } from 'lucide-react'
 import AiReceiptScannerModal from './AiReceiptScannerModal'
 
 const TRANSACTION_TYPES = [
@@ -22,6 +22,23 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
   const [error, setError] = useState('')
   const [showAiScanner, setShowAiScanner] = useState(false)
 
+  const initialTime = (() => {
+    if (editData?.time) return editData.time
+    if (editData?.created_at) {
+      try {
+        const d = new Date(editData.created_at)
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      } catch {}
+    }
+    if (editData?.id) {
+      try {
+        const saved = localStorage.getItem(`ft_tx_time_${editData.id}`)
+        if (saved) return saved
+      } catch {}
+    }
+    return currentTime()
+  })()
+
   const [form, setForm] = useState({
     type:              editData?.type              ?? 'expense',
     amount:            editData?.amount            ?? '',
@@ -29,6 +46,7 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
     payment_method_id: editData?.payment_method_id ?? '',
     note:              editData?.note              ?? '',
     date:              editData?.date              ?? today(),
+    time:              initialTime,
   })
 
   const [file, setFile] = useState(null)
@@ -173,6 +191,9 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
         }
       }
 
+      const finalTime = form.time || currentTime()
+      const combinedDateTime = new Date(`${form.date}T${finalTime}:00`).toISOString()
+
       const fullPayload = {
         user_id:           user.id,
         type:              form.type,
@@ -182,13 +203,14 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
         note:              form.note.trim() || null,
         receipt_url:       finalReceiptUrl || null,
         date:              form.date,
+        created_at:        combinedDateTime,
       }
 
       let res = editData?.id
         ? await supabase.from('transactions').update(fullPayload).eq('id', editData.id)
         : await supabase.from('transactions').insert(fullPayload).select()
 
-      // Fallback if receipt_url column is not in remote schema yet
+      // Fallback if receipt_url or created_at modification is rejected by schema cache
       if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column') || res.error.message?.includes('schema cache'))) {
         const basicPayload = {
           user_id:           user.id,
@@ -207,11 +229,13 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
 
       if (res.error) throw res.error
 
-      // Cache receipt URL in local storage shadow cache
       const savedId = editData?.id || res.data?.[0]?.id
-      if (savedId && finalReceiptUrl) {
+      if (savedId) {
         try {
-          localStorage.setItem(`ft_receipt_${savedId}`, finalReceiptUrl)
+          localStorage.setItem(`ft_tx_time_${savedId}`, finalTime)
+          if (finalReceiptUrl) {
+            localStorage.setItem(`ft_receipt_${savedId}`, finalReceiptUrl)
+          }
         } catch {}
       }
 
@@ -297,10 +321,19 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
         </select>
       </div>
 
-      {/* Date */}
-      <div>
-        <label className="label" htmlFor="date">Date</label>
-        <input id="date" name="date" type="date" className="input-field" value={form.date} onChange={handleChange} required />
+      {/* Date & Time */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label" htmlFor="date">Date</label>
+          <input id="date" name="date" type="date" className="input-field" value={form.date} onChange={handleChange} required />
+        </div>
+        <div>
+          <label className="label flex items-center gap-1" htmlFor="time">
+            <Clock className="h-3 w-3 text-gray-400" />
+            <span>Time</span>
+          </label>
+          <input id="time" name="time" type="time" className="input-field font-mono" value={form.time} onChange={handleChange} required />
+        </div>
       </div>
 
       {/* Note */}

@@ -26,3 +26,8 @@ dist/
 
 # Vite
 *.local
+
+# Binary documents & PDFs (stored in Supabase Storage)
+*.pdf
+public/pdfs/
+

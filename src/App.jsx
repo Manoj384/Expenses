@@ -29,6 +29,7 @@ const BillReminders = lazy(() => import('./pages/BillReminders'))
 const Reminders    = lazy(() => import('./pages/Reminders'))
 const AiCopilotPage = lazy(() => import('./pages/AiCopilotPage'))
 const FinancialPlanningPage = lazy(() => import('./pages/FinancialPlanningPage'))
+const EmcStandards = lazy(() => import('./pages/EmcStandards'))
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -81,6 +82,7 @@ function AppRoutes() {
         <Route path="/debts"              element={<ProtectedRoute><Debts /></ProtectedRoute>} />
         <Route path="/statements"         element={<ProtectedRoute><Statements /></ProtectedRoute>} />
         <Route path="/reports"            element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="/emc"                element={<ProtectedRoute><EmcStandards /></ProtectedRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

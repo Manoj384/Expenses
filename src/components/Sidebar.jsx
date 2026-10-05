@@ -40,6 +40,7 @@ import {
   Award,
   Flame,
   Skull,
+  Radio,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAdmin } from '../context/AdminContext'
@@ -63,6 +64,7 @@ const navItems = [
   { to: '/statements',    label: 'Statements (OCR)',      icon: FileSpreadsheet },
   { to: '/reports',       label: 'Reports & Visuals',     icon: BarChart2 },
   { to: '/past-expenses', label: 'Past Expenses',         icon: History },
+  { to: '/emc',           label: 'EMC Standards (ISO/CISPR)', icon: Radio },
 ]
 
 export default function Sidebar({

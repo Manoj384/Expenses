@@ -12,9 +12,10 @@ import {
   StretchHorizontal,
   Table,
   LayoutGrid,
+  Clock,
 } from 'lucide-react'
 import { formatCurrency } from '../utils/formatCurrency'
-import { formatDate } from '../utils/dateUtils'
+import { formatDate, formatTime } from '../utils/dateUtils'
 import ConfirmDialog from './ConfirmDialog'
 import EmptyState from './EmptyState'
 import ReceiptPreviewModal from './ReceiptPreviewModal'
@@ -103,7 +104,14 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
 
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400 mb-1">
           <span className="font-semibold text-gray-800 dark:text-slate-200 text-sm">{tx.categories?.name || 'Uncategorized'}</span>
-          <span>{formatDate(tx.date)}</span>
+          <span className="flex items-center gap-1 font-medium">
+            <span>{formatDate(tx.date)}</span>
+            {(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`)) && (
+              <span className="text-[11px] text-gray-400 dark:text-slate-500 font-mono">
+                • {formatTime(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`))}
+              </span>
+            )}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-2 mt-1">
@@ -280,7 +288,15 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
 
                   return (
                     <tr key={tx.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'} text-gray-700 dark:text-slate-300 whitespace-nowrap font-medium`}>{formatDate(tx.date)}</td>
+                      <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'} text-gray-700 dark:text-slate-300 whitespace-nowrap`}>
+                        <div className="font-medium text-gray-900 dark:text-slate-100">{formatDate(tx.date)}</div>
+                        {(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`)) && (
+                          <div className="text-[11px] text-gray-400 dark:text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                            <Clock className="h-2.5 w-2.5 text-gray-400 dark:text-slate-600 shrink-0" />
+                            <span>{formatTime(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`))}</span>
+                          </div>
+                        )}
+                      </td>
                       <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'}`}>
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-medium border capitalize ${TYPE_STYLES[tx.type] || 'bg-gray-100 text-gray-700'}`}>
                           {tx.type}

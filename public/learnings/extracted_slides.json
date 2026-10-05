@@ -1,0 +1,342 @@
+{
+  "th-01": [
+    {
+      "src": "/learnings/th-01_p2.png",
+      "caption": "Slide 2: Current, Voltage and"
+    },
+    {
+      "src": "/learnings/th-01_p3.png",
+      "caption": "Slide 3: Current"
+    },
+    {
+      "src": "/learnings/th-01_p4.png",
+      "caption": "Slide 4: Starting with Atoms\u2026(OMG!?)"
+    }
+  ],
+  "th-02": [
+    {
+      "src": "/learnings/th-02_p5.png",
+      "caption": "Slide 5: Atoms"
+    },
+    {
+      "src": "/learnings/th-02_p6.png",
+      "caption": "Slide 6: Electric Charge"
+    },
+    {
+      "src": "/learnings/th-02_p9.png",
+      "caption": "Slide 9: Electric Current"
+    },
+    {
+      "src": "/learnings/th-02_p12.png",
+      "caption": "Slide 12: Current in Circuit"
+    },
+    {
+      "src": "/learnings/th-02_p14.png",
+      "caption": "Slide 14: Voltage"
+    }
+  ],
+  "th-03": [
+    {
+      "src": "/learnings/th-03_p4.png",
+      "caption": "Slide 4: Direct Current (DC)"
+    },
+    {
+      "src": "/learnings/th-03_p5.png",
+      "caption": "Slide 5: DC Waveform"
+    },
+    {
+      "src": "/learnings/th-03_p9.png",
+      "caption": "Slide 9: Frequency"
+    },
+    {
+      "src": "/learnings/th-03_p13.png",
+      "caption": "Slide 13: Generating AC Waveforms"
+    },
+    {
+      "src": "/learnings/th-03_p15.png",
+      "caption": "Slide 15: AC Electric Power"
+    }
+  ],
+  "th-04": [
+    {
+      "src": "/learnings/th-04_p4.png",
+      "caption": "Slide 4: What\u2019s the Problem ?"
+    },
+    {
+      "src": "/learnings/th-04_p5.png",
+      "caption": "Slide 5: Resistive Heating"
+    },
+    {
+      "src": "/learnings/th-04_p8.png",
+      "caption": "Slide 8: Resistors"
+    },
+    {
+      "src": "/learnings/th-04_p10.png",
+      "caption": "Slide 10: Resistors Parameters"
+    },
+    {
+      "src": "/learnings/th-04_p14.png",
+      "caption": "Slide 14: Variable Resistors"
+    },
+    {
+      "src": "/learnings/th-04_p15.png",
+      "caption": "Slide 15: Variable resistor - Rheostat"
+    }
+  ],
+  "th-05": [
+    {
+      "src": "/learnings/th-05_p4.png",
+      "caption": "Slide 4: Capacitors"
+    },
+    {
+      "src": "/learnings/th-05_p6.png",
+      "caption": "Slide 6: Storing Energy with Electric Field"
+    },
+    {
+      "src": "/learnings/th-05_p9.png",
+      "caption": "Slide 9: RC - Time Constant"
+    },
+    {
+      "src": "/learnings/th-05_p12.png",
+      "caption": "Slide 12: Time Constant - RC"
+    },
+    {
+      "src": "/learnings/th-05_p16.png",
+      "caption": "Slide 16: Capacitors Parameters"
+    },
+    {
+      "src": "/learnings/th-05_p18.png",
+      "caption": "Slide 18: Aluminum and Tantalum Electrolytic"
+    }
+  ],
+  "th-06": [
+    {
+      "src": "/learnings/th-06_p4.png",
+      "caption": "Slide 4: Magnetic Fields"
+    },
+    {
+      "src": "/learnings/th-06_p6.png",
+      "caption": "Slide 6: Electromagnetism"
+    },
+    {
+      "src": "/learnings/th-06_p9.png",
+      "caption": "Slide 9: Current in\u2026"
+    },
+    {
+      "src": "/learnings/th-06_p12.png",
+      "caption": "Slide 12: Time varying Current"
+    },
+    {
+      "src": "/learnings/th-06_p15.png",
+      "caption": "Slide 15: Inductors"
+    },
+    {
+      "src": "/learnings/th-06_p17.png",
+      "caption": "Slide 17: RL - Time Constant"
+    }
+  ],
+  "th-07": [
+    {
+      "src": "/learnings/th-07_p4.png",
+      "caption": "Slide 4: What is Semi-Conductor ?"
+    },
+    {
+      "src": "/learnings/th-07_p5.png",
+      "caption": "Slide 5: Doping Silicon"
+    },
+    {
+      "src": "/learnings/th-07_p8.png",
+      "caption": "Slide 8: Diodes"
+    },
+    {
+      "src": "/learnings/th-07_p11.png",
+      "caption": "Slide 11: Transistors"
+    },
+    {
+      "src": "/learnings/th-07_p14.png",
+      "caption": "Slide 14: N"
+    },
+    {
+      "src": "/learnings/th-07_p17.png",
+      "caption": "Slide 17: Transistor Operating Modes"
+    }
+  ],
+  "th-08": [
+    {
+      "src": "/learnings/th-08_p4.png",
+      "caption": "Slide 4: Circuit Topology"
+    },
+    {
+      "src": "/learnings/th-08_p6.png",
+      "caption": "Slide 6: Circuit Topology"
+    },
+    {
+      "src": "/learnings/th-08_p7.png",
+      "caption": "Slide 7: Circuit Topology"
+    },
+    {
+      "src": "/learnings/th-08_p9.png",
+      "caption": "Slide 9: Resistors in Series and Parallel"
+    },
+    {
+      "src": "/learnings/th-08_p17.png",
+      "caption": "Slide 17: Ohm\u2019s Law"
+    },
+    {
+      "src": "/learnings/th-08_p22.png",
+      "caption": "Slide 22: The Junction Rule (KCL)"
+    },
+    {
+      "src": "/learnings/th-08_p24.png",
+      "caption": "Slide 24: The Closed Loop Rule (KVL)"
+    }
+  ],
+  "rf-01": [
+    {
+      "src": "/learnings/rf-01_p1.png",
+      "caption": "Slide 1: Microwave Frequency Bands"
+    },
+    {
+      "src": "/learnings/rf-01_p2.png",
+      "caption": "Slide 2: Advantages of Microwave"
+    }
+  ],
+  "rf-02": [
+    {
+      "src": "/learnings/rf-02_p1.png",
+      "caption": "Slide 1: Transmission Lines of Microwave"
+    },
+    {
+      "src": "/learnings/rf-02_p2.png",
+      "caption": "Slide 2: Coaxial Transmission Line"
+    },
+    {
+      "src": "/learnings/rf-02_p3.png",
+      "caption": "Slide 3: Microstrip Transmission Line"
+    },
+    {
+      "src": "/learnings/rf-02_p4.png",
+      "caption": "Slide 4: Equivalent Circuit of"
+    },
+    {
+      "src": "/learnings/rf-02_p6.png",
+      "caption": "Slide 6: Transmission Lines Equations"
+    }
+  ],
+  "rf-03": [
+    {
+      "src": "/learnings/rf-03_p1.png",
+      "caption": "Slide 1: Scattering Parameters"
+    },
+    {
+      "src": "/learnings/rf-03_p2.png",
+      "caption": "Slide 2: Why to use Scattering Parameters at Microwave Frequencies?"
+    },
+    {
+      "src": "/learnings/rf-03_p3.png",
+      "caption": "Slide 3: How to measure Scattering Parameters?"
+    },
+    {
+      "src": "/learnings/rf-03_p8.png",
+      "caption": "Slide 8: S Parameters of Four Port N/W"
+    }
+  ],
+  "rf-04": [
+    {
+      "src": "/learnings/rf-04_p1.png",
+      "caption": "Slide 1: Mathematics of Smit Chart"
+    },
+    {
+      "src": "/learnings/rf-04_p5.png",
+      "caption": "Slide 5: \u2751Case I: R & X are Infinite"
+    },
+    {
+      "src": "/learnings/rf-04_p6.png",
+      "caption": "Slide 6: \u2751Case II: R = 0"
+    },
+    {
+      "src": "/learnings/rf-04_p7.png",
+      "caption": "Slide 7: \u2751Case III: X = 0"
+    },
+    {
+      "src": "/learnings/rf-04_p10.png",
+      "caption": "Slide 10: Find following parameters from smith chart"
+    }
+  ],
+  "rf-05": [
+    {
+      "src": "/learnings/rf-05_p1.png",
+      "caption": "Slide 1: Tx Lines Vs Waveguides"
+    },
+    {
+      "src": "/learnings/rf-05_p2.png",
+      "caption": "Slide 2: Parameters"
+    },
+    {
+      "src": "/learnings/rf-05_p3.png",
+      "caption": "Slide 3: Fundamentals of Waveguides"
+    },
+    {
+      "src": "/learnings/rf-05_p5.png",
+      "caption": "Slide 5: Types of Waveguides"
+    },
+    {
+      "src": "/learnings/rf-05_p6.png",
+      "caption": "Slide 6: Why TEM Mode Can not Propagated"
+    }
+  ],
+  "rf-06": [
+    {
+      "src": "/learnings/rf-06_p1.png",
+      "caption": "Slide 1: Varactor Diode"
+    },
+    {
+      "src": "/learnings/rf-06_p2.png",
+      "caption": "Slide 2: Working & Characteristics of Varactor Diode"
+    },
+    {
+      "src": "/learnings/rf-06_p6.png",
+      "caption": "Slide 6: Schottky Diode"
+    },
+    {
+      "src": "/learnings/rf-06_p13.png",
+      "caption": "Slide 13: IMPATT Diode"
+    }
+  ],
+  "rf-07": [
+    {
+      "src": "/learnings/rf-07_p1.png",
+      "caption": "Slide 1: Reflex Klystron"
+    },
+    {
+      "src": "/learnings/rf-07_p2.png",
+      "caption": "Slide 2: Structure of Reflex Klystron"
+    },
+    {
+      "src": "/learnings/rf-07_p5.png",
+      "caption": "Slide 5: Performance Parameters of Reflex Klystron"
+    },
+    {
+      "src": "/learnings/rf-07_p11.png",
+      "caption": "Slide 11: Magnetron Oscillator"
+    }
+  ],
+  "rf-08": [
+    {
+      "src": "/learnings/rf-08_p1.png",
+      "caption": "Slide 1: EMI and EMC"
+    },
+    {
+      "src": "/learnings/rf-08_p2.png",
+      "caption": "Slide 2: EMC Classes"
+    },
+    {
+      "src": "/learnings/rf-08_p4.png",
+      "caption": "Slide 4: EMC Methods"
+    },
+    {
+      "src": "/learnings/rf-08_p7.png",
+      "caption": "Slide 7: Microwave Test Bench Setup"
+    }
+  ]
+}

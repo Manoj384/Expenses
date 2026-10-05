@@ -103,3 +103,47 @@ export function daysUntil(dateStr) {
   const diff = parseLocalDate(dateStr) - parseLocalDate(today())
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
+
+/**
+ * Get current time in HH:mm format (24-hour)
+ */
+export function currentTime() {
+  const d = new Date()
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+/**
+ * Format a time string (HH:mm, HH:mm:ss, or ISO timestamp) to readable 12-hour format (e.g. 02:30 PM)
+ */
+export function formatTime(timeOrIso) {
+  if (!timeOrIso) return ''
+  try {
+    if (typeof timeOrIso === 'string') {
+      const match = timeOrIso.match(/^(\d{1,2}):(\d{2})/)
+      if (match) {
+        let h = parseInt(match[1], 10)
+        const m = match[2]
+        const period = h >= 12 ? 'PM' : 'AM'
+        h = h % 12 || 12
+        return `${String(h).padStart(2, '0')}:${m} ${period}`
+      }
+    }
+    const d = new Date(timeOrIso)
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+    }
+  } catch {}
+  return String(timeOrIso)
+}
+
+/**
+ * Format a date and time combination
+ */
+export function formatDateTime(dateStr, timeStr) {
+  const dFormatted = formatDate(dateStr)
+  const tFormatted = formatTime(timeStr)
+  if (dFormatted && tFormatted) return `${dFormatted}, ${tFormatted}`
+  return dFormatted || tFormatted || ''
+}

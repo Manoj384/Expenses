@@ -8,7 +8,7 @@ import SkeletonPage from '../components/SkeletonLoader'
 import EmptyState from '../components/EmptyState'
 import PwaInstallBanner from '../components/PwaInstallBanner'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
-import { formatDate, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../utils/dateUtils'
+import { formatDate, formatTime, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../utils/dateUtils'
 import { frequencyLabel } from '../utils/sipUtils'
 import pastData from '../data/past_expenses.json'
 import defaultSips from '../data/default_sips.json'
@@ -447,8 +447,11 @@ export default function Dashboard() {
                       <p className="text-sm text-gray-800 font-medium truncate">
                         {tx.categories?.name || tx.note || 'Uncategorized'}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
                         <span>{formatDate(tx.date)}</span>
+                        {(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`)) && (
+                          <span>• {formatTime(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`))}</span>
+                        )}
                         {tx.payment_methods?.name && (
                           <span>• {tx.payment_methods.name}</span>
                         )}
