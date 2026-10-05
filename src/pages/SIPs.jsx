@@ -8,14 +8,38 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import EmptyState from '../components/EmptyState'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { formatCurrency } from '../utils/formatCurrency'
-import { formatDate, today } from '../utils/dateUtils'
+import { formatDate, formatTime, formatDateTime, today, currentTime } from '../utils/dateUtils'
 import { calculateNextDueDate } from '../utils/sipUtils'
 import defaultSips from '../data/default_sips.json'
 import savedGrowwData from '../data/groww_holdings.json'
 import { enrichFundsWithCachedNavs } from '../utils/mfApi'
-import { Plus, Trash2, Layers, CheckCircle2, Sparkles, CloudUpload } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  Layers,
+  CheckCircle2,
+  Sparkles,
+  CloudUpload,
+  Clock,
+  Pencil,
+  Calendar,
+  Banknote,
+  Smartphone,
+  CreditCard,
+  Building2,
+  ArrowUpRight,
+  Zap,
+} from 'lucide-react'
 
 const FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'yearly']
+const STANDARD_PAYMENT_METHODS = [
+  { id: 'upi', name: 'UPI (GPay / PhonePe / Paytm)' },
+  { id: 'netbanking', name: 'Net Banking (IMPS / NEFT)' },
+  { id: 'salary_account', name: 'Salary Account Transfer' },
+  { id: 'debit_card', name: 'Debit Card' },
+  { id: 'cash', name: 'Cash / Manual Deposit' },
+]
+
 const emptyForm = { name: '', amount: '', frequency: 'monthly', start_date: today(), fund_id: '' }
 
 export default function SIPs() {
@@ -47,6 +71,32 @@ export default function SIPs() {
   const [formErr, setFormErr] = useState('')
   const [delPayTarget, setDelPayTarget] = useState(null)
   const [deletingPay, setDeletingPay] = useState(false)
+
+  // One-Time Top-Up State
+  const [topUpTarget, setTopUpTarget] = useState(null)
+  const [topUpForm, setTopUpForm] = useState({
+    amount: '',
+    date: today(),
+    time: currentTime(),
+    payment_method: 'upi',
+    notes: '',
+  })
+  const [topUpSaving, setTopUpSaving] = useState(false)
+  const [topUpErr, setTopUpErr] = useState('')
+
+  // Edit Payment State
+  const [editPayTarget, setEditPayTarget] = useState(null)
+  const [editPayForm, setEditPayForm] = useState({
+    amount: '',
+    date: today(),
+    time: currentTime(),
+    payment_type: 'installment',
+    payment_method: 'upi',
+    notes: '',
+  })
+  const [editPaySaving, setEditPaySaving] = useState(false)
+  const [editPayErr, setEditPayErr] = useState('')
+
 
   const flash = (msg) => {
     setSuccess(msg)
@@ -435,10 +485,226 @@ export default function SIPs() {
     }
   }
 
+  // Open One-Time Top-Up Modal
+  const handleOpenTopUp = (sip) => {
+    setTopUpTarget(sip)
+    setTopUpForm({
+      amount: '',
+      date: today(),
+      time: currentTime(),
+      payment_method: 'upi',
+      notes: '',
+    })
+    setTopUpErr('')
+  }
+
+  // Handle Save One-Time Top-Up (Lump-Sum into existing SIP Fund)
+  const handleSaveTopUp = async (e) => {
+    e.preventDefault()
+    setTopUpErr('')
+    const amt = Number(topUpForm.amount)
+    if (!amt || amt <= 0) {
+      setTopUpErr('Please enter a valid one-time top-up amount greater than 0.')
+      return
+    }
+    setTopUpSaving(true)
+    try {
+      const paidOn = `${topUpForm.date}T${topUpForm.time || currentTime()}:00`
+      const linkedFund =
+        topUpTarget.mutual_funds ||
+        mutualFunds.find((m) =>
+          m.scheme_name.toLowerCase().includes(topUpTarget.name.split(' ')[0].toLowerCase())
+        )
+
+      // 1. Calculate & credit units at live NAV
+      if (linkedFund) {
+        const nav = Number(linkedFund.current_nav || linkedFund.avg_nav || 100)
+        const unitsBought = nav > 0 ? amt / nav : 0
+        const currentUnits = Number(linkedFund.units || 0)
+        const currentInvested = Number(linkedFund.invested_amount || 0)
+
+        const newUnits = parseFloat((currentUnits + unitsBought).toFixed(3))
+        const newInvested = currentInvested + amt
+        const newCurrentVal = parseFloat((newUnits * nav).toFixed(2))
+
+        if (user && linkedFund.id && !String(linkedFund.id).startsWith('sip_')) {
+          await supabase
+            .from('mutual_funds')
+            .update({
+              units: newUnits,
+              invested_amount: newInvested,
+              current_value: newCurrentVal,
+              last_updated: new Date().toISOString(),
+            })
+            .eq('id', linkedFund.id)
+        }
+
+        // Cache update
+        try {
+          const cachedMfs = JSON.parse(localStorage.getItem('ft_cached_mutual_funds') || '[]')
+          const updatedMfs = cachedMfs.map((m) => {
+            if (m.id === linkedFund.id || m.scheme_name === linkedFund.scheme_name) {
+              return { ...m, units: newUnits, invested_amount: newInvested, current_value: newCurrentVal }
+            }
+            return m
+          })
+          localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(updatedMfs))
+        } catch {}
+      }
+
+      // 2. Insert into sip_payments as One-Time Top-Up
+      let realSipId = topUpTarget.id
+      if (user) {
+        if (String(realSipId).startsWith('sip_')) {
+          const { data: insData } = await supabase
+            .from('sips')
+            .insert([
+              {
+                user_id: user.id,
+                name: topUpTarget.name,
+                amount: topUpTarget.amount,
+                frequency: topUpTarget.frequency,
+                start_date: topUpTarget.start_date || today(),
+                next_due_date: topUpTarget.next_due_date,
+                active: true,
+              },
+            ])
+            .select()
+          if (insData && insData[0]) realSipId = insData[0].id
+        }
+
+        if (realSipId && !String(realSipId).startsWith('sip_')) {
+          await supabase.from('sip_payments').insert({
+            sip_id: realSipId,
+            amount: amt,
+            paid_on: paidOn,
+            payment_type: 'top_up',
+            payment_method: topUpForm.payment_method,
+            notes: topUpForm.notes,
+          })
+        }
+
+        // 3. Insert transaction
+        const [catsRes, pmsRes] = await Promise.all([
+          supabase.from('categories').select('id, name').eq('user_id', user.id),
+          supabase.from('payment_methods').select('id, name').eq('user_id', user.id),
+        ])
+        const investmentCat = (catsRes.data || []).find((c) =>
+          c.name.toLowerCase().includes('invest') || c.name.toLowerCase().includes('sip')
+        )
+        const matchedCatId = investmentCat?.id || catsRes.data?.[0]?.id || null
+        const matchedPm = (pmsRes.data || []).find((p) =>
+          p.name.toLowerCase().includes(topUpForm.payment_method.toLowerCase())
+        )
+        const matchedPmId = matchedPm?.id || pmsRes.data?.[0]?.id || null
+
+        await supabase.from('transactions').insert({
+          user_id: user.id,
+          type: 'expense',
+          amount: amt,
+          date: paidOn,
+          note: `SIP One-Time Top-Up: ${topUpTarget.name}${topUpForm.notes ? ` (${topUpForm.notes})` : ''}`,
+          category_id: matchedCatId,
+          payment_method_id: matchedPmId,
+        })
+
+        window.dispatchEvent(new CustomEvent('transaction-updated'))
+        window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
+      }
+
+      flash(`🎉 One-Time Top-Up of ${formatCurrency(amt)} successfully invested into ${topUpTarget.name}! Units credited at live NAV.`)
+      setTopUpTarget(null)
+      await fetchSipsAndFunds()
+    } catch (err) {
+      console.warn('Top-up error:', err)
+      setTopUpErr('Failed to record top-up. Please try again.')
+    } finally {
+      setTopUpSaving(false)
+    }
+  }
+
+  // Open Edit Payment Record Modal
+  const handleOpenEditPayment = (p) => {
+    let d = today()
+    let t = currentTime()
+    if (p.paid_on) {
+      try {
+        if (p.paid_on.includes('T')) {
+          const [dPart, tPart] = p.paid_on.split('T')
+          d = dPart
+          t = tPart.substring(0, 5)
+        } else {
+          d = p.paid_on
+        }
+      } catch {}
+    }
+    setEditPayTarget(p)
+    setEditPayForm({
+      amount: p.amount || '',
+      date: d,
+      time: t,
+      payment_type: p.payment_type || (p.notes?.includes('Top-Up') ? 'top_up' : 'installment'),
+      payment_method: p.payment_method || 'upi',
+      notes: p.notes || '',
+    })
+    setEditPayErr('')
+  }
+
+  // Save Edit Payment Record
+  const handleSaveEditPayment = async (e) => {
+    e.preventDefault()
+    if (!editPayTarget) return
+    const amt = Number(editPayForm.amount)
+    if (!amt || amt <= 0) {
+      setEditPayErr('Please enter a valid amount > 0.')
+      return
+    }
+    setEditPaySaving(true)
+    try {
+      const paidOn = `${editPayForm.date}T${editPayForm.time || currentTime()}:00`
+      if (user && editPayTarget.id && !String(editPayTarget.id).startsWith('p')) {
+        await supabase
+          .from('sip_payments')
+          .update({
+            amount: amt,
+            paid_on: paidOn,
+            payment_type: editPayForm.payment_type,
+            payment_method: editPayForm.payment_method,
+            notes: editPayForm.notes,
+          })
+          .eq('id', editPayTarget.id)
+      }
+
+      // Update history state
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.id === editPayTarget.id
+            ? {
+                ...item,
+                amount: amt,
+                paid_on: paidOn,
+                payment_type: editPayForm.payment_type,
+                payment_method: editPayForm.payment_method,
+                notes: editPayForm.notes,
+              }
+            : item
+        )
+      )
+
+      flash('✅ Payment record updated successfully!')
+      setEditPayTarget(null)
+    } catch (err) {
+      console.warn('Edit payment error:', err)
+      setEditPayErr('Unable to update payment record.')
+    } finally {
+      setEditPaySaving(false)
+    }
+  }
+
   const handleDeletePayment = async () => {
     setDeletingPay(true)
     try {
-      if (delPayTarget?.id && !delPayTarget.id.startsWith('p')) {
+      if (delPayTarget?.id && !String(delPayTarget.id).startsWith('p')) {
         const { error: delErr } = await supabase.from('sip_payments').delete().eq('id', delPayTarget.id)
         if (delErr) throw delErr
       }
@@ -451,6 +717,7 @@ export default function SIPs() {
       setDeletingPay(false)
     }
   }
+
 
   // 1-Click Sync Excel SIPs into Supabase
   const handleSyncExcelSipsToDb = async () => {
@@ -568,11 +835,12 @@ export default function SIPs() {
             onDelete={handleDelete}
             onMarkPaid={handleMarkPaid}
             onViewHistory={fetchHistory}
+            onTopUp={handleOpenTopUp}
           />
         ))}
       </div>
 
-      {/* Add / Edit SIP Modal */}
+      {/* Add / Edit Recurring SIP Modal */}
       <Modal
         isOpen={showAdd}
         onClose={() => {
@@ -690,38 +958,354 @@ export default function SIPs() {
         </form>
       </Modal>
 
-      {/* Payment History Modal */}
+      {/* ONE-TIME TOP-UP MODAL */}
+      <Modal
+        isOpen={!!topUpTarget}
+        onClose={() => setTopUpTarget(null)}
+        title={`One-Time Top-Up — ${topUpTarget?.name || 'Fund'}`}
+      >
+        {topUpTarget && (
+          <form onSubmit={handleSaveTopUp} className="space-y-4">
+            {topUpErr && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+                {topUpErr}
+              </div>
+            )}
+
+            {/* Scheme & Live NAV Info Card */}
+            <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 rounded-xl flex items-center justify-between text-xs">
+              <div>
+                <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Fund Scheme</span>
+                <p className="font-bold text-gray-900 mt-0.5">{topUpTarget.name}</p>
+                <p className="text-[11px] text-emerald-800 font-medium mt-0.5">
+                  Regular Recurring: {formatCurrency(topUpTarget.amount)}/{topUpTarget.frequency}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Live NAV</span>
+                <p className="font-mono font-bold text-emerald-800 text-sm mt-0.5">
+                  ₹{parseFloat(topUpTarget.mutual_funds?.current_nav || topUpTarget.mutual_funds?.avg_nav || 100).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {/* Top-Up Amount */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">
+                One-Time Top-Up Amount (₹) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">₹</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  required
+                  autoFocus
+                  placeholder="e.g. 5000"
+                  className="w-full pl-8 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-emerald-500"
+                  value={topUpForm.amount}
+                  onChange={(e) => setTopUpForm((p) => ({ ...p, amount: e.target.value }))}
+                />
+              </div>
+              {Number(topUpForm.amount) > 0 && (
+                <div className="mt-1.5 flex items-center justify-between text-[11px] text-emerald-700 font-medium px-1">
+                  <span>Estimated units to credit:</span>
+                  <span className="font-mono font-bold">
+                    +{(
+                      Number(topUpForm.amount) /
+                      (Number(topUpTarget.mutual_funds?.current_nav || topUpTarget.mutual_funds?.avg_nav || 100))
+                    ).toFixed(3)}{' '}
+                    units
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Method */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Method</label>
+              <select
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-emerald-500"
+                value={topUpForm.payment_method}
+                onChange={(e) => setTopUpForm((p) => ({ ...p, payment_method: e.target.value }))}
+              >
+                {STANDARD_PAYMENT_METHODS.map((pm) => (
+                  <option key={pm.id} value={pm.id}>{pm.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date & Time (Auto-Recorded) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Date</label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    required
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-emerald-500"
+                    value={topUpForm.date}
+                    onChange={(e) => setTopUpForm((p) => ({ ...p, date: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center justify-between">
+                  <span>Time</span>
+                  <span className="text-[10px] text-emerald-600 font-normal">Auto-recorded</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="time"
+                    required
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-emerald-500 font-mono"
+                    value={topUpForm.time}
+                    onChange={(e) => setTopUpForm((p) => ({ ...p, time: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Optional Notes */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Notes / Reason (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Bonus lump-sum investment, Market dip buy"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:ring-2 focus:ring-emerald-500"
+                value={topUpForm.notes}
+                onChange={(e) => setTopUpForm((p) => ({ ...p, notes: e.target.value }))}
+              />
+            </div>
+
+            <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-blue-700 flex items-start gap-2">
+              <Sparkles className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <span>
+                <strong>Note:</strong> This one-time top-up will buy units at the live NAV immediately without advancing your regular scheduled due date.
+              </span>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={topUpSaving}
+                className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <Zap className="h-4 w-4" />
+                {topUpSaving ? 'Processing Top-Up...' : 'Confirm One-Time Top-Up'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTopUpTarget(null)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* EDIT PAYMENT RECORD MODAL */}
+      <Modal
+        isOpen={!!editPayTarget}
+        onClose={() => setEditPayTarget(null)}
+        title="Edit Payment Record"
+      >
+        {editPayTarget && (
+          <form onSubmit={handleSaveEditPayment} className="space-y-4">
+            {editPayErr && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl">
+                {editPayErr}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Amount (₹)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">₹</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  required
+                  className="w-full pl-8 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 focus:ring-2 focus:ring-blue-500"
+                  value={editPayForm.amount}
+                  onChange={(e) => setEditPayForm((p) => ({ ...p, amount: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Type</label>
+                <select
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800"
+                  value={editPayForm.payment_type}
+                  onChange={(e) => setEditPayForm((p) => ({ ...p, payment_type: e.target.value }))}
+                >
+                  <option value="installment">SIP Installment</option>
+                  <option value="top_up">One-Time Top-Up</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Payment Method</label>
+                <select
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800"
+                  value={editPayForm.payment_method}
+                  onChange={(e) => setEditPayForm((p) => ({ ...p, payment_method: e.target.value }))}
+                >
+                  {STANDARD_PAYMENT_METHODS.map((pm) => (
+                    <option key={pm.id} value={pm.id}>{pm.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Date</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800"
+                  value={editPayForm.date}
+                  onChange={(e) => setEditPayForm((p) => ({ ...p, date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Time</label>
+                <input
+                  type="time"
+                  required
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800 font-mono"
+                  value={editPayForm.time}
+                  onChange={(e) => setEditPayForm((p) => ({ ...p, time: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Notes (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Cleared through auto-debit"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium text-gray-800"
+                value={editPayForm.notes}
+                onChange={(e) => setEditPayForm((p) => ({ ...p, notes: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={editPaySaving}
+                className="btn-primary flex-1 text-xs"
+              >
+                {editPaySaving ? 'Saving Changes...' : 'Save Changes'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditPayTarget(null)}
+                className="btn-secondary text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* PAYMENT HISTORY MODAL (WITH DATE, TIME, EDIT & DELETE) */}
       <Modal
         isOpen={!!historyTarget}
         onClose={() => {
           setHistoryTarget(null)
           setHistory([])
         }}
-        title={`Payment Records — ${historyTarget?.name}`}
+        title={`Payment History — ${historyTarget?.name || 'SIP'}`}
       >
         {histLoading ? (
-          <LoadingSpinner text="Loading history..." />
+          <LoadingSpinner text="Loading payment records..." />
         ) : history.length === 0 ? (
-          <EmptyState title="No payments recorded" description="Mark this SIP as paid to log payment history." />
+          <EmptyState
+            title="No payments recorded"
+            description="Payments made via 'Mark Paid' or 'One-Time Top-Up' will appear here with timestamps."
+          />
         ) : (
-          <div className="space-y-2">
-            {history.map((p, idx) => (
-              <div key={p.id || idx} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
-                <div>
-                  <p className="text-xs font-semibold text-gray-800">{formatDate(p.paid_on)}</p>
-                  <p className="text-[10px] text-emerald-600 font-medium">Installment Cleared</p>
+          <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+            {history.map((p, idx) => {
+              const isTopUp = p.payment_type === 'top_up' || p.notes?.toLowerCase().includes('top-up')
+              return (
+                <div
+                  key={p.id || idx}
+                  className="p-3 bg-white border border-gray-100 rounded-xl shadow-2xs hover:border-gray-200 transition-all flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div
+                      className={`p-2 rounded-xl shrink-0 mt-0.5 ${
+                        isTopUp
+                          ? 'bg-purple-50 text-purple-600 border border-purple-100'
+                          : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                      }`}
+                    >
+                      {isTopUp ? <Zap className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            isTopUp
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                          }`}
+                        >
+                          {isTopUp ? '⚡ One-Time Top-Up' : '📅 SIP Installment'}
+                        </span>
+                        {p.payment_method && (
+                          <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">
+                            • {p.payment_method}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Date and Time */}
+                      <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-600">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        <span className="font-semibold text-gray-800">
+                          {p.paid_on ? formatDateTime(p.paid_on) : 'Today'}
+                        </span>
+                      </div>
+
+                      {p.notes && (
+                        <p className="text-[11px] text-gray-500 mt-0.5 truncate italic">"{p.notes}"</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <p className="font-bold text-gray-900 text-sm">{formatCurrency(p.amount)}</p>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditPayment(p)}
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Edit payment"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDelPayTarget(p)}
+                        className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
+                        title="Delete payment"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <p className="font-bold text-gray-900 text-sm">{formatCurrency(p.amount)}</p>
-                  <button
-                    onClick={() => setDelPayTarget(p)}
-                    className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </Modal>
@@ -730,7 +1314,7 @@ export default function SIPs() {
       <ConfirmDialog
         isOpen={!!delPayTarget}
         title="Delete Payment Record"
-        message="Delete this payment record? The next due date will not be changed."
+        message="Are you sure you want to delete this payment record? This action will remove the entry from your history."
         confirmText="Delete"
         loading={deletingPay}
         onConfirm={handleDeletePayment}
@@ -739,3 +1323,4 @@ export default function SIPs() {
     </Layout>
   )
 }
+

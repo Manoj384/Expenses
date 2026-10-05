@@ -14,11 +14,13 @@ import {
   ExternalLink,
   Layers,
   Target,
+  Plus,
 } from 'lucide-react'
 import ConfirmDialog from './ConfirmDialog'
 
-export default function SipCard({ sip, onEdit, onDelete, onMarkPaid, onViewHistory }) {
+export default function SipCard({ sip, onEdit, onDelete, onMarkPaid, onViewHistory, onTopUp }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
+
   const [deleting, setDeleting] = useState(false)
   const [paying, setPaying] = useState(false)
 
@@ -138,6 +140,17 @@ export default function SipCard({ sip, onEdit, onDelete, onMarkPaid, onViewHisto
           <CheckCircle className="h-3.5 w-3.5" />
           {paying ? 'Processing...' : 'Mark Paid & Buy Units'}
         </button>
+        {onTopUp && (
+          <button
+            onClick={() => onTopUp(sip)}
+            className="px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+            title="Invest a custom one-time lumpsum amount into this fund"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            One-Time Top-Up
+          </button>
+        )}
+
         <button
           onClick={() => onViewHistory(sip)}
           className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
