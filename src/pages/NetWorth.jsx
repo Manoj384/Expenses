@@ -71,7 +71,7 @@ export default function NetWorth() {
       const cached = localStorage.getItem('ft_cached_mutual_funds')
       if (cached) {
         const parsed = JSON.parse(cached)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
           const enriched = enrichFundsWithCachedNavs(parsed)
           return enriched.reduce((s, f) => s + parseFloat(f.current_value || (f.units * f.current_nav) || 0), 0)
         }
@@ -102,7 +102,12 @@ export default function NetWorth() {
     try {
       // 1. Fetch MF Total
       const { data: mfData } = await supabase.from('mutual_funds').select('*').eq('user_id', user.id)
-      const activeMf = (mfData && mfData.length > 0) ? mfData : savedGrowwData
+      let activeMf = (mfData && mfData.length > 0) ? mfData : []
+      if (activeMf.length < savedGrowwData.length) {
+        const existingFolios = new Set(activeMf.map((f) => f.folio_number).filter(Boolean))
+        const missingHoldings = savedGrowwData.filter((h) => !existingFolios.has(h.folio_number))
+        activeMf = [...activeMf, ...missingHoldings]
+      }
       const enrichedMf = enrichFundsWithCachedNavs(activeMf)
       const total = enrichedMf.reduce((s, f) => s + parseFloat(f.current_value || (f.units * f.current_nav) || f.invested_amount || 0), 0)
       setMutualFundsTotal(total)

@@ -15,11 +15,12 @@ export default function CapitalGainsModal({ isOpen, onClose, funds = [] }) {
 
   let totInv = 0, totVal = 0, ltcgGain = 0, stcgGain = 0
 
-  const items = funds.map((f) => {
+  const items = funds.map((f, i) => {
     const inv = parseFloat(f.invested_amount || 0)
     const val = parseFloat(f.current_value || (f.units * f.current_nav) || 0)
     const gain = val - inv
-    const hMode = mode === 'custom' ? (customMap[f.scheme_name] || 'ltcg') : mode
+    const itemKey = f.folio_number || f.id || `${f.scheme_name}_${i}`
+    const hMode = mode === 'custom' ? (customMap[itemKey] || 'ltcg') : mode
 
     totInv += inv
     totVal += val
@@ -27,7 +28,7 @@ export default function CapitalGainsModal({ isOpen, onClose, funds = [] }) {
       if (hMode === 'ltcg') ltcgGain += gain
       else stcgGain += gain
     }
-    return { ...f, inv, val, gain, hMode }
+    return { ...f, itemKey, inv, val, gain, hMode }
   })
 
   const totGain = totVal - totInv
@@ -82,10 +83,12 @@ export default function CapitalGainsModal({ isOpen, onClose, funds = [] }) {
 
         <div className="max-h-40 overflow-y-auto divide-y divide-gray-100 dark:divide-slate-800 border rounded-lg">
           {items.map((f, i) => (
-            <div key={i} className="p-2 flex justify-between items-center text-xs">
+            <div key={f.itemKey || i} className="p-2 flex justify-between items-center text-xs">
               <div className="truncate max-w-[180px]">
                 <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{f.scheme_name}</p>
-                <p className="text-[10px] text-gray-400">Invested: {formatCurrency(f.inv)}</p>
+                <p className="text-[10px] text-gray-400">
+                  {f.folio_number ? `Folio: ${f.folio_number} • ` : ''}Invested: {formatCurrency(f.inv)}
+                </p>
               </div>
               <div className="text-right">
                 <p className={`font-bold ${f.gain >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -93,8 +96,8 @@ export default function CapitalGainsModal({ isOpen, onClose, funds = [] }) {
                 </p>
                 {mode === 'custom' && (
                   <select
-                    value={customMap[f.scheme_name] || 'ltcg'}
-                    onChange={(e) => setCustomMap({ ...customMap, [f.scheme_name]: e.target.value })}
+                    value={customMap[f.itemKey] || 'ltcg'}
+                    onChange={(e) => setCustomMap({ ...customMap, [f.itemKey]: e.target.value })}
                     className="text-[10px] border rounded"
                   >
                     <option value="ltcg">LTCG</option>

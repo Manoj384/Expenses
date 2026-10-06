@@ -1,5 +1,6 @@
 [
   {
+    "id": "mf_motilal_1",
     "scheme_code": "127042",
     "scheme_name": "Motilal Oswal Midcap Fund Direct Growth",
     "fund_house": "Motilal Oswal Mutual Fund",
@@ -8,12 +9,13 @@
     "units": 174.457,
     "avg_nav": 111.7693,
     "invested_amount": 19498.93,
-    "current_nav": 113.2070,
-    "current_value": 19749.75,
-    "returns": 250.82,
-    "xirr": "4.02%"
+    "current_nav": 115.0356,
+    "current_value": 20068.77,
+    "returns": 569.84,
+    "xirr": "2.6%"
   },
   {
+    "id": "mf_hdfc_1",
     "scheme_code": "118955",
     "scheme_name": "HDFC Flexi Cap Direct Plan Growth",
     "fund_house": "HDFC Mutual Fund",
@@ -22,26 +24,28 @@
     "units": 6.025,
     "avg_nav": 2157.2614,
     "invested_amount": 12997.5,
-    "current_nav": 2150.0820,
-    "current_value": 12954.24,
-    "returns": -43.26,
-    "xirr": "10.72%"
+    "current_nav": 2154.8050,
+    "current_value": 12982.7,
+    "returns": -14.8,
+    "xirr": "-0.4%"
   },
   {
+    "id": "mf_nippon_1",
     "scheme_code": "118668",
     "scheme_name": "Nippon India Growth Mid Cap Fund Direct Growth",
     "fund_house": "Nippon India Mutual Fund",
     "category": "Equity - Mid Cap",
     "folio_number": "488439522857",
-    "units": 1.128,
-    "avg_nav": 4782.9167,
-    "invested_amount": 5395.13,
-    "current_nav": 4725.7965,
-    "current_value": 5330.70,
-    "returns": -64.43,
-    "xirr": "5.1%"
+    "units": 1.759,
+    "avg_nav": 4773.2689,
+    "invested_amount": 8396.18,
+    "current_nav": 4756.0262,
+    "current_value": 8365.85,
+    "returns": -30.33,
+    "xirr": "-1.23%"
   },
   {
+    "id": "mf_quant_1",
     "scheme_code": "120828",
     "scheme_name": "Quant Small Cap Fund Direct Plan Growth",
     "fund_house": "Quant Mutual Fund",
@@ -50,12 +54,13 @@
     "units": 26.709,
     "avg_nav": 299.5159,
     "invested_amount": 7999.77,
-    "current_nav": 313.6754,
-    "current_value": 8377.96,
-    "returns": 378.19,
-    "xirr": "27.62%"
+    "current_nav": 314.3820,
+    "current_value": 8396.83,
+    "returns": 397.06,
+    "xirr": "18.55%"
   },
   {
+    "id": "mf_nippon_2",
     "scheme_code": "118668",
     "scheme_name": "Nippon India Growth Mid Cap Fund Direct Growth",
     "fund_house": "Nippon India Mutual Fund",
@@ -64,12 +69,13 @@
     "units": 2.934,
     "avg_nav": 4430.8214,
     "invested_amount": 13000.03,
-    "current_nav": 4725.7965,
-    "current_value": 13865.49,
-    "returns": 865.46,
-    "xirr": "7.55%"
+    "current_nav": 4756.0259,
+    "current_value": 13954.18,
+    "returns": 954.15,
+    "xirr": "5.31%"
   },
   {
+    "id": "mf_bandhan_1",
     "scheme_code": "147946",
     "scheme_name": "Bandhan Small Cap Fund Direct Growth",
     "fund_house": "Bandhan Mutual Fund",
@@ -78,12 +84,13 @@
     "units": 429.203,
     "avg_nav": 54.5357,
     "invested_amount": 23406.88,
-    "current_nav": 56.0850,
-    "current_value": 24071.85,
-    "returns": 664.97,
-    "xirr": "11.34%"
+    "current_nav": 56.2080,
+    "current_value": 24124.64,
+    "returns": 717.76,
+    "xirr": "5.83%"
   },
   {
+    "id": "mf_quant_2",
     "scheme_code": "120828",
     "scheme_name": "Quant Small Cap Fund Direct Plan Growth",
     "fund_house": "Quant Mutual Fund",
@@ -92,12 +99,13 @@
     "units": 70.619,
     "avg_nav": 269.0375,
     "invested_amount": 18999.16,
-    "current_nav": 313.6754,
-    "current_value": 22151.44,
-    "returns": 3152.28,
-    "xirr": "17.02%"
+    "current_nav": 314.3820,
+    "current_value": 22201.34,
+    "returns": 3202.18,
+    "xirr": "15.09%"
   },
   {
+    "id": "mf_motilal_2",
     "scheme_code": "127042",
     "scheme_name": "Motilal Oswal Midcap Fund Direct Growth",
     "fund_house": "Motilal Oswal Mutual Fund",
@@ -106,9 +114,9 @@
     "units": 25.905,
     "avg_nav": 115.8058,
     "invested_amount": 2999.95,
-    "current_nav": 113.2070,
-    "current_value": 2932.63,
-    "returns": -67.32,
-    "xirr": "5.24%"
+    "current_nav": 115.0357,
+    "current_value": 2980.0,
+    "returns": -19.95,
+    "xirr": "-3.7%"
   }
 ]

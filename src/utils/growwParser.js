@@ -65,6 +65,7 @@ export async function parseGrowwExcel(arrayBuffer) {
 
         if (name && (units > 0 || invested > 0)) {
           holdings.push({
+            id: `mf_${folio || 'folio'}_${holdings.length + 1}`,
             scheme_name: name,
             fund_house: amc,
             category: cat,
@@ -141,6 +142,7 @@ export function parseGrowwCsv(csvText) {
 
     if (schemeName && (units > 0 || invested > 0)) {
       results.push({
+        id: `mf_${folio || 'folio'}_${results.length + 1}`,
         scheme_name: schemeName.trim(),
         units: units,
         avg_nav: avgNav,

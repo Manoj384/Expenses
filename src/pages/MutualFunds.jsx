@@ -50,7 +50,7 @@ function createDefaultHoldings(userId) {
     const cached = localStorage.getItem('ft_cached_mutual_funds')
     if (cached) {
       const parsed = JSON.parse(cached)
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
         baseData = parsed
       }
     }
@@ -106,7 +106,7 @@ export default function MutualFunds() {
       const cached = localStorage.getItem('ft_cached_mutual_funds')
       if (cached) {
         const parsed = JSON.parse(cached)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
           return enrichFundsWithCachedNavs(parsed)
         }
       }
@@ -160,13 +160,17 @@ export default function MutualFunds() {
         const cached = localStorage.getItem('ft_cached_mutual_funds')
         if (cached) {
           const parsed = JSON.parse(cached)
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
             setFunds(enrichFundsWithCachedNavs(parsed))
             return
           }
         }
       } catch {}
-      setFunds(enrichFundsWithCachedNavs(savedGrowwData))
+      const fallback = enrichFundsWithCachedNavs(savedGrowwData)
+      setFunds(fallback)
+      try {
+        localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(fallback))
+      } catch {}
       return
     }
     setError('')
@@ -179,7 +183,7 @@ export default function MutualFunds() {
 
       if (fetchErr) throw fetchErr
 
-      let baseList = data
+      let baseList = data || []
       if (!data || data.length === 0) {
         const toInsert = createDefaultHoldings(user.id)
         const { data: insertedData, error: insErr } = await supabase
@@ -187,10 +191,19 @@ export default function MutualFunds() {
           .insert(toInsert)
           .select('*')
 
-        if (!insErr && insertedData && insertedData.length > 0) {
-          baseList = insertedData
-        } else {
-          baseList = toInsert
+        baseList = (!insErr && insertedData && insertedData.length > 0) ? insertedData : toInsert
+      } else if (data.length < savedGrowwData.length) {
+        // Auto-heal missing folios from Groww statement (e.g. 2nd folios for Quant, Nippon, Motilal)
+        const existingFolios = new Set(data.map(f => f.folio_number).filter(Boolean))
+        const missingHoldings = createDefaultHoldings(user.id).filter(
+          h => !existingFolios.has(h.folio_number)
+        )
+        if (missingHoldings.length > 0) {
+          const { data: insertedData, error: insErr } = await supabase
+            .from('mutual_funds')
+            .insert(missingHoldings)
+            .select('*')
+          baseList = [...data, ...((!insErr && insertedData) ? insertedData : missingHoldings)]
         }
       }
 
@@ -230,22 +243,25 @@ export default function MutualFunds() {
         const cached = localStorage.getItem('ft_cached_mutual_funds')
         if (cached) {
           const parsed = JSON.parse(cached)
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
             setFunds(enrichFundsWithCachedNavs(parsed))
             return
           }
         }
       } catch {}
-      setFunds(enrichFundsWithCachedNavs(savedGrowwData))
+      const fallback = enrichFundsWithCachedNavs(savedGrowwData)
+      setFunds(fallback)
     } finally {
       setLoading(false)
     }
   }, [user])
 
   useEffect(() => {
-    if (user) {
-      fetchFunds()
-    }
+    fetchFunds()
+
+    const handleMfUpdated = () => fetchFunds()
+    window.addEventListener('mutual-funds-updated', handleMfUpdated)
+    return () => window.removeEventListener('mutual-funds-updated', handleMfUpdated)
   }, [fetchFunds, user])
 
   const flash = (msg) => {
@@ -253,8 +269,14 @@ export default function MutualFunds() {
     setTimeout(() => setSuccess(''), 4000)
   }
 
-  // Active dataset: always use current enriched funds list
-  const rawFunds = (funds && funds.length > 0) ? enrichFundsWithCachedNavs(funds) : enrichFundsWithCachedNavs(savedGrowwData)
+  // Active dataset: always ensure all 8 folios are preserved distinctly
+  let activeList = (funds && funds.length > 0) ? funds : savedGrowwData
+  if (activeList.length < savedGrowwData.length) {
+    const existingFolios = new Set(activeList.map((f) => f.folio_number).filter(Boolean))
+    const missing = savedGrowwData.filter((h) => !existingFolios.has(h.folio_number))
+    activeList = [...activeList, ...missing]
+  }
+  const rawFunds = enrichFundsWithCachedNavs(activeList)
 
   // Refresh Live Daily NAVs from AMFI safely
   const handleRefreshLiveNavs = async () => {
@@ -541,32 +563,35 @@ export default function MutualFunds() {
   }
 
   // Groww File (.xlsx or .csv) Upload
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const fileName = file.name.toLowerCase()
-    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      const reader = new FileReader()
-      reader.onload = async (evt) => {
-        const buffer = evt.target?.result
-        if (buffer) {
-          const parsed = await parseGrowwExcel(buffer)
+    try {
+      const fileName = file.name.toLowerCase()
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        const buffer = await file.arrayBuffer()
+        const parsed = await parseGrowwExcel(buffer)
+        if (parsed.length > 0) {
           setParsedPreview(parsed)
+          flash(`✅ Found ${parsed.length} mutual fund holdings in Excel!`)
+        } else {
+          setError('Could not extract holdings from Excel file. Please ensure it is a valid Groww report.')
+        }
+      } else {
+        const text = await file.text()
+        setImportCsvText(text)
+        const parsed = parseGrowwCsv(text)
+        if (parsed.length > 0) {
+          setParsedPreview(parsed)
+          flash(`✅ Found ${parsed.length} mutual fund holdings in CSV!`)
+        } else {
+          setError('Could not parse CSV file.')
         }
       }
-      reader.readAsArrayBuffer(file)
-    } else {
-      const reader = new FileReader()
-      reader.onload = (evt) => {
-        const text = evt.target?.result
-        if (typeof text === 'string') {
-          setImportCsvText(text)
-          const parsed = parseGrowwCsv(text)
-          setParsedPreview(parsed)
-        }
-      }
-      reader.readAsText(file)
+    } catch (err) {
+      console.error('File parsing error:', err)
+      setError('Failed to process file. Please ensure it is a valid Groww Excel / CSV report.')
     }
   }
 
@@ -582,39 +607,49 @@ export default function MutualFunds() {
     setImporting(true)
     setError('')
     try {
+      const enriched = enrichFundsWithCachedNavs(parsedPreview)
+
+      // Save to localStorage immediately so no page refresh will lose them
+      try {
+        localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(enriched))
+      } catch {}
+      setFunds(enriched)
+
       if (user) {
         await supabase.from('mutual_funds').delete().eq('user_id', user.id)
-      }
 
-      let importedCount = 0
-      for (const item of parsedPreview) {
-        const liveNav = item.current_nav || item.avg_nav || 100
-        const currentVal = item.units > 0 ? item.units * liveNav : item.invested_amount
-
-        if (user) {
-          await supabase.from('mutual_funds').insert({
+        const payload = enriched.map((item) => {
+          const liveNav = item.current_nav || item.avg_nav || 100
+          const currentVal = item.units > 0 ? item.units * liveNav : item.invested_amount
+          return {
             user_id: user.id,
+            scheme_code: item.scheme_code || null,
             scheme_name: item.scheme_name,
-            fund_house: item.fund_house,
+            fund_house: item.fund_house || null,
             category: item.category || 'Equity',
-            units: item.units,
-            avg_nav: item.avg_nav,
-            invested_amount: item.invested_amount,
-            current_nav: liveNav,
-            current_value: currentVal,
-            folio_number: item.folio_number,
+            units: parseFloat(item.units) || 0,
+            avg_nav: parseFloat(item.avg_nav) || 0,
+            invested_amount: parseFloat(item.invested_amount) || 0,
+            current_nav: parseFloat(liveNav) || 0,
+            current_value: parseFloat(currentVal) || 0,
+            folio_number: item.folio_number || null,
             last_updated: new Date().toISOString(),
-          })
-        }
-        importedCount++
+          }
+        })
+
+        await supabase.from('mutual_funds').insert(payload)
       }
 
+      window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
+
+      const totalImpVal = enriched.reduce((s, h) => s + (parseFloat(h.current_value) || (h.units * h.current_nav) || h.invested_amount || 0), 0)
+      flash(`🎉 Imported all ${enriched.length} holdings from Groww Excel! Total: ${formatCurrency(totalImpVal)}`)
       setShowImportModal(false)
       setImportCsvText('')
       setParsedPreview([])
-      flash(`Imported all ${importedCount} holdings from Groww Excel! Total: ${formatCurrency(totalCurrentValue)}`)
       fetchFunds()
-    } catch {
+    } catch (err) {
+      console.error('Import error:', err)
       setError('Import failed. Please check file format.')
     } finally {
       setImporting(false)

@@ -13,6 +13,7 @@ import { calculateNextDueDate } from '../utils/sipUtils'
 import defaultSips from '../data/default_sips.json'
 import savedGrowwData from '../data/groww_holdings.json'
 import { enrichFundsWithCachedNavs } from '../utils/mfApi'
+import { parseGrowwExcel, parseGrowwCsv } from '../utils/growwParser'
 import {
   Plus,
   Trash2,
@@ -37,6 +38,9 @@ import {
   ExternalLink,
   Activity,
   DollarSign,
+  Upload,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react'
 
 const FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'yearly']
@@ -123,6 +127,144 @@ function aggregateMatchingMutualFunds(sipName, mfList) {
   }
 }
 
+// Atomically credits units bought to a single target folio without double-counting aggregated folios
+async function creditUnitsToPortfolio({
+  schemeName,
+  folioNumber,
+  amount,
+  user,
+  currentMutualFunds,
+  setMutualFundsState,
+}) {
+  const amt = Number(amount)
+  if (!amt || amt <= 0) return
+
+  let currentList = currentMutualFunds && currentMutualFunds.length > 0
+    ? [...currentMutualFunds]
+    : enrichFundsWithCachedNavs(savedGrowwData)
+
+  const groupKey = getSchemeGroupKey(schemeName)
+  const normSip = (schemeName || '').toLowerCase().trim()
+  const firstWord = normSip.split(/\s+/)[0]
+
+  // Find target individual folio (not aggregated)
+  let targetIndex = currentList.findIndex((m) => {
+    if (folioNumber && m.folio_number && String(m.folio_number) === String(folioNumber)) return true
+    return false
+  })
+
+  if (targetIndex === -1) {
+    targetIndex = currentList.findIndex((m) => {
+      const mfKey = getSchemeGroupKey(m.scheme_name)
+      if (mfKey && groupKey && mfKey === groupKey) return true
+      const normMf = (m.scheme_name || '').toLowerCase().trim()
+      if (normMf.includes(normSip) || normSip.includes(normMf)) return true
+      if (firstWord && normMf.startsWith(firstWord)) return true
+      return false
+    })
+  }
+
+  const liveNav = targetIndex >= 0
+    ? Number(currentList[targetIndex].current_nav || currentList[targetIndex].avg_nav || 100)
+    : 100
+
+  const unitsBought = liveNav > 0 ? parseFloat((amt / liveNav).toFixed(3)) : 0
+
+  let updatedList = []
+  if (targetIndex >= 0) {
+    const existing = currentList[targetIndex]
+    const newUnits = parseFloat((Number(existing.units || 0) + unitsBought).toFixed(3))
+    const newInvested = parseFloat((Number(existing.invested_amount || 0) + amt).toFixed(2))
+    const newCurrentVal = parseFloat((newUnits * liveNav).toFixed(2))
+    const newAvgNav = newUnits > 0 ? parseFloat((newInvested / newUnits).toFixed(4)) : liveNav
+
+    const updatedHolding = {
+      ...existing,
+      units: newUnits,
+      invested_amount: newInvested,
+      current_value: newCurrentVal,
+      avg_nav: newAvgNav,
+      current_nav: liveNav,
+      last_updated: new Date().toISOString(),
+    }
+
+    updatedList = currentList.map((m, idx) => (idx === targetIndex ? updatedHolding : m))
+
+    if (user && existing.id && !String(existing.id).startsWith('mf_') && !String(existing.id).startsWith('seed_')) {
+      try {
+        await supabase
+          .from('mutual_funds')
+          .update({
+            units: newUnits,
+            invested_amount: newInvested,
+            current_value: newCurrentVal,
+            avg_nav: newAvgNav,
+            last_updated: new Date().toISOString(),
+          })
+          .eq('id', existing.id)
+      } catch (err) {
+        console.warn('Supabase MF update error:', err)
+      }
+    }
+  } else {
+    // New holding entry
+    const newHolding = {
+      id: `mf_${Date.now()}`,
+      user_id: user?.id || null,
+      scheme_name: schemeName,
+      fund_house: `${schemeName.split(' ')[0]} Mutual Fund`,
+      category: 'Equity',
+      folio_number: folioNumber || `FOLIO-${Date.now().toString().slice(-6)}`,
+      units: unitsBought,
+      invested_amount: amt,
+      current_nav: liveNav,
+      avg_nav: liveNav,
+      current_value: parseFloat((unitsBought * liveNav).toFixed(2)),
+      last_updated: new Date().toISOString(),
+    }
+    updatedList = [newHolding, ...currentList]
+
+    if (user) {
+      try {
+        const { data: insData } = await supabase
+          .from('mutual_funds')
+          .insert({
+            user_id: user.id,
+            scheme_name: schemeName,
+            fund_house: newHolding.fund_house,
+            category: 'Equity',
+            folio_number: newHolding.folio_number,
+            units: unitsBought,
+            invested_amount: amt,
+            current_nav: liveNav,
+            avg_nav: liveNav,
+            current_value: newHolding.current_value,
+            last_updated: new Date().toISOString(),
+          })
+          .select('*')
+        if (insData && insData[0]) {
+          updatedList[0] = insData[0]
+        }
+      } catch (err) {
+        console.warn('Supabase MF insert error:', err)
+      }
+    }
+  }
+
+  try {
+    localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(updatedList))
+  } catch {}
+
+  if (setMutualFundsState) {
+    setMutualFundsState(enrichFundsWithCachedNavs(updatedList))
+  }
+
+  window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
+  window.dispatchEvent(new CustomEvent('transaction-updated'))
+
+  return updatedList
+}
+
 export default function SIPs() {
   const { user } = useAuth()
   const [sips, setSips] = useState([])
@@ -131,7 +273,7 @@ export default function SIPs() {
       const cached = localStorage.getItem('ft_cached_mutual_funds')
       if (cached) {
         const parsed = JSON.parse(cached)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
           return enrichFundsWithCachedNavs(parsed)
         }
       }
@@ -181,9 +323,159 @@ export default function SIPs() {
   // Full Details Deep Dive Modal State
   const [detailsTarget, setDetailsTarget] = useState(null)
 
+  // Excel / CSV Import & Export State
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [parsedPreview, setParsedPreview] = useState([])
+  const [importing, setImporting] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
   const flash = (msg) => {
     setSuccess(msg)
     setTimeout(() => setSuccess(''), 4000)
+  }
+
+  // Handle Excel (.xlsx) or CSV file upload from Groww / Broker
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const buffer = await file.arrayBuffer()
+        const parsed = await parseGrowwExcel(buffer)
+        if (parsed.length > 0) {
+          setParsedPreview(parsed)
+          flash(`✅ Found ${parsed.length} mutual fund holdings in Excel!`)
+        } else {
+          setError('Could not extract holdings from Excel file. Please ensure it is a valid Groww report.')
+        }
+      } else {
+        const text = await file.text()
+        const parsed = parseGrowwCsv(text)
+        if (parsed.length > 0) {
+          setParsedPreview(parsed)
+          flash(`✅ Found ${parsed.length} mutual fund holdings in CSV!`)
+        } else {
+          setError('Could not parse CSV file.')
+        }
+      }
+    } catch (err) {
+      console.error('File parsing error:', err)
+      setError('Failed to process file. Please ensure it is a valid Groww Excel / CSV report.')
+    }
+  }
+
+  // Execute Excel Import into Portfolio & SIPs
+  const handleExecuteImport = async () => {
+    if (parsedPreview.length === 0) return
+    setImporting(true)
+    try {
+      const enriched = enrichFundsWithCachedNavs(parsedPreview)
+
+      // Save to localStorage immediately
+      localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(enriched))
+      setMutualFunds(enriched)
+
+      // If user is logged in, sync to Supabase mutual_funds
+      if (user) {
+        const payload = enriched.map((h) => ({
+          user_id: user.id,
+          scheme_name: h.scheme_name,
+          fund_house: h.fund_house || null,
+          category: h.category || 'Equity',
+          folio_number: h.folio_number || null,
+          units: parseFloat(h.units) || 0,
+          avg_nav: parseFloat(h.avg_nav) || 0,
+          invested_amount: parseFloat(h.invested_amount) || 0,
+          current_nav: parseFloat(h.current_nav) || 0,
+          current_value: parseFloat(h.current_value) || 0,
+          last_updated: new Date().toISOString(),
+        }))
+
+        await supabase.from('mutual_funds').delete().eq('user_id', user.id)
+        await supabase.from('mutual_funds').insert(payload)
+      }
+
+      window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
+      window.dispatchEvent(new CustomEvent('transaction-updated'))
+
+      flash(`🎉 Successfully imported ${parsedPreview.length} fund folios from Excel! Portfolio & SIPs updated!`)
+      setShowImportModal(false)
+      setParsedPreview([])
+      await fetchSipsAndFunds()
+    } catch (err) {
+      console.error('Import execution error:', err)
+      setError('Failed to import holdings. Please try again.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  // Export SIPs & Portfolio to Excel (.xlsx)
+  const handleExportExcel = async () => {
+    setExporting(true)
+    try {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.utils.book_new()
+
+      // Sheet 1: SIP Overview
+      const sipRows = displaySips.map((s) => ({
+        'SIP Name': s.name,
+        'Frequency': s.frequency?.toUpperCase() || 'MONTHLY',
+        'Installment Amount (₹)': s.amount,
+        'Started On': s.start_date,
+        'Next Due Date': s.next_due_date,
+        'Status': s.active ? 'ACTIVE' : 'PAUSED',
+        'Units Held': s.mutual_funds?.units || 0,
+        'Total Invested (₹)': s.mutual_funds?.invested_amount || 0,
+        'Current Value (₹)': s.mutual_funds?.current_value || 0,
+        'Total Profit (₹)': s.mutual_funds?.returns || 0,
+        'Folio(s)': s.mutual_funds?.folio_number || '—',
+      }))
+      const wsSips = XLSX.utils.json_to_sheet(sipRows)
+      XLSX.utils.book_append_sheet(wb, wsSips, 'SIP Overview')
+
+      // Sheet 2: Mutual Fund Holdings
+      const activeMfList = mutualFunds.length > 0 ? mutualFunds : savedGrowwData
+      const mfRows = activeMfList.map((m) => ({
+        'Scheme Name': m.scheme_name,
+        'Fund House': m.fund_house || '—',
+        'Category': m.category || 'Equity',
+        'Folio Number': m.folio_number || '—',
+        'Units': m.units,
+        'Average NAV (₹)': m.avg_nav,
+        'Total Invested (₹)': m.invested_amount,
+        'Current Live NAV (₹)': m.current_nav,
+        'Current Valuation (₹)': m.current_value,
+        'Returns (₹)': (Number(m.current_value || 0) - Number(m.invested_amount || 0)).toFixed(2),
+        'XIRR': m.xirr || '—',
+      }))
+      const wsMf = XLSX.utils.json_to_sheet(mfRows)
+      XLSX.utils.book_append_sheet(wb, wsMf, 'Mutual Fund Holdings')
+
+      // Sheet 3: Payment History Log
+      const localPayments = getCachedPayments(null, null, [])
+      if (localPayments.length > 0) {
+        const histRows = localPayments.map((p) => ({
+          'Date & Time': p.paid_on ? formatDateTime(p.paid_on) : '—',
+          'Scheme Name': p.sip_name || '—',
+          'Type': p.payment_type === 'top_up' ? 'One-Time Top-Up' : 'Regular Installment',
+          'Amount (₹)': p.amount,
+          'Payment Method': p.payment_method || 'UPI',
+          'Notes': p.notes || '',
+        }))
+        const wsHist = XLSX.utils.json_to_sheet(histRows)
+        XLSX.utils.book_append_sheet(wb, wsHist, 'Payment & Top-Up History')
+      }
+
+      XLSX.writeFile(wb, `Groww_SIP_Portfolio_Report_${today()}.xlsx`)
+      flash('📊 Excel report downloaded successfully!')
+    } catch (err) {
+      console.error('Export error:', err)
+      setError('Failed to export Excel report.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   const fetchSipsAndFunds = useCallback(async () => {
@@ -194,10 +486,20 @@ export default function SIPs() {
           const parsed = JSON.parse(cached)
           if (Array.isArray(parsed) && parsed.length > 0) {
             setSips(parsed)
+          }
+        }
+      } catch {}
+      try {
+        const cachedMf = localStorage.getItem('ft_cached_mutual_funds')
+        if (cachedMf) {
+          const parsedMf = JSON.parse(cachedMf)
+          if (Array.isArray(parsedMf) && parsedMf.length >= savedGrowwData.length) {
+            setMutualFunds(enrichFundsWithCachedNavs(parsedMf))
             return
           }
         }
       } catch {}
+      setMutualFunds(enrichFundsWithCachedNavs(savedGrowwData))
       return
     }
     setLoading(true)
@@ -216,7 +518,13 @@ export default function SIPs() {
           .order('scheme_name'),
       ])
 
-      const mfs = mfRes.data && mfRes.data.length > 0 ? enrichFundsWithCachedNavs(mfRes.data) : enrichFundsWithCachedNavs(savedGrowwData)
+      let mfsData = mfRes.data || []
+      if (mfsData.length < savedGrowwData.length) {
+        const existingFolios = new Set(mfsData.map((f) => f.folio_number).filter(Boolean))
+        const missingHoldings = savedGrowwData.filter((h) => !existingFolios.has(h.folio_number))
+        mfsData = [...mfsData, ...missingHoldings]
+      }
+      const mfs = enrichFundsWithCachedNavs(mfsData)
       setMutualFunds(mfs)
 
       if (!sipsRes.data || sipsRes.data.length === 0) {
@@ -267,7 +575,13 @@ export default function SIPs() {
 
   // Active dataset: group duplicate SIPs and merge all matching mutual fund holdings/folios
   const rawSips = sips.length > 0 ? sips : defaultSips
-  const activeMfList = mutualFunds.length > 0 ? enrichFundsWithCachedNavs(mutualFunds) : enrichFundsWithCachedNavs(savedGrowwData)
+  let activeMfRaw = mutualFunds.length > 0 ? mutualFunds : savedGrowwData
+  if (activeMfRaw.length < savedGrowwData.length) {
+    const existingFolios = new Set(activeMfRaw.map((f) => f.folio_number).filter(Boolean))
+    const missing = savedGrowwData.filter((h) => !existingFolios.has(h.folio_number))
+    activeMfRaw = [...activeMfRaw, ...missing]
+  }
+  const activeMfList = enrichFundsWithCachedNavs(activeMfRaw)
 
   const groupedSipsMap = new Map()
   rawSips.forEach((s) => {
@@ -530,7 +844,7 @@ export default function SIPs() {
   // Handle Mark Paid + Auto-Advance Date + Auto-Buy Units into Linked Mutual Fund
   const handleMarkPaid = async (id) => {
     try {
-      const targetSip = displaySips.find((s) => s.id === id)
+      const targetSip = displaySips.find((s) => s.id === id || (s.mergedSipIds && s.mergedSipIds.includes(id)))
       if (!targetSip) return
 
       const nextDate = calculateNextDueDate(targetSip.next_due_date || today(), targetSip.frequency || 'monthly')
@@ -538,7 +852,7 @@ export default function SIPs() {
 
       // 1. Immediately advance local state so UI updates the date with zero delay
       const updatedList = displaySips.map((s) =>
-        s.id === id ? { ...s, next_due_date: nextDate } : s
+        s.id === targetSip.id ? { ...s, next_due_date: nextDate } : s
       )
       setSips(updatedList)
       try {
@@ -548,7 +862,7 @@ export default function SIPs() {
       // Log to local cache immediately so history updates instantly in UI
       const newPayRecord = {
         id: `p_${Date.now()}`,
-        sip_id: id,
+        sip_id: targetSip.id,
         sip_name: targetSip.name,
         amount: targetSip.amount,
         paid_on: paidOn,
@@ -559,11 +873,21 @@ export default function SIPs() {
       saveCachedPayment(newPayRecord)
       setHistory((prev) => [newPayRecord, ...prev])
 
+      // 2. Credit Units into Target Mutual Fund Folio (both guest & authenticated modes)
+      await creditUnitsToPortfolio({
+        schemeName: targetSip.name,
+        folioNumber: targetSip.folio_number,
+        amount: targetSip.amount,
+        user,
+        currentMutualFunds: mutualFunds,
+        setMutualFundsState: setMutualFunds,
+      })
+
       if (user) {
-        let realSipId = id
+        let realSipId = targetSip.id
 
         // If this SIP was an un-persisted preset, insert it to get a real database ID
-        if (String(id).startsWith('sip_')) {
+        if (String(realSipId).startsWith('sip_')) {
           const { data: insData } = await supabase
             .from('sips')
             .insert([
@@ -584,10 +908,10 @@ export default function SIPs() {
           }
         } else {
           // Update next due date in Supabase
-          await supabase.from('sips').update({ next_due_date: nextDate }).eq('id', id)
+          await supabase.from('sips').update({ next_due_date: nextDate }).eq('id', targetSip.id)
         }
 
-        // 2. Log payment in sip_payments
+        // 3. Log payment in sip_payments
         if (realSipId && !String(realSipId).startsWith('sip_')) {
           await supabase.from('sip_payments').insert({
             sip_id: realSipId,
@@ -599,7 +923,7 @@ export default function SIPs() {
           })
         }
 
-        // 3. Log expense transaction in transactions table
+        // 4. Log expense transaction in transactions table
         const [catsRes, pmsRes] = await Promise.all([
           supabase.from('categories').select('id, name, type').eq('user_id', user.id),
           supabase.from('payment_methods').select('id, name, type').eq('user_id', user.id),
@@ -622,59 +946,9 @@ export default function SIPs() {
           category_id: matchedCatId,
           payment_method_id: matchedPmId,
         })
-
-        // 4. Credit Units into Linked Mutual Fund
-        const linkedFund =
-          targetSip.mutual_funds ||
-          mutualFunds.find((m) =>
-            m.scheme_name.toLowerCase().includes(targetSip.name.split(' ')[0].toLowerCase())
-          )
-
-        if (linkedFund && (linkedFund.id || linkedFund.scheme_name)) {
-          const nav = Number(linkedFund.current_nav || linkedFund.avg_nav || 100)
-          const unitsBought = nav > 0 ? targetSip.amount / nav : 0
-          const currentUnits = Number(linkedFund.units || 0)
-          const currentInvested = Number(linkedFund.invested_amount || 0)
-
-          const newUnits = parseFloat((currentUnits + unitsBought).toFixed(3))
-          const newInvested = currentInvested + targetSip.amount
-          const newCurrentVal = parseFloat((newUnits * nav).toFixed(2))
-
-          if (linkedFund.id && !String(linkedFund.id).startsWith('sip_')) {
-            await supabase
-              .from('mutual_funds')
-              .update({
-                units: newUnits,
-                invested_amount: newInvested,
-                current_value: newCurrentVal,
-                last_updated: new Date().toISOString(),
-              })
-              .eq('id', linkedFund.id)
-          }
-
-          // Update cached mutual funds in localStorage
-          try {
-            const cachedMfs = JSON.parse(localStorage.getItem('ft_cached_mutual_funds') || '[]')
-            const updatedMfs = cachedMfs.map((m) => {
-              if (m.id === linkedFund.id || m.scheme_name === linkedFund.scheme_name) {
-                return {
-                  ...m,
-                  units: newUnits,
-                  invested_amount: newInvested,
-                  current_value: newCurrentVal,
-                }
-              }
-              return m
-            })
-            localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(updatedMfs))
-          } catch {}
-        }
-
-        window.dispatchEvent(new CustomEvent('transaction-updated'))
-        window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
       }
 
-      flash(`✅ SIP of ${formatCurrency(targetSip.amount)} marked paid! Next scheduled date is now ${formatDate(nextDate)}. Units credited!`)
+      flash(`✅ SIP of ${formatCurrency(targetSip.amount)} marked paid! Units credited to ${targetSip.name} portfolio!`)
       fetchSipsAndFunds()
     } catch (err) {
       console.warn('SIP mark paid error:', err)
@@ -707,50 +981,19 @@ export default function SIPs() {
     setTopUpSaving(true)
     try {
       const paidOn = `${topUpForm.date}T${topUpForm.time || currentTime()}:00`
-      const linkedFund =
-        topUpTarget.mutual_funds ||
-        mutualFunds.find((m) =>
-          m.scheme_name.toLowerCase().includes(topUpTarget.name.split(' ')[0].toLowerCase())
-        )
-
-      // 1. Calculate & credit units at live NAV
-      if (linkedFund) {
-        const nav = Number(linkedFund.current_nav || linkedFund.avg_nav || 100)
-        const unitsBought = nav > 0 ? amt / nav : 0
-        const currentUnits = Number(linkedFund.units || 0)
-        const currentInvested = Number(linkedFund.invested_amount || 0)
-
-        const newUnits = parseFloat((currentUnits + unitsBought).toFixed(3))
-        const newInvested = currentInvested + amt
-        const newCurrentVal = parseFloat((newUnits * nav).toFixed(2))
-
-        if (user && linkedFund.id && !String(linkedFund.id).startsWith('sip_')) {
-          await supabase
-            .from('mutual_funds')
-            .update({
-              units: newUnits,
-              invested_amount: newInvested,
-              current_value: newCurrentVal,
-              last_updated: new Date().toISOString(),
-            })
-              .eq('id', linkedFund.id)
-        }
-
-        // Cache update
-        try {
-          const cachedMfs = JSON.parse(localStorage.getItem('ft_cached_mutual_funds') || '[]')
-          const updatedMfs = cachedMfs.map((m) => {
-            if (m.id === linkedFund.id || m.scheme_name === linkedFund.scheme_name) {
-              return { ...m, units: newUnits, invested_amount: newInvested, current_value: newCurrentVal }
-            }
-            return m
-          })
-          localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(updatedMfs))
-        } catch {}
-      }
-
-      // Save to local payment cache immediately so Top-Up appears instantly in History
       const selectedMethodName = STANDARD_PAYMENT_METHODS.find(p => p.id === topUpForm.payment_method)?.name || topUpForm.payment_method
+
+      // 1. Credit units to mutual funds portfolio (in both guest & authenticated modes)
+      await creditUnitsToPortfolio({
+        schemeName: topUpTarget.name,
+        folioNumber: topUpTarget.folio_number,
+        amount: amt,
+        user,
+        currentMutualFunds: mutualFunds,
+        setMutualFundsState: setMutualFunds,
+      })
+
+      // 2. Save to local payment cache immediately so Top-Up appears instantly in History
       const newTopUpRecord = {
         id: `topup_${Date.now()}`,
         sip_id: topUpTarget.id,
@@ -764,7 +1007,7 @@ export default function SIPs() {
       saveCachedPayment(newTopUpRecord)
       setHistory((prev) => [newTopUpRecord, ...prev.filter(p => p.id !== newTopUpRecord.id)])
 
-      // 2. Insert into sip_payments as One-Time Top-Up in Supabase
+      // 3. Insert into Supabase if user is logged in
       let realSipId = topUpTarget.id
       if (user) {
         if (String(realSipId).startsWith('sip_')) {
@@ -796,7 +1039,7 @@ export default function SIPs() {
           })
         }
 
-        // 3. Insert transaction
+        // Insert transaction
         const [catsRes, pmsRes] = await Promise.all([
           supabase.from('categories').select('id, name').eq('user_id', user.id),
           supabase.from('payment_methods').select('id, name').eq('user_id', user.id),
@@ -819,9 +1062,6 @@ export default function SIPs() {
           category_id: matchedCatId,
           payment_method_id: matchedPmId,
         })
-
-        window.dispatchEvent(new CustomEvent('transaction-updated'))
-        window.dispatchEvent(new CustomEvent('mutual-funds-updated'))
       }
 
       flash(`🎉 One-Time Top-Up of ${formatCurrency(amt)} successfully invested into ${topUpTarget.name}! Units credited at live NAV.`)
@@ -995,19 +1235,37 @@ export default function SIPs() {
 
         <div className="card p-4 flex flex-col justify-between">
           <div>
-            <p className="text-xs text-gray-500 uppercase font-semibold">Actions</p>
-            <p className="text-xs text-gray-600 mt-1">Schedule new recurring installment</p>
+            <p className="text-xs text-gray-500 uppercase font-semibold">Actions & Excel Sync</p>
+            <p className="text-xs text-gray-600 mt-1">Upload Groww Excel report or schedule SIP</p>
           </div>
-          <button
-            onClick={() => {
-              setForm(emptyForm)
-              setEditTarget(null)
-              setShowAdd(true)
-            }}
-            className="btn-primary text-xs py-2 px-3 flex items-center justify-center gap-1.5 shadow-sm mt-2"
-          >
-            <Plus className="h-3.5 w-3.5" /> Add New SIP
-          </button>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <button
+              onClick={() => {
+                setForm(emptyForm)
+                setEditTarget(null)
+                setShowAdd(true)
+              }}
+              className="btn-primary text-xs py-1.5 px-3 flex items-center justify-center gap-1.5 shadow-sm"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add SIP
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs py-1.5 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all"
+              title="Upload your downloaded Groww Excel or CSV file to sync all folios"
+            >
+              <Upload className="h-3.5 w-3.5" /> Upload Excel
+            </button>
+            <button
+              onClick={handleExportExcel}
+              disabled={exporting}
+              className="btn-secondary text-xs py-1.5 px-3 flex items-center justify-center gap-1.5"
+              title="Download full Excel report with SIPs, mutual fund folios, and payment history"
+            >
+              <Download className="h-3.5 w-3.5 text-gray-600" />
+              {exporting ? 'Exporting...' : 'Export Excel'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1860,6 +2118,85 @@ export default function SIPs() {
             </div>
           )
         })()}
+      </Modal>
+
+      {/* Upload Groww Report (.xlsx / .csv) Modal */}
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => {
+          setShowImportModal(false)
+          setParsedPreview([])
+        }}
+        title="Upload Groww / Broker Excel Report (.xlsx / .csv)"
+        maxWidth="max-w-2xl"
+      >
+        <div className="space-y-4">
+          <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900">
+            <p className="font-semibold mb-1 flex items-center gap-1.5">
+              <FileSpreadsheet className="h-4 w-4 text-emerald-700" />
+              Upload Downloaded Groww Excel Report:
+            </p>
+            <p className="text-emerald-800 leading-relaxed">
+              Select your downloaded <code className="bg-emerald-100 px-1 py-0.5 rounded font-mono font-bold">Mutual_Funds_*.xlsx</code> or CSV file. All your schemes, folios, units, and invested amounts will be automatically parsed and synced into both your <strong>Portfolio</strong> and <strong>SIP Tracking Cards</strong>!
+            </p>
+          </div>
+
+          {/* File input drop zone */}
+          <div className="p-6 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 text-center hover:bg-gray-100/80 transition-colors">
+            <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-xs font-semibold text-gray-700 mb-1">Click to select Groww .xlsx or .csv file</p>
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv,.txt"
+              onChange={handleFileUpload}
+              className="block w-full text-xs text-gray-500 mx-auto file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+            />
+          </div>
+
+          {/* Parsed Preview */}
+          {parsedPreview.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-800 flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                Found {parsedPreview.length} Folios in Report:
+              </p>
+              <div className="max-h-48 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-xl p-2 bg-white">
+                {parsedPreview.map((item, idx) => (
+                  <div key={idx} className="py-2 flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-semibold text-gray-800">{item.scheme_name}</p>
+                      <p className="text-[10px] text-gray-400">{item.category} • Folio: {item.folio_number || '—'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">{formatCurrency(item.invested_amount)}</p>
+                      <p className="text-[10px] text-gray-400">{item.units.toFixed(3)} units</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={handleExecuteImport}
+              disabled={importing || parsedPreview.length === 0}
+              className="btn-primary flex-1 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-xs py-2.5"
+            >
+              {importing ? 'Importing & Syncing SIPs...' : `⚡ Sync ${parsedPreview.length} Folios to Portfolio & SIPs`}
+            </button>
+            <button
+              type="button"
+              className="btn-secondary text-xs"
+              onClick={() => {
+                setShowImportModal(false)
+                setParsedPreview([])
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       </Modal>
 
       {/* Delete Confirmation */}

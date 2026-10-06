@@ -45,7 +45,7 @@ export default function Dashboard() {
       const cached = localStorage.getItem('ft_cached_mutual_funds')
       if (cached) {
         const parsed = JSON.parse(cached)
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
           return enrichFundsWithCachedNavs(parsed)
         }
       }
@@ -138,29 +138,17 @@ export default function Dashboard() {
       setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
       // Mutual funds live sync with instant caching
-      if (!mfRes.error && mfRes.data && mfRes.data.length > 0) {
-        const enriched = enrichFundsWithCachedNavs(mfRes.data)
-        setMfList(enriched)
-        try {
-          localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(enriched))
-        } catch {}
-      } else {
-        try {
-          const cached = localStorage.getItem('ft_cached_mutual_funds')
-          if (cached) {
-            const parsed = JSON.parse(cached)
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setMfList(enrichFundsWithCachedNavs(parsed))
-            } else {
-              setMfList(enrichFundsWithCachedNavs(savedGrowwData))
-            }
-          } else {
-            setMfList(enrichFundsWithCachedNavs(savedGrowwData))
-          }
-        } catch {
-          setMfList(enrichFundsWithCachedNavs(savedGrowwData))
-        }
+      let mfRaw = (!mfRes.error && mfRes.data && mfRes.data.length > 0) ? mfRes.data : []
+      if (mfRaw.length < savedGrowwData.length) {
+        const existingFolios = new Set(mfRaw.map((f) => f.folio_number).filter(Boolean))
+        const missingHoldings = savedGrowwData.filter((h) => !existingFolios.has(h.folio_number))
+        mfRaw = [...mfRaw, ...missingHoldings]
       }
+      const enriched = enrichFundsWithCachedNavs(mfRaw)
+      setMfList(enriched)
+      try {
+        localStorage.setItem('ft_cached_mutual_funds', JSON.stringify(enriched))
+      } catch {}
 
       // Goals live sync (strictly sync with Supabase and purge old localStorage cache)
       let loadedGoals = []
