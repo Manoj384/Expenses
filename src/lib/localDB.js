@@ -1,16 +1,21 @@
 /**
- * localDB.js — Simple localStorage-based data layer.
- * Mimics basic CRUD operations for all tables.
+ * localDB.js — Offline / Demo Sandbox Data Layer (DEPRECATED FOR PRODUCTION).
+ * 
+ * ARCHITECTURAL NOTICE (Per security.txt & System Design Specs):
+ * • Authoritative Source of Truth: Supabase PostgreSQL Database.
+ * • All production CRUD operations MUST use Supabase / Domain Repositories (src/features/*).
+ * • This module exists strictly as an isolated offline sandbox/demo driver to prevent
+ *   divergent state across devices. Do not write live financial records here.
  *
  * Tables: categories, transactions, sips, sip_payments, debts
  */
 
 const KEYS = {
-  categories:   'ft_categories',
-  transactions: 'ft_transactions',
-  sips:         'ft_sips',
-  sip_payments: 'ft_sip_payments',
-  debts:        'ft_debts',
+  categories:   'ft_demo_categories',
+  transactions: 'ft_demo_transactions',
+  sips:         'ft_demo_sips',
+  sip_payments: 'ft_demo_sip_payments',
+  debts:        'ft_demo_debts',
 }
 
 // ─── Core helpers ────────────────────────────────────────────────────────────

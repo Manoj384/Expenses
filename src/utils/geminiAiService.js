@@ -4,38 +4,12 @@
  * portfolio diagnosis, as well as general knowledge & weather with local zero-config fallback.
  */
 
-const GEMINI_API_KEY_STORAGE = 'manoj_gemini_api_key'
-const ALT_API_KEY_STORAGE = 'ft_gemini_api_key'
+import { supabase } from '../lib/supabaseClient'
 
-export function getGeminiApiKey() {
-  try {
-    const saved = localStorage.getItem(ALT_API_KEY_STORAGE) || localStorage.getItem(GEMINI_API_KEY_STORAGE)
-    if (saved && typeof saved === 'string') {
-      const clean = saved.trim()
-      if (clean && clean !== 'undefined' && clean !== 'null' && clean.length > 20) {
-        return clean
-      }
-    }
-    return import.meta?.env?.VITE_GEMINI_API_KEY || ''
-  } catch {
-    return import.meta?.env?.VITE_GEMINI_API_KEY || ''
-  }
-}
+// Provider credentials are intentionally never stored in the browser.
 
-export function saveGeminiApiKey(key) {
-  try {
-    if (!key) {
-      localStorage.removeItem(GEMINI_API_KEY_STORAGE)
-      localStorage.removeItem(ALT_API_KEY_STORAGE)
-    } else {
-      localStorage.setItem(GEMINI_API_KEY_STORAGE, key.trim())
-      localStorage.setItem(ALT_API_KEY_STORAGE, key.trim())
-    }
-    return true
-  } catch {
-    return false
-  }
-}
+export const getGeminiApiKey = () => ''
+export const saveGeminiApiKey = () => false
 
 /**
  * Builds an enriched system prompt with live financial context
@@ -82,74 +56,22 @@ Guidelines for your responses:
  * Executes a query against Gemini API with automatic model cascading
  */
 export async function queryGeminiAi(userPrompt, context = {}) {
-  const apiKey = getGeminiApiKey()
-
-  if (!apiKey) {
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-gateway', {
+      body: {
+        prompt: userPrompt,
+        systemInstruction: buildSystemPrompt(context),
+        maxOutputTokens: 450,
+        temperature: 0.5,
+      },
+    })
+    if (error || !data?.text) throw new Error(error?.message || data?.error || 'AI request failed')
     return {
-      success: false,
-      text: null,
-      error: 'NO_API_KEY',
+      success: true,
+      text: data.text.trim(),
+      speechText: data.text.replace(/[*_#`]/g, ''),
     }
-  }
-
-  const candidateModels = [
-    'gemini-3.7-flash',
-    'gemini-3.5-flash',
-    'gemini-3.8-flash',
-    'gemini-flash-latest',
-    'gemini-3.1-flash-lite',
-    'gemini-3.6-flash',
-  ]
-
-  const systemPrompt = buildSystemPrompt(context)
-  let lastError = null
-
-  for (const model of candidateModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: userPrompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.5,
-            maxOutputTokens: 450,
-          }
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-        if (candidate) {
-          return {
-            success: true,
-            text: candidate,
-            speechText: candidate.replace(/[*_#`]/g, ''),
-          }
-        }
-      } else {
-        const errJson = await response.json().catch(() => ({}))
-        lastError = errJson?.error?.message || `HTTP ${response.status}`
-      }
-    } catch (err) {
-      lastError = err.message
-    }
-  }
-
-  return {
-    success: false,
-    text: null,
-    error: lastError || 'Gemini request failed',
+  } catch (err) {
+    return { success: false, text: null, error: err.message || 'AI request failed' }
   }
 }

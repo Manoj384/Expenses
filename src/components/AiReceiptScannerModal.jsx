@@ -7,14 +7,13 @@ import {
   Check,
   RefreshCw,
   AlertCircle,
-  Key,
   Calendar,
   Tag,
   Store,
   Camera,
   ListOrdered,
 } from 'lucide-react'
-import { scanReceiptWithAi, getGeminiApiKey, setGeminiApiKey } from '../utils/aiService'
+import { scanReceiptWithAi } from '../utils/aiService'
 import { formatCurrency } from '../utils/formatCurrency'
 
 export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracted }) {
@@ -25,8 +24,6 @@ export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracte
   const [isScanning, setIsScanning] = useState(false)
   const [scanResult, setScanResult] = useState(null)
   const [error, setError] = useState('')
-  const [showKeyInput, setShowKeyInput] = useState(false)
-  const [apiKey, setApiKey] = useState(getGeminiApiKey())
 
   if (!isOpen) return null
 
@@ -278,38 +275,9 @@ export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracte
           </div>
         )}
 
-        {/* API Key settings toggle */}
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setShowKeyInput(!showKeyInput)}
-            className="text-[11px] text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-white flex items-center gap-1 font-medium"
-          >
-            <Key className="h-3 w-3" /> {getGeminiApiKey() ? 'API Key Configured (Click to edit)' : 'Configure Free Gemini API Key'}
-          </button>
-
-          {showKeyInput && (
-            <div className="mt-2 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl space-y-2 border border-gray-200 dark:border-slate-700">
-              <input
-                type="password"
-                placeholder="Enter Gemini API Key (Free)"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="input-field text-xs font-mono"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setGeminiApiKey(apiKey)
-                  setShowKeyInput(false)
-                }}
-                className="btn-primary text-xs py-1 px-3 font-semibold"
-              >
-                Save Key
-              </button>
-            </div>
-          )}
-        </div>
+        <p className="text-[11px] text-gray-500 dark:text-slate-400">
+          Receipt scans are processed through the authenticated server gateway; provider credentials are never stored on this device.
+        </p>
 
         {/* Actions */}
         <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">

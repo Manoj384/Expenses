@@ -263,12 +263,20 @@ export default function Goals() {
     setSaving(true)
     setError('')
     try {
+      const getFallbackTargetDate = () => {
+        const d = new Date()
+        d.setFullYear(d.getFullYear() + 1)
+        return d.toISOString().slice(0, 10)
+      }
+
+      const safeTargetDate = form.target_date?.trim() || getFallbackTargetDate()
+
       const payload = {
         user_id: user?.id || 'local-user',
         name: form.name.trim(),
         target_amount: parseFloat(form.target_amount) || 0,
         current_amount: parseFloat(form.current_amount) || 0,
-        target_date: form.target_date || null,
+        target_date: safeTargetDate,
         category: form.category || 'Savings',
       }
 
@@ -277,9 +285,8 @@ export default function Goals() {
       if (editTarget?.id) {
         // Edit existing goal
         if (user && isUuid(editTarget.id)) {
-          try {
-            await supabase.from('goals').update(payload).eq('id', editTarget.id)
-          } catch {}
+          const { error: updErr } = await supabase.from('goals').update(payload).eq('id', editTarget.id)
+          if (updErr) throw updErr
         }
         const updated = goals.map((g) =>
           g.id === editTarget.id ? { ...g, ...payload, notes: form.notes } : g
@@ -294,12 +301,11 @@ export default function Goals() {
         // Create new goal
         let newId = generateSafeId()
         if (user) {
-          try {
-            const { data, error: insErr } = await supabase.from('goals').insert(payload).select()
-            if (!insErr && data?.[0]?.id) {
-              newId = data[0].id
-            }
-          } catch {}
+          const { data, error: insErr } = await supabase.from('goals').insert(payload).select()
+          if (insErr) throw insErr
+          if (data?.[0]?.id) {
+            newId = data[0].id
+          }
         }
         savedId = newId
         const newGoalObj = { id: newId, ...payload, notes: form.notes }
@@ -612,8 +618,17 @@ export default function Goals() {
           <div>
             <button
               onClick={() => {
+                const defaultDate = new Date()
+                defaultDate.setFullYear(defaultDate.getFullYear() + 1)
                 setEditTarget(null)
-                setForm({ name: '', target_amount: '', current_amount: '0', target_date: '', category: 'Savings', notes: '' })
+                setForm({
+                  name: '',
+                  target_amount: '',
+                  current_amount: '0',
+                  target_date: defaultDate.toISOString().slice(0, 10),
+                  category: 'Savings',
+                  notes: '',
+                })
                 setShowAddModal(true)
               }}
               className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer"

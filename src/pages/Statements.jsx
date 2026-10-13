@@ -14,7 +14,6 @@ import {
   Filter,
   ArrowDownRight,
   ArrowUpRight,
-  Key,
   CheckCircle2,
   AlertCircle,
   RefreshCw,
@@ -24,7 +23,7 @@ import {
   Save,
 } from 'lucide-react'
 import { formatCurrency } from '../utils/formatCurrency'
-import { parseStatementWithAi, getGeminiApiKey, setGeminiApiKey, getAiModel, setAiModel } from '../utils/aiService'
+import { parseStatementWithAi } from '../utils/aiService'
 import { useToast } from '../context/ToastContext'
 
 const STORAGE_KEY = 'ft_statement_transactions'
@@ -48,9 +47,6 @@ export default function Statements() {
   const [isSavingToDb, setIsSavingToDb] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false)
-  const [apiKeyInput, setApiKeyInput] = useState(getGeminiApiKey())
-  const [selectedModel, setSelectedModel] = useState(getAiModel())
 
   // ─── FETCH from Supabase on login ────────────────────────────────────────
   const fetchStatements = async () => {
@@ -180,12 +176,7 @@ export default function Statements() {
           addToast('Could not find transactions in this document. Try a clearer image or PDF.', 'warning')
         }
       } catch (err) {
-        if (err?.message?.includes('MISSING_API_KEY')) {
-          setShowApiKeyModal(true)
-          addToast('Please enter your Gemini API Key to enable AI statement parsing.', 'warning')
-        } else {
-          addToast(err?.message || 'Failed to parse statement. Check API key or format.', 'error')
-        }
+        addToast(err?.message || 'Failed to parse statement. Please try again or use a clearer file.', 'error')
       } finally {
         setIsProcessing(false)
       }
@@ -235,12 +226,7 @@ export default function Statements() {
         }
       }
     } catch (err) {
-      if (err?.message?.includes('MISSING_API_KEY')) {
-        setShowApiKeyModal(true)
-        addToast('Please enter your Gemini API Key to continue extraction.', 'warning')
-      } else {
-        addToast(err?.message || 'Failed to continue extraction.', 'error')
-      }
+      addToast(err?.message || 'Failed to continue extraction.', 'error')
     } finally {
       setIsProcessing(false)
     }
@@ -270,13 +256,6 @@ export default function Statements() {
       try { localStorage.removeItem(localKey(user?.id)) } catch {}
       addToast('Statement records cleared', 'info')
     }
-  }
-
-  const handleSaveApiKey = () => {
-    setGeminiApiKey(apiKeyInput)
-    setAiModel(selectedModel)
-    setShowApiKeyModal(false)
-    addToast(apiKeyInput ? `AI Key saved for ${selectedModel}!` : 'AI Key removed. Using offline parser.', 'success')
   }
 
   const handleExportCSV = () => {
@@ -420,13 +399,9 @@ export default function Statements() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
-              <button
-                onClick={() => setShowApiKeyModal(true)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/20 transition-all shadow-sm"
-              >
-                <Key className="h-4 w-4 text-amber-300" />
-                <span>{getGeminiApiKey() ? 'API Key Active (Gemini Free)' : 'Set Gemini Free Key'}</span>
-              </button>
+              <span className="flex items-center px-3.5 py-2 rounded-xl bg-white/10 backdrop-blur-md text-xs font-semibold text-white border border-white/20">
+                Secure AI processing
+              </span>
 
               {statementData.length > 0 && (
                 <>
@@ -712,86 +687,6 @@ export default function Statements() {
         </div>
       </div>
 
-      {/* AI Key & Model Modal */}
-      {showApiKeyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 border border-gray-100 dark:border-slate-800 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600">
-                  <Key className="h-5 w-5" />
-                </div>
-                <h3 className="font-bold text-gray-900 dark:text-white text-base">
-                  AI Model & API Key Configuration
-                </h3>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-600 dark:text-slate-300 leading-relaxed">
-              Use Google Gemini (Free / Pro) or OpenAI GPT-4o to scan statements and bank receipts.
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-gray-700 dark:text-slate-200 block mb-1">
-                  AI Model / Tier
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="input-field text-xs"
-                >
-                  <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (100% Free Tier)</option>
-                  <option value="gemini-1.5-pro">Google Gemini 1.5 Pro (Pro Subscription / 2M Context)</option>
-                  <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
-                  <option value="gpt-4o">OpenAI GPT-4o (Pro Flagship)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-gray-700 dark:text-slate-200 block mb-1">
-                  API Key
-                </label>
-                <input
-                  type="password"
-                  placeholder={selectedModel.startsWith('gpt') ? 'sk-proj-...' : 'AIzaSy...'}
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  className="input-field text-xs font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-2">
-              <a
-                href={selectedModel.startsWith('gpt') ? 'https://platform.openai.com/api-keys' : 'https://aistudio.google.com/app/apikey'}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-blue-600 hover:underline font-semibold"
-              >
-                {selectedModel.startsWith('gpt') ? 'Get OpenAI Key →' : 'Get Gemini Key →'}
-              </a>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeyModal(false)}
-                  className="btn-secondary text-xs px-3 py-1.5"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveApiKey}
-                  className="btn-primary text-xs px-4 py-1.5 font-bold"
-                >
-                  Save Key
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </Layout>
   )
 }

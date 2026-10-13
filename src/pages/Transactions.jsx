@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import Layout from '../components/Layout'
 import TransactionForm from '../components/TransactionForm'
 import TransactionList from '../components/TransactionList'
@@ -32,6 +33,7 @@ const PAGE_SIZE = 25
 
 export default function Transactions() {
   const { user } = useAuth()
+  const toast = useToast()
   const [transactions, setTransactions] = useState([])
   const [categories, setCategories] = useState([])
   const [paymentMethods, setPaymentMethods] = useState([])
@@ -96,8 +98,8 @@ export default function Transactions() {
       if (fetchErr) throw fetchErr
       setTransactions(data || [])
       setTotalCount(count || 0)
-    } catch {
-      setError('Unable to load transactions. Please try again.')
+    } catch (err) {
+      setError(err?.message ? `Unable to load transactions: ${err.message}` : 'Unable to load transactions. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -127,13 +129,29 @@ export default function Transactions() {
     }
   }, [fetchTransactions, user])
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (transaction) => {
+    if (!transaction || !user) return
     try {
-      const { error: delErr } = await supabase.from('transactions').delete().eq('id', id)
+      const { error: delErr } = await supabase.from('transactions').delete().eq('id', transaction.id).eq('user_id', user.id)
       if (delErr) throw delErr
-      setTransactions((prev) => prev.filter((t) => t.id !== id))
-    } catch {
-      setError('Unable to delete transaction. Please try again.')
+      setTransactions((prev) => prev.filter((t) => t.id !== transaction.id))
+
+      toast.action('Transaction deleted.', 'Undo', async () => {
+        const { id, created_at, categories, payment_methods, ...restoredTransaction } = transaction
+        const { data, error: restoreErr } = await supabase
+          .from('transactions')
+          .insert({ ...restoredTransaction, user_id: user.id })
+          .select('*, categories(name), payment_methods(id, name, type)')
+          .single()
+        if (restoreErr) {
+          setError(`Unable to restore transaction: ${restoreErr.message}`)
+          return
+        }
+        setTransactions((prev) => [data, ...prev])
+        toast.success('Transaction restored.')
+      })
+    } catch (err) {
+      setError(err?.message ? `Unable to delete transaction: ${err.message}` : 'Unable to delete transaction. Please try again.')
     }
   }
 
@@ -261,6 +279,7 @@ export default function Transactions() {
                 <option value="">All Types</option>
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
+                <option value="savings">Savings / Investment</option>
                 <option value="debit">Debit</option>
               </select>
             </div>

@@ -33,6 +33,7 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
 
   const [repayModalOpen, setRepayModalOpen] = useState(false)
   const [repayAmount, setRepayAmount] = useState('')
+  const [repayNotes, setRepayNotes] = useState('')
   const [logTxn, setLogTxn] = useState(true)
   const [submittingRepay, setSubmittingRepay] = useState(false)
 
@@ -53,9 +54,10 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
   }
 
   const handleSettleFull = async () => {
-    await onSettleDebt(debt.id, Number(debt.outstanding), logTxn)
+    await onSettleDebt(debt.id, Number(debt.outstanding), logTxn, repayNotes)
     setRepayModalOpen(false)
     setRepayAmount('')
+    setRepayNotes('')
   }
 
   const handlePartialRepay = async (e) => {
@@ -65,10 +67,11 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
 
     setSubmittingRepay(true)
     const newOutstanding = Math.max(0, Number(debt.outstanding) - amt)
-    await onUpdateOutstanding(debt.id, newOutstanding, amt, logTxn, debt.name)
+    await onUpdateOutstanding(debt.id, newOutstanding, amt, logTxn, debt.name, repayNotes)
     setSubmittingRepay(false)
     setRepayModalOpen(false)
     setRepayAmount('')
+    setRepayNotes('')
   }
 
   return (
@@ -169,6 +172,7 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
             <button
               onClick={() => {
                 setRepayAmount(String(debt.outstanding))
+                setRepayNotes('')
                 setRepayModalOpen(true)
               }}
               className="btn btn-primary text-xs py-1.5 px-3 flex-1 flex items-center justify-center gap-1"
@@ -178,9 +182,18 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
             </button>
           </div>
         ) : (
-          <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Settled & Cleared
-          </span>
+          <div className="flex items-center justify-between flex-1">
+            <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Settled & Cleared
+            </span>
+            <button
+              type="button"
+              onClick={() => onViewDetails(debt)}
+              className="text-xs text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 font-semibold hover:underline"
+            >
+              History & Payments
+            </button>
+          </div>
         )}
 
         <div className="flex items-center gap-1">
@@ -229,6 +242,20 @@ export default function DebtCard({ debt, onEdit, onDelete, onUpdateOutstanding, 
                 autoFocus
                 required
               />
+            </div>
+
+            <div>
+              <label className="label">Payment & Clearance Notes (Optional)</label>
+              <textarea
+                rows={3}
+                placeholder={isLent ? "e.g. Received via GPay UPI ref #8291, Cash returned in person, Bank transfer..." : "e.g. Paid via GPay UPI ref #1234, NetBanking, Cash handed over..."}
+                value={repayNotes}
+                onChange={(e) => setRepayNotes(e.target.value)}
+                className="input text-xs min-h-[85px] py-2.5 leading-relaxed resize-y w-full"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                State how this amount was cleared (e.g. UPI ID/ref, cash, bank transfer).
+              </p>
             </div>
 
             <div className="flex items-center gap-2">

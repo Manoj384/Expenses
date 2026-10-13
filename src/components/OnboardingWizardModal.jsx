@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import Modal from './Modal'
+import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 import { formatCurrency } from '../utils/formatCurrency'
 import { CURRENCIES, useCurrency } from '../context/CurrencyContext'
 import {
@@ -19,8 +22,11 @@ import {
 const STEP_ICONS = [Wallet, Zap, Target, TrendingUp]
 
 export default function OnboardingWizardModal({ isOpen, onClose, onComplete }) {
+  const { user } = useAuth()
+  const toast = useToast()
   const { currency, setCurrencyCode } = useCurrency()
   const [step, setStep] = useState(1)
+  const [saving, setSaving] = useState(false)
 
   // Step 1: Income & Currency
   const [monthlyIncome, setMonthlyIncome] = useState('85000')
@@ -44,17 +50,66 @@ export default function OnboardingWizardModal({ isOpen, onClose, onComplete }) {
 
   if (!isOpen) return null
 
-  const handleFinish = () => {
-    if (onComplete) {
-      onComplete({
-        income: parseFloat(monthlyIncome) || 85000,
-        currency: currency.code,
-        categories: selectedCats,
-        goal: { name: goalName, amount: parseFloat(goalAmount) || 250000 },
-        sip: { fund: sipFund, amount: parseFloat(sipAmount) || 25000 },
-      })
+  const handleFinish = async () => {
+    const income = Number(monthlyIncome) || 0
+    const targetAmount = Number(goalAmount) || 0
+    if (income < 0 || targetAmount < 0) {
+      toast.error('Income and goal amount cannot be negative.')
+      return
     }
-    onClose()
+
+    setSaving(true)
+    try {
+      // Budget baseline and currency are local preferences; financial records are cloud-backed.
+      localStorage.setItem('ft_custom_monthly_income', String(income))
+
+      if (user) {
+        const categoryRows = selectedCats.map((name) => ({ user_id: user.id, name, type: 'expense' }))
+        if (categoryRows.length) {
+          const { error } = await supabase.from('categories').upsert(categoryRows, { onConflict: 'user_id,name,type', ignoreDuplicates: true })
+          if (error) throw error
+        }
+
+        if (goalName.trim() && targetAmount > 0) {
+          const defaultTargetDate = new Date()
+          defaultTargetDate.setFullYear(defaultTargetDate.getFullYear() + 1)
+
+          const { error } = await supabase.from('goals').insert({
+            user_id: user.id,
+            name: goalName.trim(),
+            target_amount: targetAmount,
+            current_amount: 0,
+            category: 'Savings',
+            target_date: defaultTargetDate.toISOString().slice(0, 10),
+          })
+          if (error) throw error
+        }
+
+        const sipValue = Number(sipAmount) || 0
+        if (sipFund.trim() && sipValue > 0) {
+          const startDate = new Date().toISOString().slice(0, 10)
+          const { error } = await supabase.from('sips').insert({
+            user_id: user.id,
+            name: sipFund.trim(),
+            amount: sipValue,
+            frequency: 'monthly',
+            start_date: startDate,
+            next_due_date: startDate,
+            active: true,
+          })
+          if (error) throw error
+        }
+      }
+
+      const setup = { income, currency: currency.code, categories: selectedCats, goal: { name: goalName, amount: targetAmount }, sip: { fund: sipFund, amount: Number(sipAmount) || 0 } }
+      if (onComplete) await onComplete(setup)
+      toast.success(user ? 'Your finance workspace is ready.' : 'Your preferences have been saved.')
+      onClose()
+    } catch (err) {
+      toast.error(err?.message || 'Unable to complete setup. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -268,10 +323,11 @@ export default function OnboardingWizardModal({ isOpen, onClose, onComplete }) {
           ) : (
             <button
               onClick={handleFinish}
+              disabled={saving}
               className="btn-primary bg-emerald-600 hover:bg-emerald-700 text-xs flex items-center gap-1.5 py-2 px-5 font-bold"
             >
               <Sparkles className="h-4 w-4 text-amber-300" />
-              <span>Complete Setup & Launch!</span>
+              <span>{saving ? 'Saving setup...' : 'Complete Setup & Launch!'}</span>
             </button>
           )}
         </div>

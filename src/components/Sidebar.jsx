@@ -41,6 +41,8 @@ import {
   Flame,
   Skull,
   Radio,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useAdmin } from '../context/AdminContext'
@@ -49,22 +51,50 @@ import { useDesktopMode } from '../context/DesktopModeContext'
 import { useToast } from '../context/ToastContext'
 import AdminLockModal from './AdminLockModal'
 
-const navItems = [
-  { to: '/',              label: 'Dashboard',             icon: LayoutDashboard },
-  { to: '/transactions',  label: 'Transactions',          icon: ArrowLeftRight },
-  { to: '/reminders',     label: 'Reminders & Calendar',  icon: BellRing },
-  { to: '/splitwise',     label: 'Splitwise & Groups',    icon: Users },
-  { to: '/mutual-funds',  label: 'Mutual Funds',          icon: LineChart },
-  { to: '/net-worth',     label: 'Net Worth',             icon: Landmark },
-  { to: '/goals',         label: 'Goals',                 icon: Target },
-  { to: '/budgets',       label: 'Budgets & Alerts',      icon: Zap },
-  { to: '/sips',          label: 'SIPs',                  icon: TrendingUp },
-  { to: '/debts',         label: 'Debts',                 icon: CreditCard },
-  { to: '/bills',         label: 'Bill Reminders',        icon: Calendar },
-  { to: '/statements',    label: 'Statements (OCR)',      icon: FileSpreadsheet },
-  { to: '/reports',       label: 'Reports & Visuals',     icon: BarChart2 },
-  { to: '/past-expenses', label: 'Past Expenses',         icon: History },
-  { to: '/emc',           label: 'EMC Standards (ISO/CISPR)', icon: Radio },
+const NAV_SECTIONS = [
+  {
+    id: 'today',
+    title: 'Today',
+    badge: 'Daily',
+    items: [
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+      { to: '/past-expenses', label: 'Past Expenses', icon: History },
+    ],
+  },
+  {
+    id: 'plan',
+    title: 'Plan',
+    badge: 'Targets',
+    items: [
+      { to: '/budgets', label: 'Budgets & Alerts', icon: Zap },
+      { to: '/goals', label: 'Goals', icon: Target },
+      { to: '/bills', label: 'Bill Reminders', icon: Calendar },
+      { to: '/reminders', label: 'Reminders & Calendar', icon: BellRing },
+      { to: '/debts', label: 'Debts & Borrowings', icon: CreditCard },
+    ],
+  },
+  {
+    id: 'invest',
+    title: 'Invest',
+    badge: 'Wealth',
+    items: [
+      { to: '/mutual-funds', label: 'Mutual Funds', icon: LineChart },
+      { to: '/sips', label: 'SIPs & Top-ups', icon: TrendingUp },
+      { to: '/net-worth', label: 'Net Worth', icon: Landmark },
+      { to: '/reports', label: 'Reports & Visuals', icon: BarChart2 },
+    ],
+  },
+  {
+    id: 'more',
+    title: 'More',
+    badge: 'Tools',
+    items: [
+      { to: '/splitwise', label: 'Splitwise & Groups', icon: Users },
+      { to: '/statements', label: 'Statements (OCR)', icon: FileSpreadsheet },
+      { to: '/emc', label: 'EMC Standards (ISO/CISPR)', icon: Radio },
+    ],
+  },
 ]
 
 export default function Sidebar({
@@ -89,6 +119,11 @@ export default function Sidebar({
   const { isDesktopSite, toggleDesktopSite } = useDesktopMode()
   const toast = useToast()
   const [showAdminModal, setShowAdminModal] = useState(false)
+  const [collapsedSections, setCollapsedSections] = useState({})
+
+  const toggleSection = (sectionId) => {
+    setCollapsedSections((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }))
+  }
 
   const handleLogout = async () => {
     try {
@@ -134,29 +169,55 @@ export default function Sidebar({
         </button>
       </div>
 
-      {/* Navigation Links */}
-      <nav className="flex-1 px-3 py-3 space-y-1">
-        <div className="px-3 pb-1 pt-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500">Navigation</span>
-        </div>
-        {navItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            onClick={handleLinkClick}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shadow-2xs font-semibold'
-                  : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'
-              }`
-            }
-          >
-            <Icon className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">{label}</span>
-          </NavLink>
-        ))}
+      {/* Navigation Links with Progressive Disclosure */}
+      <nav className="flex-1 px-3 py-3 space-y-3">
+        {NAV_SECTIONS.map((section) => {
+          const isCollapsed = Boolean(collapsedSections[section.id])
+          return (
+            <div key={section.id} className="space-y-0.5">
+              <button
+                type="button"
+                onClick={() => toggleSection(section.id)}
+                className="w-full flex items-center justify-between px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-slate-500 hover:text-gray-700 dark:hover:text-slate-300 rounded-lg transition-colors"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>{section.title}</span>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded font-semibold bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
+                    {section.badge}
+                  </span>
+                </div>
+                {isCollapsed ? (
+                  <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                )}
+              </button>
+
+              {!isCollapsed && (
+                <div className="space-y-0.5 pt-0.5">
+                  {section.items.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === '/'}
+                      onClick={handleLinkClick}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 ${
+                          isActive
+                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 shadow-2xs font-semibold'
+                            : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 hover:text-gray-900 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+                        }`
+                      }
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
 
         {/* Quick Tools & Utilities Hub - Consolidated into 2 Master Hubs */}
         <div className="pt-3 pb-1 px-3">

@@ -6,9 +6,9 @@ const ToastContext = createContext(null)
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 
-  const addToast = useCallback((message, type = 'success', duration = 4000) => {
+  const addToast = useCallback((message, type = 'success', duration = 4000, action = null) => {
     const id = Date.now() + Math.random().toString(36).substring(2, 9)
-    setToasts((prev) => [...prev, { id, message, type }])
+    setToasts((prev) => [...prev, { id, message, type, action }])
 
     if (duration > 0) {
       setTimeout(() => {
@@ -25,9 +25,10 @@ export function ToastProvider({ children }) {
   const error = useCallback((msg, dur) => addToast(msg, 'error', dur || 6000), [addToast])
   const info = useCallback((msg, dur) => addToast(msg, 'info', dur), [addToast])
   const warning = useCallback((msg, dur) => addToast(msg, 'warning', dur), [addToast])
+  const action = useCallback((msg, label, onClick, dur = 5000) => addToast(msg, 'info', dur, { label, onClick }), [addToast])
 
   return (
-    <ToastContext.Provider value={{ addToast, removeToast, success, error, info, warning }}>
+    <ToastContext.Provider value={{ addToast, removeToast, success, error, info, warning, action }}>
       {children}
       {/* Toast Notification Container */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
@@ -51,6 +52,14 @@ export function ToastProvider({ children }) {
 
             <div className="flex-1 font-medium leading-relaxed">{t.message}</div>
 
+            {t.action && (
+              <button
+                onClick={() => { t.action.onClick(); removeToast(t.id) }}
+                className="text-xs font-bold underline underline-offset-2 text-white hover:text-blue-200"
+              >
+                {t.action.label}
+              </button>
+            )}
             <button
               onClick={() => removeToast(t.id)}
               className="text-white/60 hover:text-white p-0.5 rounded transition-colors"
@@ -73,6 +82,7 @@ export function useToast() {
       error: (msg) => console.error('Toast Error:', msg),
       info: (msg) => console.log('Toast Info:', msg),
       warning: (msg) => console.warn('Toast Warning:', msg),
+      action: (msg) => console.log('Toast Action:', msg),
     }
   }
   return ctx

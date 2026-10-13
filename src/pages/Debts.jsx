@@ -278,7 +278,7 @@ export default function Debts() {
     }
   }
 
-  const handleUpdateOutstanding = async (id, newOutstanding, repayAmt, logTxn, debtName) => {
+  const handleUpdateOutstanding = async (id, newOutstanding, repayAmt, logTxn, debtName, notes = '') => {
     try {
       const isNowCleared = newOutstanding <= 0
       let res = await supabase
@@ -300,18 +300,49 @@ export default function Debts() {
 
       if (res.error) throw res.error
 
+      const targetDebt = debts.find((d) => d.id === id)
+      const isLent = targetDebt?.debt_type === 'lent'
+      const cleanNotes = (notes || '').trim()
+
       // Log transaction if checked
+      let txnId = null
       if (logTxn && repayAmt > 0 && user) {
-        const targetDebt = debts.find((d) => d.id === id)
-        const isLent = targetDebt?.debt_type === 'lent'
-        await supabase.from('transactions').insert({
-          user_id: user.id,
-          type: isLent ? 'income' : 'expense',
-          amount: repayAmt,
-          note: isLent ? `Money collected from ${debtName}` : `Debt repayment for ${debtName}`,
-          date: new Date().toISOString().slice(0, 10),
-        })
+        const noteText = isLent
+          ? `Money collected from ${debtName}${cleanNotes ? ` (${cleanNotes})` : ''}`
+          : `Debt repayment for ${debtName}${cleanNotes ? ` (${cleanNotes})` : ''}`
+
+        const { data: txnRow } = await supabase
+          .from('transactions')
+          .insert({
+            user_id: user.id,
+            type: isLent ? 'income' : 'expense',
+            amount: repayAmt,
+            note: noteText,
+            date: new Date().toISOString().slice(0, 10),
+          })
+          .select('id')
+          .single()
+
+        if (txnRow?.id) {
+          txnId = txnRow.id
+        }
       }
+
+      // Record in local repayment audit trail for debt details
+      try {
+        const historyKey = `ft_debt_repayments_${id}`
+        const existing = JSON.parse(localStorage.getItem(historyKey) || '[]')
+        existing.unshift({
+          id: 'rep_' + Date.now(),
+          amount: repayAmt,
+          date: new Date().toISOString(),
+          notes: cleanNotes || (isNowCleared ? 'Full Settlement / Cleared' : 'Partial Repayment'),
+          isSettlement: isNowCleared,
+          newOutstanding,
+          txnId,
+        })
+        localStorage.setItem(historyKey, JSON.stringify(existing.slice(0, 50)))
+      } catch {}
 
       if (isNowCleared) {
         fireMilestoneConfetti()
@@ -325,6 +356,196 @@ export default function Debts() {
       fetchDebts()
     } catch {
       toastError('Failed to record repayment.')
+    }
+  }
+
+  const handleDeleteRepayment = async (debtId, repaymentId) => {
+    try {
+      const historyKey = `ft_debt_repayments_${debtId}`
+      const existing = JSON.parse(localStorage.getItem(historyKey) || '[]')
+      const targetRep = existing.find((r) => r.id === repaymentId)
+      if (!targetRep) return
+
+      const targetDebt = debts.find((d) => d.id === debtId)
+      if (!targetDebt) return
+
+      const principal = Number(targetDebt.principal || 0)
+      const currentOutstanding = Number(targetDebt.outstanding || 0)
+      const revertedAmount = Number(targetRep.amount || 0)
+      const restoredOutstanding = Math.min(principal, currentOutstanding + revertedAmount)
+      const newStatus = restoredOutstanding > 0 ? 'active' : 'cleared'
+
+      // 1. Update debt record in Supabase
+      let res = await supabase
+        .from('debts')
+        .update({
+          outstanding: restoredOutstanding,
+          status: newStatus,
+          cleared_at: newStatus === 'cleared' ? targetDebt.cleared_at : null,
+        })
+        .eq('id', debtId)
+
+      if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column'))) {
+        res = await supabase
+          .from('debts')
+          .update({ outstanding: restoredOutstanding })
+          .eq('id', debtId)
+      }
+      if (res.error) throw res.error
+
+      // 2. Delete linked transaction if recorded
+      if (targetRep.txnId && user) {
+        try {
+          await supabase.from('transactions').delete().eq('id', targetRep.txnId)
+        } catch {}
+      }
+
+      // 3. Remove from local history
+      const updatedHistory = existing.filter((r) => r.id !== repaymentId)
+      localStorage.setItem(historyKey, JSON.stringify(updatedHistory))
+
+      // 4. Update memory state
+      const updatedDebt = {
+        ...targetDebt,
+        outstanding: restoredOutstanding,
+        status: newStatus,
+        cleared_at: newStatus === 'cleared' ? targetDebt.cleared_at : null,
+      }
+      setDebts((prev) => prev.map((d) => (d.id === debtId ? updatedDebt : d)))
+      if (detailsTarget?.id === debtId) {
+        setDetailsTarget(updatedDebt)
+      }
+
+      toastSuccess(`Repayment of ${formatCurrency(revertedAmount)} reverted! Balance restored.`)
+      fetchDebts()
+    } catch {
+      toastError('Failed to revert repayment.')
+    }
+  }
+
+  const handleEditRepayment = async (debtId, repaymentId, { amount, notes, date }) => {
+    try {
+      const historyKey = `ft_debt_repayments_${debtId}`
+      const existing = JSON.parse(localStorage.getItem(historyKey) || '[]')
+      const targetRep = existing.find((r) => r.id === repaymentId)
+      if (!targetRep) return
+
+      const targetDebt = debts.find((d) => d.id === debtId)
+      if (!targetDebt) return
+
+      const newAmt = Number(amount)
+      const oldAmt = Number(targetRep.amount || 0)
+      const diff = newAmt - oldAmt
+      const principal = Number(targetDebt.principal || 0)
+      const currentOutstanding = Number(targetDebt.outstanding || 0)
+      const newOutstanding = Math.max(0, Math.min(principal, currentOutstanding - diff))
+      const isNowCleared = newOutstanding <= 0
+
+      // 1. Update debt record in Supabase
+      let res = await supabase
+        .from('debts')
+        .update({
+          outstanding: newOutstanding,
+          status: isNowCleared ? 'cleared' : 'active',
+          cleared_at: isNowCleared ? (targetDebt.cleared_at || new Date().toISOString()) : null,
+        })
+        .eq('id', debtId)
+
+      if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column'))) {
+        res = await supabase
+          .from('debts')
+          .update({ outstanding: newOutstanding })
+          .eq('id', debtId)
+      }
+      if (res.error) throw res.error
+
+      // 2. Update linked transaction if it exists
+      if (targetRep.txnId && user) {
+        try {
+          const isLent = targetDebt.debt_type === 'lent'
+          const cleanNotes = (notes || '').trim()
+          const noteText = isLent
+            ? `Money collected from ${targetDebt.name}${cleanNotes ? ` (${cleanNotes})` : ''}`
+            : `Debt repayment for ${targetDebt.name}${cleanNotes ? ` (${cleanNotes})` : ''}`
+
+          await supabase
+            .from('transactions')
+            .update({
+              amount: newAmt,
+              note: noteText,
+              date: date || new Date().toISOString().slice(0, 10),
+            })
+            .eq('id', targetRep.txnId)
+        } catch {}
+      }
+
+      // 3. Update repayment in local history
+      const updatedHistory = existing.map((r) =>
+        r.id === repaymentId
+          ? {
+              ...r,
+              amount: newAmt,
+              notes: (notes || '').trim(),
+              date: date ? new Date(date).toISOString() : r.date,
+              isSettlement: isNowCleared,
+              newOutstanding,
+            }
+          : r
+      )
+      localStorage.setItem(historyKey, JSON.stringify(updatedHistory))
+
+      // 4. Update memory state
+      const updatedDebt = {
+        ...targetDebt,
+        outstanding: newOutstanding,
+        status: isNowCleared ? 'cleared' : 'active',
+        cleared_at: isNowCleared ? (targetDebt.cleared_at || new Date().toISOString()) : null,
+      }
+      setDebts((prev) => prev.map((d) => (d.id === debtId ? updatedDebt : d)))
+      if (detailsTarget?.id === debtId) {
+        setDetailsTarget(updatedDebt)
+      }
+
+      toastSuccess('Repayment details updated successfully.')
+      fetchDebts()
+    } catch {
+      toastError('Failed to update repayment.')
+    }
+  }
+
+  const handleReopenDebt = async (debtId, newOutstanding) => {
+    try {
+      const amt = Number(newOutstanding)
+      let res = await supabase
+        .from('debts')
+        .update({
+          outstanding: amt,
+          status: 'active',
+          cleared_at: null,
+        })
+        .eq('id', debtId)
+
+      if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column'))) {
+        res = await supabase
+          .from('debts')
+          .update({ outstanding: amt })
+          .eq('id', debtId)
+      }
+      if (res.error) throw res.error
+
+      setDebts((prev) =>
+        prev.map((d) =>
+          d.id === debtId ? { ...d, outstanding: amt, status: 'active', cleared_at: null } : d
+        )
+      )
+      if (detailsTarget?.id === debtId) {
+        setDetailsTarget((prev) => (prev ? { ...prev, outstanding: amt, status: 'active', cleared_at: null } : null))
+      }
+
+      toastSuccess(`Debt record reopened with outstanding balance of ${formatCurrency(amt)}.`)
+      fetchDebts()
+    } catch {
+      toastError('Failed to reopen debt record.')
     }
   }
 
@@ -358,9 +579,9 @@ export default function Debts() {
     fetchDebts()
   }
 
-  const handleSettleDebt = async (id, fullAmt, logTxn) => {
+  const handleSettleDebt = async (id, fullAmt, logTxn, notes = '') => {
     const targetDebt = debts.find((d) => d.id === id)
-    await handleUpdateOutstanding(id, 0, fullAmt, logTxn, targetDebt?.name || 'Debt')
+    await handleUpdateOutstanding(id, 0, fullAmt, logTxn, targetDebt?.name || 'Debt', notes)
   }
 
   // Filter list by selected tab
@@ -788,6 +1009,10 @@ export default function Debts() {
             setDetailsTarget(null)
             handleSettleDebt(d.id, Number(d.outstanding), true)
           }}
+          onDeleteRepayment={handleDeleteRepayment}
+          onEditRepayment={handleEditRepayment}
+          onDeleteDebt={handleDelete}
+          onReopenDebt={handleReopenDebt}
         />
       )}
 

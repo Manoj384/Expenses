@@ -8,6 +8,7 @@ import AiReceiptScannerModal from './AiReceiptScannerModal'
 const TRANSACTION_TYPES = [
   { value: 'expense', label: 'Expense' },
   { value: 'income',  label: 'Income'  },
+  { value: 'savings', label: 'Savings' },
   { value: 'debit',   label: 'Debit'   },
 ]
 
@@ -56,7 +57,7 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
   // Load categories and payment methods
   useEffect(() => {
     if (!user) return
-    const catType = form.type === 'debit' ? 'expense' : form.type
+    const catType = form.type === 'income' ? 'income' : 'expense'
     setLoadingCats(true)
     supabase
       .from('categories')
@@ -90,7 +91,7 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
     setForm((prev) => ({
       ...prev,
       [name]: value,
-      ...(name === 'type' ? { category_id: '' } : {}),
+      ...(name === 'type' && ((value === 'income') !== (prev.type === 'income')) ? { category_id: '' } : {}),
     }))
   }
 

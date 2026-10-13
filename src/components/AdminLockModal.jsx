@@ -10,7 +10,7 @@ import {
 } from '../utils/webAuthn'
 
 export default function AdminLockModal({ isOpen, onClose }) {
-  const { isAdmin, enterAdmin, exitAdmin, changePin } = useAdmin()
+  const { isAdmin, enterAdmin, exitAdmin, changePin, hasPin } = useAdmin()
   const [pinInput, setPinInput] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -48,6 +48,13 @@ export default function AdminLockModal({ isOpen, onClose }) {
   const handleUnlock = (e) => {
     e.preventDefault()
     setError('')
+    if (!hasPin) {
+      const setup = changePin('', pinInput)
+      if (!setup.success) {
+        setError(setup.error)
+        return
+      }
+    }
     const res = enterAdmin(pinInput)
     if (res.success) {
       setPinInput('')
@@ -85,7 +92,7 @@ export default function AdminLockModal({ isOpen, onClose }) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={isAdmin ? 'Admin Mode Activated' : 'Enter Admin PIN'}>
+    <Modal isOpen={isOpen} onClose={onClose} title={isAdmin ? 'Configuration Lock Unlocked' : 'Unlock Local Configuration'}>
       <div className="space-y-4 py-1">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-lg flex items-center gap-2">
@@ -105,9 +112,9 @@ export default function AdminLockModal({ isOpen, onClose }) {
             <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3">
               <ShieldCheck className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <h4 className="font-semibold text-amber-900 text-sm">You are in Admin Mode</h4>
+                <h4 className="font-semibold text-amber-900 text-sm">Local configuration is unlocked</h4>
                 <p className="text-xs text-amber-700 mt-1">
-                  You have permissions to create, edit, seed, and delete Master Categories & Payment Methods.
+                  You can manage categories and payment methods. This does not grant server-side privileges.
                 </p>
               </div>
             </div>
@@ -214,11 +221,11 @@ export default function AdminLockModal({ isOpen, onClose }) {
         ) : (
           <form onSubmit={handleUnlock} className="space-y-4">
             <p className="text-sm text-gray-600">
-              Enter your Admin PIN to manage Master Categories and Payment Methods. (Default PIN: <strong className="text-gray-900">1234</strong>)
+              Enter the local configuration PIN to manage categories and payment methods. This is a convenience lock only; Supabase Row Level Security remains the authorization boundary.
             </p>
 
             <div>
-              <label className="label" htmlFor="admin-pin-input">Admin Security PIN</label>
+              <label className="label" htmlFor="admin-pin-input">{hasPin ? 'Local Configuration PIN' : 'Create a Local Configuration PIN'}</label>
               <div className="relative">
                 <input
                   id="admin-pin-input"
@@ -226,7 +233,7 @@ export default function AdminLockModal({ isOpen, onClose }) {
                   autoFocus
                   maxLength={8}
                   className="input-field text-center tracking-widest text-lg font-mono"
-                  placeholder="••••"
+                  placeholder={hasPin ? '••••' : '4 to 8 digits'}
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
                   required
@@ -236,7 +243,7 @@ export default function AdminLockModal({ isOpen, onClose }) {
 
             <div className="flex gap-3 pt-2">
               <button type="submit" className="btn-primary flex-1 flex items-center justify-center gap-2">
-                <Unlock className="h-4 w-4" /> Unlock Admin Mode
+                <Unlock className="h-4 w-4" /> {hasPin ? 'Unlock Local Configuration' : 'Create & Unlock'}
               </button>
               <button type="button" onClick={onClose} className="btn-secondary">
                 Cancel

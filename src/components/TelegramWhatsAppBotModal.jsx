@@ -39,8 +39,7 @@ export default function TelegramWhatsAppBotModal({ isOpen, onClose, isEmbedded =
   const [inputVal, setInputVal] = useState('')
   const [logging, setLogging] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [telegramToken, setTelegramToken] = useState(() => localStorage.getItem('ft_telegram_bot_token') || '')
-  const [telegramChatId, setTelegramChatId] = useState(() => localStorage.getItem('ft_telegram_chat_id') || '')
+  const [telegramChatId, setTelegramChatId] = useState('')
   const chatBottomRef = useRef(null)
 
   useEffect(() => {
@@ -57,9 +56,7 @@ export default function TelegramWhatsAppBotModal({ isOpen, onClose, isEmbedded =
 
   const handleSaveTelegramConfig = (e) => {
     e.preventDefault()
-    localStorage.setItem('ft_telegram_bot_token', telegramToken.trim())
-    localStorage.setItem('ft_telegram_chat_id', telegramChatId.trim())
-    alert('Telegram Bot settings saved!')
+    alert('For security, configure the Telegram bot token, allowed chat ID, user ID, and webhook secret as Supabase Edge Function secrets. See SECURITY_DEPLOYMENT.md.')
   }
 
   const handleSendMessage = async (customText = null) => {
@@ -312,7 +309,13 @@ export default function TelegramWhatsAppBotModal({ isOpen, onClose, isEmbedded =
     '/networth',
   ]
 
-  const webhookCodeSnippet = `// Supabase Edge Function / Cloudflare Worker: telegram-webhook.ts
+  const webhookCodeSnippet = `// Use the maintained supabase/functions/telegram-bot function.
+// It requires TELEGRAM_WEBHOOK_SECRET, TELEGRAM_ALLOWED_CHAT_ID,
+// and TELEGRAM_FINANCE_USER_ID server secrets.
+// Never place Telegram bot tokens in browser storage.
+
+// Legacy example (do not deploy as-is):
+// Supabase Edge Function / Cloudflare Worker: telegram-webhook.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
@@ -530,28 +533,15 @@ serve(async (req) => {
               <ol className="list-decimal list-inside space-y-1 text-xs">
                 <li>Open Telegram and search for <strong>@BotFather</strong>.</li>
                 <li>Send <code>/newbot</code> and follow instructions to name your bot.</li>
-                <li>Copy the generated <strong>HTTP API Token</strong> and paste it below.</li>
-                <li>Send <code>/start</code> to your new bot to begin logging expenses on the go!</li>
+                <li>Store the token, allowed chat ID, linked finance user ID, and webhook secret as Supabase Edge Function secrets.</li>
+                <li>Deploy the maintained <code>telegram-bot</code> function using <code>SECURITY_DEPLOYMENT.md</code>.</li>
               </ol>
             </div>
 
             <form onSubmit={handleSaveTelegramConfig} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                  Telegram Bot Token:
-                </label>
-                <input
-                  type="password"
-                  value={telegramToken}
-                  onChange={(e) => setTelegramToken(e.target.value)}
-                  placeholder="e.g. 7123456789:AAHxxxxx_xxxxxxxxxxxx"
-                  className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
-                  Your Telegram Chat ID (Optional):
+                  Telegram Chat ID (reference only — not saved):
                 </label>
                 <input
                   type="text"

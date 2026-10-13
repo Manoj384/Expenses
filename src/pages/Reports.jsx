@@ -92,6 +92,9 @@ export default function Reports() {
         if (tx.type === 'income') {
           totalIncome += amount
           if (monthMap[mKey]) monthMap[mKey].income += amount
+        } else if (tx.type === 'savings') {
+          // Exclude savings/investments from regular expense total
+          continue
         } else {
           // expense or debit
           totalExpense += amount
@@ -118,7 +121,7 @@ export default function Reports() {
         const priorKey = `${m.year - 1}-${String(m.month).padStart(2, '0')}`
         const thisYearExp = monthMap[curKey]?.expense || 0
         const lastYearExp = (priorTxns || [])
-          .filter((t) => t.date.startsWith(priorKey) && t.type !== 'income')
+          .filter((t) => t.date.startsWith(priorKey) && t.type !== 'income' && t.type !== 'savings')
           .reduce((sum, t) => sum + Number(t.amount), 0)
 
         return {

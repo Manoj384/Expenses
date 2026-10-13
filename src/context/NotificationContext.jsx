@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from './AuthContext'
 import { formatCurrency } from '../utils/formatCurrency'
@@ -354,40 +354,52 @@ export function NotificationProvider({ children }) {
     return () => clearInterval(interval)
   }, [scanAlerts])
 
-  const dismissNotification = (id) => {
+  const dismissNotification = useCallback((id) => {
     setDismissedIds((prev) => [...prev, id])
     setNotifications((prev) => prev.filter((n) => n.id !== id))
     setUnreadCount((prev) => Math.max(0, prev - 1))
-  }
+  }, [])
 
-  const dismissAll = () => {
-    const allIds = notifications.map((n) => n.id)
-    setDismissedIds((prev) => [...new Set([...prev, ...allIds])])
+  const dismissAll = useCallback(() => {
+    setDismissedIds((prev) => {
+      const allIds = notifications.map((n) => n.id)
+      return [...new Set([...prev, ...allIds])]
+    })
     setNotifications([])
     setUnreadCount(0)
-  }
+  }, [notifications])
 
-  const resetDismissed = () => {
+  const resetDismissed = useCallback(() => {
     setDismissedIds([])
     localStorage.removeItem(DISMISSED_STORAGE_KEY)
     scanAlerts()
-  }
+  }, [scanAlerts])
+
+  const contextValue = useMemo(() => ({
+    notifications,
+    unreadCount,
+    dismissNotification,
+    dismissAll,
+    resetDismissed,
+    refreshAlerts: scanAlerts,
+    preferences,
+    setPreferences,
+    permission,
+    requestPushPermission,
+  }), [
+    notifications,
+    unreadCount,
+    dismissNotification,
+    dismissAll,
+    resetDismissed,
+    scanAlerts,
+    preferences,
+    permission,
+    requestPushPermission,
+  ])
 
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        dismissNotification,
-        dismissAll,
-        resetDismissed,
-        refreshAlerts: scanAlerts,
-        preferences,
-        setPreferences,
-        permission,
-        requestPushPermission,
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
     </NotificationContext.Provider>
   )

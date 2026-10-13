@@ -4,7 +4,7 @@ const AdminContext = createContext({})
 
 const ADMIN_PIN_KEY = 'ft_admin_pin'
 const ADMIN_STATE_KEY = 'ft_admin_active'
-const DEFAULT_PIN = '1234'
+const DEFAULT_PIN = ''
 
 export function AdminProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(() => {
@@ -20,7 +20,7 @@ export function AdminProvider({ children }) {
 
   const verifyPin = (inputPin) => {
     const currentPin = localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN
-    return inputPin === currentPin
+    return Boolean(currentPin) && inputPin === currentPin
   }
 
   const enterAdmin = (inputPin) => {
@@ -28,7 +28,7 @@ export function AdminProvider({ children }) {
       setIsAdmin(true)
       return { success: true }
     }
-    return { success: false, error: 'Incorrect PIN. Default PIN is 1234.' }
+    return { success: false, error: 'Incorrect PIN, or no local configuration PIN has been set.' }
   }
 
   const exitAdmin = () => {
@@ -36,11 +36,12 @@ export function AdminProvider({ children }) {
   }
 
   const changePin = (oldPin, newPin) => {
-    if (!verifyPin(oldPin)) {
+    const hasExistingPin = Boolean(localStorage.getItem(ADMIN_PIN_KEY))
+    if (hasExistingPin && !verifyPin(oldPin)) {
       return { success: false, error: 'Current PIN is incorrect.' }
     }
-    if (!newPin || newPin.length < 4) {
-      return { success: false, error: 'New PIN must be at least 4 digits.' }
+    if (!/^\d{4,8}$/.test(newPin || '')) {
+      return { success: false, error: 'New PIN must contain 4 to 8 digits.' }
     }
     localStorage.setItem(ADMIN_PIN_KEY, newPin)
     setPin(newPin)
@@ -48,7 +49,7 @@ export function AdminProvider({ children }) {
   }
 
   return (
-    <AdminContext.Provider value={{ isAdmin, enterAdmin, exitAdmin, changePin, currentPin: pin }}>
+    <AdminContext.Provider value={{ isAdmin, enterAdmin, exitAdmin, changePin, hasPin: Boolean(pin), currentPin: pin }}>
       {children}
     </AdminContext.Provider>
   )

@@ -5,7 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency'
 import { playWakeChime, playSuccessChime, enrollVoice, getVoiceProfile, deleteVoiceProfile, isVoiceEnrolled, isWakeWordEnabled, setWakeWordEnabled } from '../utils/wakeWordDetector'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
-import { queryGeminiAi, getGeminiApiKey, saveGeminiApiKey } from '../utils/geminiAiService'
+import { queryGeminiAi } from '../utils/geminiAiService'
 import {
   Mic,
   MicOff,
@@ -23,7 +23,6 @@ import {
   Receipt,
   HelpCircle,
   Radio,
-  Key,
 } from 'lucide-react'
 
 const VOICE_PRESETS = [
@@ -56,8 +55,6 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
   const [voiceEnrolled, setVoiceEnrolled] = useState(() => isVoiceEnrolled())
   const [voiceProfile, setVoiceProfile]   = useState(() => getVoiceProfile())
   const [wakeWordActive, setWakeWordActive] = useState(() => isWakeWordEnabled())
-  const [apiKeyInput, setApiKeyInput] = useState(() => getGeminiApiKey())
-  const [showApiKeySettings, setShowApiKeySettings] = useState(false)
   const [isAiThinking, setIsAiThinking] = useState(false)
 
   const recognitionRef = useRef(null)
@@ -350,22 +347,8 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
             </p>
           </div>
 
-          {/* Header Controls: Gemini Key & Mute */}
+          {/* Header Controls */}
           <div className="absolute top-3 right-3 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowApiKeySettings(prev => !prev)}
-              className={`p-2 rounded-xl text-[11px] font-semibold flex items-center gap-1.5 backdrop-blur-md transition-all ${
-                apiKeyInput
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
-                  : 'bg-white/10 hover:bg-white/20 text-white'
-              }`}
-              title="Configure Google Gemini API Key"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
-              <span>{apiKeyInput ? 'Gemini AI Active' : 'Set Gemini Key'}</span>
-            </button>
-
             <button
               type="button"
               onClick={() => {
@@ -379,46 +362,6 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
             </button>
           </div>
         </div>
-
-        {/* Gemini API Key Configuration Drawer */}
-        {showApiKeySettings && (
-          <div className="p-3.5 rounded-2xl bg-slate-900 text-white border border-blue-500/30 shadow-lg space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Key className="h-4 w-4 text-cyan-400" />
-                <span className="font-bold text-xs text-white">Google Gemini 1.5 Flash API Key</span>
-              </div>
-              <span className="text-[10px] text-cyan-300 bg-cyan-950 px-2 py-0.5 rounded-full border border-cyan-800">
-                100% Free via Google AI Studio
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Unlock conversational financial reasoning with real AI. Get your free key at{' '}
-              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-cyan-400 underline">
-                aistudio.google.com
-              </a>
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                type="password"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                placeholder="AIzaSy..."
-                className="input-field text-xs flex-1 bg-slate-950 text-white border-slate-700"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  saveGeminiApiKey(apiKeyInput)
-                  setShowApiKeySettings(false)
-                }}
-                className="btn-primary text-xs py-1.5 px-3 whitespace-nowrap"
-              >
-                Save Key
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Conversation Message Feed */}
         <div className="p-4 rounded-2xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 max-h-60 overflow-y-auto space-y-3">

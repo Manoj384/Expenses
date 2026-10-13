@@ -1,22 +1,22 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
-import AdminLockModal from './AdminLockModal'
 import NetworkStatusIndicator from './NetworkStatusIndicator'
-import CommandPalette from './CommandPalette'
-import DataBackupModal from './DataBackupModal'
 import NotificationCenter from './NotificationCenter'
-import AiChatbotWidget from './AiChatbotWidget'
-import KeyboardShortcutsModal from './KeyboardShortcutsModal'
-import OnboardingWizardModal from './OnboardingWizardModal'
 import AlarmRingingModal from './AlarmRingingModal'
-
 import QuickAddFAB from './QuickAddFAB'
 import { useAdmin } from '../context/AdminContext'
 import { useAuth } from '../context/AuthContext'
-import AiFinancialCopilotModal from './AiFinancialCopilotModal'
-import FinancialToolkitModal from './FinancialToolkitModal'
-import BiometricAppLockOverlay from './BiometricAppLockOverlay'
+
+const AdminLockModal = lazy(() => import('./AdminLockModal'))
+const CommandPalette = lazy(() => import('./CommandPalette'))
+const DataBackupModal = lazy(() => import('./DataBackupModal'))
+const KeyboardShortcutsModal = lazy(() => import('./KeyboardShortcutsModal'))
+const OnboardingWizardModal = lazy(() => import('./OnboardingWizardModal'))
+const AiFinancialCopilotModal = lazy(() => import('./AiFinancialCopilotModal'))
+const FinancialToolkitModal = lazy(() => import('./FinancialToolkitModal'))
+const BiometricAppLockOverlay = lazy(() => import('./BiometricAppLockOverlay'))
+const AiChatbotWidget = lazy(() => import('./AiChatbotWidget'))
 import { wakeWordService } from '../utils/wakeWordDetector'
 import { backgroundAiWorker } from '../utils/backgroundAiWorker'
 import { Link } from 'react-router-dom'
@@ -30,7 +30,28 @@ export default function Layout({ children, title }) {
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [showBackupModal, setShowBackupModal] = useState(false)
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
-  const [showOnboardingModal, setShowOnboardingModal] = useState(false)
+  const [showOnboardingModal, setShowOnboardingModal] = useState(() => {
+    try {
+      if (!user) return false
+      // Show only once when logging in; never pop up again when switching sections
+      const sessionShown = sessionStorage.getItem(`ft_welcome_shown_${user.id}`) === 'true'
+      const permanentlyCompleted = localStorage.getItem(`ft_onboarding_complete_${user.id}`) === 'true'
+      if (sessionShown || permanentlyCompleted) return false
+
+      sessionStorage.setItem(`ft_welcome_shown_${user.id}`, 'true')
+      return true
+    } catch {
+      return false
+    }
+  })
+
+  const handleCloseOnboarding = () => {
+    setShowOnboardingModal(false)
+    if (user) {
+      localStorage.setItem(`ft_onboarding_complete_${user.id}`, 'true')
+      sessionStorage.setItem(`ft_welcome_shown_${user.id}`, 'true')
+    }
+  }
 
   // Unified Super Hub Modals
   const [showCopilotModal, setShowCopilotModal] = useState(false)
@@ -244,55 +265,57 @@ export default function Layout({ children, title }) {
       </div>
 
       <QuickAddFAB />
-      <AiChatbotWidget />
-
       <BottomNav />
 
-      {/* Global Modals & Command Palette */}
-      <CommandPalette />
+      {/* Global Lazy Loaded Modals & Tools in Suspense */}
+      <Suspense fallback={null}>
+        <AiChatbotWidget />
+        <CommandPalette />
 
-      <AdminLockModal
-        isOpen={showAdminModal}
-        onClose={() => setShowAdminModal(false)}
-      />
+        <AdminLockModal
+          isOpen={showAdminModal}
+          onClose={() => setShowAdminModal(false)}
+        />
 
-      <DataBackupModal
-        isOpen={showBackupModal}
-        onClose={() => setShowBackupModal(false)}
-      />
+        <DataBackupModal
+          isOpen={showBackupModal}
+          onClose={() => setShowBackupModal(false)}
+        />
 
-      <KeyboardShortcutsModal
-        isOpen={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
-      />
+        <KeyboardShortcutsModal
+          isOpen={showShortcutsModal}
+          onClose={() => setShowShortcutsModal(false)}
+        />
 
-      <OnboardingWizardModal
-        isOpen={showOnboardingModal}
-        onClose={() => setShowOnboardingModal(false)}
-      />
+        <OnboardingWizardModal
+          isOpen={showOnboardingModal}
+          onClose={handleCloseOnboarding}
+          onComplete={handleCloseOnboarding}
+        />
 
-      {/* 1. Unified AI Financial Copilot Hub */}
-      <AiFinancialCopilotModal
-        isOpen={showCopilotModal}
-        initialTab={copilotTab}
-        voiceAutoStart={voiceAutoStart}
-        onClose={() => {
-          setShowCopilotModal(false)
-          setVoiceAutoStart(false)
-        }}
-      />
+        {/* 1. Unified AI Financial Copilot Hub */}
+        <AiFinancialCopilotModal
+          isOpen={showCopilotModal}
+          initialTab={copilotTab}
+          voiceAutoStart={voiceAutoStart}
+          onClose={() => {
+            setShowCopilotModal(false)
+            setVoiceAutoStart(false)
+          }}
+        />
 
-      {/* 2. Unified Financial Planning & Toolkit Suite */}
-      <FinancialToolkitModal
-        isOpen={showToolkitModal}
-        initialTab={toolkitTab}
-        onClose={() => setShowToolkitModal(false)}
-      />
+        {/* 2. Unified Financial Planning & Toolkit Suite */}
+        <FinancialToolkitModal
+          isOpen={showToolkitModal}
+          initialTab={toolkitTab}
+          onClose={() => setShowToolkitModal(false)}
+        />
 
-      <BiometricAppLockOverlay
-        isLocked={isAppLocked}
-        onUnlock={() => setIsAppLocked(false)}
-      />
+        <BiometricAppLockOverlay
+          isLocked={isAppLocked}
+          onUnlock={() => setIsAppLocked(false)}
+        />
+      </Suspense>
 
       <AlarmRingingModal />
     </div>

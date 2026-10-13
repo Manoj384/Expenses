@@ -10,6 +10,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const BOT_TOKEN = Deno.env.get("TELEGRAM_BOT_TOKEN") || ""
+const WEBHOOK_SECRET = Deno.env.get("TELEGRAM_WEBHOOK_SECRET") || ""
+const ALLOWED_CHAT_ID = Deno.env.get("TELEGRAM_ALLOWED_CHAT_ID") || ""
+const FINANCE_USER_ID = Deno.env.get("TELEGRAM_FINANCE_USER_ID") || ""
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || ""
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
 
@@ -23,6 +26,13 @@ serve(async (req) => {
   }
 
   try {
+    if (!BOT_TOKEN || !WEBHOOK_SECRET || !ALLOWED_CHAT_ID || !FINANCE_USER_ID) {
+      return new Response(JSON.stringify({ error: "Telegram bot is not configured." }), { status: 503 })
+    }
+    if (req.headers.get("x-telegram-bot-api-secret-token") !== WEBHOOK_SECRET) {
+      return new Response(JSON.stringify({ error: "Unauthorized webhook." }), { status: 401 })
+    }
+
     const update = await req.json()
     const message = update.message
     if (!message || !message.text) {
@@ -30,12 +40,15 @@ serve(async (req) => {
     }
 
     const chatId = message.chat.id
+    if (String(chatId) !== ALLOWED_CHAT_ID) {
+      return new Response("OK", { status: 200 })
+    }
     const text = message.text.trim()
     const lower = text.toLowerCase()
 
     // 1. Command: /portfolio or /nav
     if (lower === "/portfolio" || lower === "/nav" || lower === "portfolio") {
-      const { data: funds } = await supabase.from("mutual_funds").select("*")
+      const { data: funds } = await supabase.from("mutual_funds").select("*").eq("user_id", FINANCE_USER_ID)
       const totalVal = (funds || []).reduce((s, f) => s + Number(f.current_value || 0), 0)
       const totalInv = (funds || []).reduce((s, f) => s + Number(f.invested_amount || 0), 0)
       const gain = totalVal - totalInv
@@ -61,6 +74,7 @@ serve(async (req) => {
       const { data: txs } = await supabase
         .from("transactions")
         .select("amount, type, date")
+        .eq("user_id", FINANCE_USER_ID)
         .gte("date", todayStr.slice(0, 7) + "-01")
 
       const expenses = (txs || []).filter(t => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0)
@@ -87,6 +101,7 @@ serve(async (req) => {
 
         // Insert into Supabase transactions table
         await supabase.from("transactions").insert({
+          user_id: FINANCE_USER_ID,
           amount: amount,
           type: type,
           note: text,

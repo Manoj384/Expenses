@@ -5,7 +5,6 @@ import {
   Bot,
   Send,
   RefreshCw,
-  Key,
   HelpCircle,
   TrendingUp,
   CreditCard,
@@ -13,7 +12,7 @@ import {
   ShieldAlert,
   User,
 } from 'lucide-react'
-import { askFinancialAdvisorAi, getGeminiApiKey, setGeminiApiKey, getAiModel, setAiModel } from '../utils/aiService'
+import { askFinancialAdvisorAi } from '../utils/aiService'
 import { formatCurrency } from '../utils/formatCurrency'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
@@ -38,9 +37,6 @@ export default function AiFinancialAdvisorModal({ isOpen, onClose }) {
   ])
   const [loading, setLoading] = useState(false)
   const [financialContext, setFinancialContext] = useState({})
-  const [showKeySettings, setShowKeySettings] = useState(false)
-  const [apiKey, setApiKey] = useState(getGeminiApiKey())
-  const [selectedModel, setSelectedModel] = useState(getAiModel())
 
   useEffect(() => {
     if (!user || !isOpen) return
@@ -274,73 +270,9 @@ export default function AiFinancialAdvisorModal({ isOpen, onClose }) {
           </button>
         </form>
 
-        {/* Settings bar */}
-        <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 pt-1">
-          <button
-            type="button"
-            onClick={() => setShowKeySettings(!showKeySettings)}
-            className="hover:underline flex items-center gap-1 text-gray-600 dark:text-slate-300 font-semibold"
-          >
-            <Key className="h-3 w-3 text-amber-500" />
-            {getGeminiApiKey() ? `AI Configured (${selectedModel})` : 'Configure Free / Pro API Key'}
-          </button>
-          <span>Supports Gemini 1.5 Pro, Flash & OpenAI GPT-4o</span>
-        </div>
-
-        {showKeySettings && (
-          <div className="p-3.5 bg-gray-100 dark:bg-slate-800 rounded-2xl space-y-3 border border-gray-200 dark:border-slate-700 text-xs">
-            <div>
-              <label className="font-bold text-gray-700 dark:text-slate-200 block mb-1">
-                Select AI Engine / Model
-              </label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="input-field text-xs"
-              >
-                <option value="gemini-1.5-flash">Google Gemini 1.5 Flash (100% Free / High Speed)</option>
-                <option value="gemini-1.5-pro">Google Gemini 1.5 Pro (Pro Subscription / Deep Reasoning)</option>
-                <option value="gpt-4o-mini">OpenAI GPT-4o Mini (Fast & Cost Efficient)</option>
-                <option value="gpt-4o">OpenAI GPT-4o (Pro / Flagship Multimodal)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="font-bold text-gray-700 dark:text-slate-200 block mb-1">
-                API Key (Google AI Studio or OpenAI)
-              </label>
-              <input
-                type="password"
-                placeholder={selectedModel.startsWith('gpt') ? 'sk-proj-...' : 'AIzaSy...'}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="input-field text-xs font-mono"
-              />
-            </div>
-
-            <div className="flex justify-between items-center pt-1">
-              <a
-                href={selectedModel.startsWith('gpt') ? 'https://platform.openai.com/api-keys' : 'https://aistudio.google.com/app/apikey'}
-                target="_blank"
-                rel="noreferrer"
-                className="text-blue-600 hover:underline font-medium"
-              >
-                {selectedModel.startsWith('gpt') ? 'Get OpenAI Key →' : 'Get Gemini Key →'}
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setGeminiApiKey(apiKey)
-                  setAiModel(selectedModel)
-                  setShowKeySettings(false)
-                }}
-                className="btn-primary text-xs py-1.5 px-4 font-bold"
-              >
-                Save Configuration
-              </button>
-            </div>
-          </div>
-        )}
+        <p className="text-[11px] text-gray-400 dark:text-slate-500 pt-1">
+          AI requests use the authenticated server gateway. Provider credentials are never stored in this browser.
+        </p>
       </div>
     </Modal>
   )

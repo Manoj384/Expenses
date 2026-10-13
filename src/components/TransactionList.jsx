@@ -25,6 +25,7 @@ const SWIPE_THRESHOLD = 80 // px needed to trigger delete reveal
 const TYPE_STYLES = {
   income:  'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800',
   expense: 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:border-rose-800',
+  savings: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800',
   debit:   'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
 }
 
@@ -97,8 +98,14 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
               </span>
             )}
           </div>
-          <p className={`text-lg font-bold flex-shrink-0 ${tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-            {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+          <p className={`text-lg font-bold flex-shrink-0 ${
+            tx.type === 'income'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : tx.type === 'savings'
+              ? 'text-indigo-600 dark:text-indigo-400'
+              : 'text-rose-600 dark:text-rose-400'
+          }`}>
+            {tx.type === 'income' ? '+' : tx.type === 'savings' ? '₹' : '-'}{formatCurrency(tx.amount)}
           </p>
         </div>
 
@@ -177,7 +184,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
 
   const handleDeleteConfirm = async () => {
     setDeleting(true)
-    await onDelete(deleteTarget.id)
+    await onDelete(deleteTarget)
     setDeleting(false)
     setDeleteTarget(null)
   }
@@ -328,8 +335,14 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                           )}
                         </div>
                       </td>
-                      <td className={`${isCompact ? 'py-2 px-3 font-semibold' : 'py-3 px-4 font-bold'} text-right whitespace-nowrap ${tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                        {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                      <td className={`${isCompact ? 'py-2 px-3 font-semibold' : 'py-3 px-4 font-bold'} text-right whitespace-nowrap ${
+                        tx.type === 'income'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : tx.type === 'savings'
+                          ? 'text-indigo-600 dark:text-indigo-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}>
+                        {tx.type === 'income' ? '+' : tx.type === 'savings' ? '₹' : '-'}{formatCurrency(tx.amount)}
                       </td>
                       <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'} text-right whitespace-nowrap`}>
                         <div className="flex items-center justify-end gap-1">

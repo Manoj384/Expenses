@@ -7,6 +7,7 @@ import SummaryCard from '../components/SummaryCard'
 import SkeletonPage from '../components/SkeletonLoader'
 import EmptyState from '../components/EmptyState'
 import PwaInstallBanner from '../components/PwaInstallBanner'
+import AiMaintenanceWidget from '../components/AiMaintenanceWidget'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { formatDate, formatTime, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../utils/dateUtils'
 import { frequencyLabel } from '../utils/sipUtils'
@@ -23,6 +24,7 @@ import {
 const TYPE_STYLES = {
   income:  'bg-emerald-100 text-emerald-800',
   expense: 'bg-rose-100 text-rose-800',
+  savings: 'bg-indigo-100 text-indigo-800',
   debit:   'bg-amber-100 text-amber-800',
 }
 
@@ -116,12 +118,15 @@ export default function Dashboard() {
 
       let income = 0
       let expense = 0
+      let monthSavings = 0
       const payMap = {}
 
       for (const tx of txRes.data || []) {
         const amt = Number(tx.amount)
         if (tx.type === 'income') {
           income += amt
+        } else if (tx.type === 'savings') {
+          monthSavings += amt
         } else {
           expense += amt
           const pName = tx.payment_methods?.name || 'Cash / Direct'
@@ -135,6 +140,7 @@ export default function Dashboard() {
       setDebtsList(debtRes.data || [])
       setTotalDebt((debtRes.data || []).reduce((s, d) => s + Number(d.outstanding || 0), 0))
       setRecentTxns(recentRes.data || [])
+      setAllMonthTxns(txRes.data || [])
       setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
       // Mutual funds live sync with instant caching
@@ -384,6 +390,14 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Autonomous AI Maintenance & Learning Status Widget */}
+      <AiMaintenanceWidget
+        transactions={allMonthTxns.length > 0 ? allMonthTxns : recentTxns}
+        debts={debtsList}
+        sips={upcomingSips}
+        onRefreshData={fetchData}
+      />
+
       {/* Quick Visual Section: Payment Method Quick Breakdown */}
       {paymentBreakdown.length > 0 && (
         <div className="card mb-6">
@@ -446,8 +460,14 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  <p className={`font-bold text-sm flex-shrink-0 ml-2 ${tx.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                  <p className={`font-bold text-sm flex-shrink-0 ml-2 ${
+                    tx.type === 'income'
+                      ? 'text-emerald-600'
+                      : tx.type === 'savings'
+                      ? 'text-indigo-600 dark:text-indigo-400'
+                      : 'text-rose-600'
+                  }`}>
+                    {tx.type === 'income' ? '+' : tx.type === 'savings' ? '₹' : '-'}{formatCurrency(tx.amount)}
                   </p>
                 </div>
               ))}

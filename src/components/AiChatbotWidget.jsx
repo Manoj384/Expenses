@@ -17,19 +17,12 @@ import {
   CreditCard,
   Calendar,
   Zap,
-  Key,
   HelpCircle,
   ShieldAlert,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
-import {
-  askFinancialAdvisorAi,
-  getGeminiApiKey,
-  setGeminiApiKey,
-  getAiModel,
-  setAiModel,
-} from '../utils/aiService'
+import { askFinancialAdvisorAi } from '../utils/aiService'
 import { parseVoiceExpense } from '../utils/voiceNlpParser'
 import { formatCurrency } from '../utils/formatCurrency'
 import { supabase } from '../lib/supabaseClient'
@@ -131,8 +124,6 @@ export default function AiChatbotWidget() {
   const [isListening, setIsListening] = useState(false)
   const [speechSupported, setSpeechSupported] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
-  const [apiKeyInput, setApiKeyInput] = useState('')
-  const [selectedModel, setSelectedModel] = useState(getAiModel())
   const [financialContext, setFinancialContext] = useState({})
   const [chatHistory, setChatHistory] = useState(() => {
     try {
@@ -332,8 +323,6 @@ export default function AiChatbotWidget() {
   useEffect(() => {
     if (isOpen) {
       loadFinancialContext()
-      setApiKeyInput(getGeminiApiKey())
-      setSelectedModel(getAiModel())
     }
   }, [isOpen, loadFinancialContext])
 
@@ -496,13 +485,6 @@ export default function AiChatbotWidget() {
     }
   }
 
-  const handleSaveSettings = () => {
-    setGeminiApiKey(apiKeyInput)
-    setAiModel(selectedModel)
-    setShowSettings(false)
-    toast.success('AI Model & API Key updated successfully!')
-  }
-
   const handleClearHistory = () => {
     const welcome = [
       {
@@ -550,7 +532,7 @@ export default function AiChatbotWidget() {
               <button
                 onClick={() => setShowSettings(!showSettings)}
                 className={`p-1.5 rounded-lg hover:bg-white/20 transition-colors ${showSettings ? 'bg-white/30 text-amber-200' : 'text-white/80'}`}
-                title="Model & API Key Settings"
+                title="Copilot settings"
               >
                 <Settings className="h-4 w-4" />
               </button>
@@ -575,10 +557,7 @@ export default function AiChatbotWidget() {
           {showSettings && (
             <div className="p-3.5 bg-gray-50 dark:bg-slate-800/90 border-b border-gray-200 dark:border-slate-700 text-xs space-y-3 animate-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between font-bold text-gray-800 dark:text-slate-200">
-                <span className="flex items-center gap-1.5">
-                  <Key className="h-3.5 w-3.5 text-indigo-500" />
-                  AI Model & API Key Settings
-                </span>
+                <span>Secure AI Copilot</span>
                 <button
                   onClick={handleClearHistory}
                   className="text-[11px] font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1"
@@ -587,53 +566,15 @@ export default function AiChatbotWidget() {
                   <Trash2 className="h-3 w-3" /> Clear Chat
                 </button>
               </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-gray-600 dark:text-slate-400 mb-1">
-                  Google Gemini API Key (100% Free):
-                </label>
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="Paste AI Studio Gemini Key (AIzaSy...)"
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-gray-600 dark:text-slate-400 mb-1">
-                  AI Model Engine:
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-white text-xs focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="gemini-3.8-flash">Gemini 3.8 Flash (Latest & Fastest)</option>
-                  <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
-                  <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
-                  <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                  <option value="gemini-flash-latest">Gemini Flash Latest</option>
-                  <option value="gpt-4o-mini">OpenAI GPT-4o mini (requires sk- key)</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="px-2.5 py-1 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveSettings}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-xs"
-                >
-                  Save Settings
-                </button>
-              </div>
+              <p className="text-[11px] leading-relaxed text-gray-600 dark:text-slate-300">
+                AI requests are sent through the authenticated server gateway. Provider API keys are never stored in this browser.
+              </p>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-2.5 py-1 rounded-lg text-gray-500 hover:bg-gray-200 dark:hover:bg-slate-700"
+              >
+                Close
+              </button>
             </div>
           )}
 
@@ -661,14 +602,16 @@ export default function AiChatbotWidget() {
                   <div className="space-y-1.5 whitespace-pre-wrap">
                     {msg.text.split('\n').map((line, idx) => {
                       if (!line.trim()) return <div key={idx} className="h-1" />
-                      // Bold formatting (**text**)
-                      const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                      // Render only known markdown syntax as React nodes. Raw HTML stays text.
+                      const parts = line.split(/(\*\*[^*]+\*\*)/g)
                       return (
-                        <p
-                          key={idx}
-                          dangerouslySetInnerHTML={{ __html: formatted }}
-                          className="leading-relaxed"
-                        />
+                        <p key={idx} className="leading-relaxed">
+                          {parts.map((part, partIndex) =>
+                            part.startsWith('**') && part.endsWith('**')
+                              ? <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                              : <span key={partIndex}>{part}</span>,
+                          )}
+                        </p>
                       )
                     })}
                   </div>

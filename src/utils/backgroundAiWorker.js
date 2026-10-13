@@ -6,6 +6,7 @@
 
 import { runFullAiAnomalyAudit } from './anomalyDetector.js'
 import { playWakeChime, playSuccessChime } from './wakeWordDetector.js'
+import { extractUserHabitProfile } from './habitMemory.js'
 
 class BackgroundAiWorker {
   constructor() {
@@ -94,7 +95,18 @@ class BackgroundAiWorker {
         }
       }
 
+      // 4. Synchronize Evolving AI Habit Profile
+      if (txns.length > 0) {
+        extractUserHabitProfile(txns, context.debts || [], context.sips || [])
+        results.actionsTaken.push('Synchronized dynamic user habit memory')
+      }
+
       results.actionsTaken.push('Background database integrity check passed')
+
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('ft_last_ai_maintenance_audit', JSON.stringify(results))
+      }
+
       this.notify({ type: 'MAINTENANCE_CYCLE_COMPLETE', data: results })
     } catch (err) {
       results.healthStatus = 'ERROR'
