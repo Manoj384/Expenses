@@ -53,6 +53,7 @@ import {
   UploadCloud,
   ExternalLink,
   MessageCircle,
+  MessageSquare,
 } from 'lucide-react'
 
 const DEFAULT_MEMBERS = [
@@ -203,6 +204,70 @@ export default function Splitwise() {
     }
   })
 
+  // --- Supabase Cloud Sync for Groups & Friends ---
+  const loadSupabaseGroups = useCallback(async () => {
+    try {
+      let query = supabase.from('shared_splitwise_groups').select('*')
+      if (user?.id) {
+        query = query.or(`owner_id.eq.${user.id},owner_id.is.null`)
+      }
+
+      const { data, error: fetchErr } = await query
+      if (!fetchErr && data && data.length > 0) {
+        setGroups(prevLocal => {
+          const map = new Map()
+          // Start with remote groups
+          data.forEach(remote => map.set(remote.id, remote))
+          // Keep local groups if not in remote
+          prevLocal.forEach(local => {
+            if (!map.has(local.id)) {
+              map.set(local.id, local)
+            }
+          })
+          const merged = Array.from(map.values())
+          try {
+            localStorage.setItem(storageGroupsKey, JSON.stringify(merged))
+          } catch {}
+          return merged
+        })
+
+        // Enrich friends list from all members across all Supabase groups
+        const allExtractedMembers = []
+        data.forEach(g => {
+          (g.members || []).forEach(m => {
+            if (!m.isOwner && m.name && !allExtractedMembers.some(x => x.name.toLowerCase() === m.name.toLowerCase())) {
+              allExtractedMembers.push({
+                id: m.id || `f-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                name: m.name,
+                phone: m.phone || '',
+                email: m.email || '',
+              })
+            }
+          })
+        })
+
+        if (allExtractedMembers.length > 0) {
+          setFriends(prevFriends => {
+            const fMap = new Map()
+            prevFriends.forEach(f => fMap.set(f.name.toLowerCase(), f))
+            allExtractedMembers.forEach(f => {
+              if (!fMap.has(f.name.toLowerCase())) {
+                fMap.set(f.name.toLowerCase(), f)
+              }
+            })
+            const mergedFriends = Array.from(fMap.values())
+            try {
+              localStorage.setItem(storageFriendsKey, JSON.stringify(mergedFriends))
+            } catch {}
+            return mergedFriends
+          })
+        }
+      }
+    } catch (err) {
+      console.warn('[Splitwise] Remote load fallback:', err)
+    }
+  }, [user?.id, storageGroupsKey, storageFriendsKey])
+
   // Reload groups, friends, and activities when authenticated user resolves
   useEffect(() => {
     if (!user?.id) return
@@ -236,6 +301,39 @@ export default function Splitwise() {
     } catch {}
   }, [user?.id])
 
+  // Real-time synchronization with Supabase shared_splitwise_groups
+  useEffect(() => {
+    loadSupabaseGroups()
+
+    const channel = supabase
+      .channel('realtime-splitwise-groups-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shared_splitwise_groups' },
+        (payload) => {
+          if (payload.new) {
+            setGroups(prev => {
+              const exists = prev.some(g => g.id === payload.new.id)
+              const updated = exists
+                ? prev.map(g => g.id === payload.new.id ? payload.new : g)
+                : [payload.new, ...prev]
+              try {
+                localStorage.setItem(storageGroupsKey, JSON.stringify(updated))
+              } catch {}
+              return updated
+            })
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setGroups(prev => prev.filter(g => g.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadSupabaseGroups, storageGroupsKey])
+
   // --- Navigation & View Mode State ---
   // view: 'dashboard' | 'recent_activity' | 'all_expenses' | 'group' | 'friend'
   const [currentView, setCurrentView] = useState('dashboard')
@@ -243,6 +341,13 @@ export default function Splitwise() {
   const [activeFriendId, setActiveFriendId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedExpenseId, setExpandedExpenseId] = useState(null)
+
+  // Ensure activeGroupId points to a valid group once groups load from Supabase
+  useEffect(() => {
+    if ((!activeGroupId || !groups.some(g => g.id === activeGroupId)) && groups.length > 0) {
+      setActiveGroupId(groups[0].id)
+    }
+  }, [groups, activeGroupId])
 
   // Feedback states
   const [error, setError] = useState('')
@@ -311,7 +416,14 @@ export default function Splitwise() {
     try {
       localStorage.setItem(storageGroupsKey, JSON.stringify(newGroups))
     } catch {}
-  }, [storageGroupsKey])
+
+    // Cloud sync to Supabase shared_splitwise_groups
+    try {
+      newGroups.forEach(g => {
+        publishOrSyncSharedGroup(g, user?.id).catch(() => {})
+      })
+    } catch {}
+  }, [storageGroupsKey, user?.id])
 
   const saveFriends = useCallback((newFriends) => {
     setFriends(newFriends)
