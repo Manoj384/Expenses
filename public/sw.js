@@ -4,7 +4,7 @@
  * and background push notification listeners for bill dues & budget alerts.
  */
 
-const CACHE_NAME = 'manoj-finance-hub-v2'
+const CACHE_NAME = 'manoj-finance-hub-v3'
 const STATIC_ASSETS = [
   '/',
   '/index.html',

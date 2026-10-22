@@ -5,6 +5,7 @@ import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import SplitwiseStatementModal from '../components/SplitwiseStatementModal'
+import SplitwisePrintableSummaryModal from '../components/SplitwisePrintableSummaryModal'
 import AiReceiptScannerModal from '../components/AiReceiptScannerModal'
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal'
 import ShareTripModal from '../components/ShareTripModal'
@@ -12,6 +13,7 @@ import { publishOrSyncSharedGroup, fetchSharedGroupByToken, updateSharedTripData
 import { formatCurrency } from '../utils/formatCurrency'
 import { formatDate, today } from '../utils/dateUtils'
 import { SUPPORTED_CURRENCIES, convertToInr } from '../utils/currencyConverter'
+import { getExpenseCategoryVisuals, groupExpensesByMonth } from '../utils/splitwiseVisuals'
 import {
   Users,
   User,
@@ -253,6 +255,9 @@ export default function Splitwise() {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [showSettleModal, setShowSettleModal] = useState(false)
   const [showStatementModal, setShowStatementModal] = useState(false)
+  const [showPrintableSummaryModal, setShowPrintableSummaryModal] = useState(false)
+  const [editingGroupMember, setEditingGroupMember] = useState(null)
+  const [showEditGroupMemberModal, setShowEditGroupMemberModal] = useState(false)
   const [showAiScannerModal, setShowAiScannerModal] = useState(false)
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState('')
   const [editGroupTarget, setEditGroupTarget] = useState(null)
@@ -597,6 +602,36 @@ export default function Splitwise() {
     setDeleteGroupTarget(null)
     flash('Group deleted.')
     logActivity(`You deleted group "${deleteGroupTarget.name}"`)
+  }
+
+  // --- Group Member Edit Handler ---
+  const handleSaveGroupMemberEdit = (e) => {
+    e.preventDefault()
+    if (!editingGroupMember || !editingGroupMember.name.trim() || !activeGroup) return
+    const trimmedName = editingGroupMember.name.trim()
+    const trimmedPhone = (editingGroupMember.phone || '').trim()
+
+    const updatedGroups = groups.map(g => {
+      if (g.id !== activeGroup.id) return g
+      const updatedMembers = (g.members || []).map(m =>
+        m.id === editingGroupMember.id ? { ...m, name: trimmedName, phone: trimmedPhone } : m
+      )
+      return { ...g, members: updatedMembers }
+    })
+
+    saveGroups(updatedGroups)
+
+    if (activeGroup.share_token) {
+      updateSharedTripData(activeGroup.share_token, {
+        members: (activeGroup.members || []).map(m =>
+          m.id === editingGroupMember.id ? { ...m, name: trimmedName, phone: trimmedPhone } : m
+        )
+      })
+    }
+
+    setShowEditGroupMemberModal(false)
+    setEditingGroupMember(null)
+    flash(`Updated member name: ${trimmedName}`)
   }
 
   // --- Share Trip Handler ---
@@ -1515,10 +1550,19 @@ export default function Splitwise() {
                 {currentView === 'recent_activity' && 'Recent Activity'}
                 {currentView === 'all_expenses' && 'All Expenses'}
                 {currentView === 'group' && (
-                  <>
-                    <span>{activeGroup?.icon || '👥'}</span>
-                    <span>{activeGroup?.name || 'Group'}</span>
-                  </>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#e53935] text-white flex items-center justify-center text-lg font-bold shadow-xs shrink-0">
+                      {activeGroup?.icon || '✈️'}
+                    </div>
+                    <div>
+                      <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
+                        {activeGroup?.name || 'Group'}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+                        {activeGroup?.members?.length || 0} people
+                      </p>
+                    </div>
+                  </div>
                 )}
                 {currentView === 'friend' && (
                   <>
@@ -1847,9 +1891,22 @@ export default function Splitwise() {
                       const isPositive = bal > 0.5
                       const isNegative = bal < -0.5
                       return (
-                        <div key={m.id} className="py-2.5 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-gray-900 dark:text-white truncate">{m.name}</span>
-                          <span className={`font-bold px-2 py-0.5 rounded-lg text-xs ${
+                        <div key={m.id} className="py-2.5 flex items-center justify-between text-xs gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-semibold text-gray-900 dark:text-white truncate">{m.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingGroupMember({ id: m.id, name: m.name, phone: m.phone || '' })
+                                setShowEditGroupMemberModal(true)
+                              }}
+                              className="text-gray-400 hover:text-emerald-600 p-0.5 rounded transition-colors"
+                              title="Edit member name"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <span className={`font-bold px-2 py-0.5 rounded-lg text-xs shrink-0 ${
                             isPositive
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                               : isNegative
@@ -1916,18 +1973,27 @@ export default function Splitwise() {
                 </div>
               </div>
 
-              {/* Group Expenses Feed */}
+              {/* Group Expenses Feed (Splitwise Signature Monthly Format) */}
               <div className="card space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
                   <h3 className="font-bold text-gray-900 dark:text-white text-sm">
                     Expenses ({activeGroup.expenses?.length || 0})
                   </h3>
-                  <button
-                    onClick={() => openNewExpenseModal(activeGroup.id)}
-                    className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                  >
-                    <Plus className="h-3.5 w-3.5" /> Add an expense
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowPrintableSummaryModal(true)}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1 mr-2"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      <span>Printable Summary</span>
+                    </button>
+                    <button
+                      onClick={() => openNewExpenseModal(activeGroup.id)}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add an expense
+                    </button>
+                  </div>
                 </div>
 
                 {(!activeGroup.expenses || activeGroup.expenses.length === 0) ? (
@@ -1942,153 +2008,210 @@ export default function Splitwise() {
                     </button>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100 dark:divide-slate-800">
-                    {activeGroup.expenses.map(exp => {
-                      const isExpanded = expandedExpenseId === exp.id
-                      const yourShare = exp.shares?.['m-1'] || 0
-                      const payerName = exp.payer_mode === 'single'
-                        ? (activeGroup.members?.find(m => m.id === exp.paid_by_id)?.name || 'Someone')
-                        : 'Multiple people'
-
-                      const isYouPayer = exp.payer_mode === 'single' && exp.paid_by_id === 'm-1'
-                      const youLent = isYouPayer ? (exp.amount - yourShare) : 0
-                      const youBorrowed = !isYouPayer && yourShare > 0 ? yourShare : 0
-
-                      const expDate = new Date(exp.date || today())
-                      const monthStr = expDate.toLocaleString('default', { month: 'short' }).toUpperCase()
-                      const dayStr = String(expDate.getDate()).padStart(2, '0')
-
-                      return (
-                        <div key={exp.id} className="py-3">
-                          <div
-                            onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
-                            className="flex items-center justify-between gap-3 text-xs cursor-pointer hover:bg-gray-50/80 dark:hover:bg-slate-800/40 p-2 rounded-xl transition-all"
+                  <div className="space-y-4">
+                    {Object.entries(groupExpensesByMonth(activeGroup.expenses || [])).map(([monthYear, monthExps]) => (
+                      <div key={monthYear} className="border border-gray-100 dark:border-slate-800 rounded-xl overflow-hidden">
+                        {/* Month Header Row (Matches Splitwise Screenshot 2026-10-22 200231.png) */}
+                        <div className="bg-gray-50 dark:bg-slate-800/80 px-4 py-2 flex items-center justify-between border-b border-gray-100 dark:border-slate-800">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                            {monthYear}
+                          </span>
+                          <button
+                            onClick={() => setShowPrintableSummaryModal(true)}
+                            className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1"
                           >
-                            {/* Date Badge + Category Icon + Title */}
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex flex-col items-center justify-center text-center font-bold flex-shrink-0">
-                                <span className="text-[9px] text-gray-500 uppercase">{monthStr}</span>
-                                <span className="text-xs text-gray-900 dark:text-white leading-none">{dayStr}</span>
-                              </div>
+                            <FileText className="h-3 w-3" />
+                            <span>View printable summary</span>
+                          </button>
+                        </div>
 
-                              <div className="min-w-0">
-                                <h4 className="font-extrabold text-gray-900 dark:text-white text-sm truncate flex items-center gap-2">
-                                  <span>{exp.title}</span>
-                                  {exp.receipt_url && (
-                                    <span className="p-1 rounded bg-blue-50 dark:bg-blue-950 text-blue-600 text-[10px] inline-flex items-center gap-0.5" title="Bill Receipt Attached">
-                                      <Paperclip className="h-3 w-3" />
-                                    </span>
-                                  )}
-                                </h4>
-                                <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                                  {payerName} paid {formatCurrency(exp.amount)}
-                                </p>
-                              </div>
-                            </div>
+                        <div className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                          {monthExps.map(exp => {
+                            const isExpanded = expandedExpenseId === exp.id
+                            const yourShare = exp.shares?.['m-1'] || 0
+                            const payerName = exp.payer_mode === 'single'
+                              ? (activeGroup.members?.find(m => m.id === exp.paid_by_id)?.name || 'Someone')
+                              : 'Multiple people'
 
-                            {/* Net Impact ("you lent" / "you borrowed") */}
-                            <div className="flex items-center gap-4 text-right flex-shrink-0">
-                              <div>
-                                {youLent > 0 ? (
-                                  <div>
-                                    <span className="text-[10px] text-emerald-600 font-bold uppercase block">you lent</span>
-                                    <span className="text-xs sm:text-sm font-extrabold text-emerald-600">
-                                      +{formatCurrency(youLent)}
-                                    </span>
+                            const isYouPayer = exp.payer_mode === 'single' && exp.paid_by_id === 'm-1'
+                            const youLent = isYouPayer ? (exp.amount - yourShare) : 0
+                            const youBorrowed = !isYouPayer && yourShare > 0 ? yourShare : 0
+
+                            const expDate = new Date(exp.date || today())
+                            const monthStr = expDate.toLocaleString('default', { month: 'short' }).toUpperCase()
+                            const dayStr = String(expDate.getDate()).padStart(2, '0')
+
+                            // Category pastel square icon
+                            const catVisuals = getExpenseCategoryVisuals(exp.title, exp.notes)
+                            const CatIcon = catVisuals.icon
+
+                            return (
+                              <div key={exp.id} className="group">
+                                <div
+                                  onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
+                                  className="flex items-center justify-between gap-3 text-xs cursor-pointer hover:bg-gray-50/80 dark:hover:bg-slate-800/40 p-3 transition-all"
+                                >
+                                  {/* Left: Date Badge + Category Pastel Icon + Title */}
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    {/* Date Block */}
+                                    <div className="flex flex-col items-center justify-center w-8 text-center shrink-0 leading-tight">
+                                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                                        {monthStr}
+                                      </span>
+                                      <span className="text-base font-bold text-gray-600 dark:text-slate-300">
+                                        {dayStr}
+                                      </span>
+                                    </div>
+
+                                    {/* Category Pastel Square Icon */}
+                                    <div className={`w-9 h-9 rounded-lg ${catVisuals.bgClass} ${catVisuals.textClass} flex items-center justify-center shrink-0 border ${catVisuals.borderClass}`}>
+                                      <CatIcon className="h-4 w-4" />
+                                    </div>
+
+                                    {/* Title & Notes */}
+                                    <div className="min-w-0">
+                                      <div className="font-extrabold text-gray-900 dark:text-white text-sm truncate flex items-center gap-1.5">
+                                        <span>{exp.title}</span>
+                                        {exp.notes && (
+                                          <MessageSquare className="h-3 w-3 text-gray-400 shrink-0" title="Notes attached" />
+                                        )}
+                                        {exp.receipt_url && (
+                                          <Paperclip className="h-3 w-3 text-blue-500 shrink-0" title="Bill attached" />
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                ) : youBorrowed > 0 ? (
-                                  <div>
-                                    <span className="text-[10px] text-[#ff652f] font-bold uppercase block">you borrowed</span>
-                                    <span className="text-xs sm:text-sm font-extrabold text-[#ff652f]">
-                                      -{formatCurrency(youBorrowed)}
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <span className="text-[10px] text-gray-400 block">not involved</span>
-                                    <span className="text-xs text-gray-400">₹0.00</span>
-                                  </div>
-                                )}
-                              </div>
 
-                              <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                            </div>
-                          </div>
+                                  {/* Right Columns: Payer & Net Impact */}
+                                  <div className="flex items-center gap-4 sm:gap-6 text-right shrink-0">
+                                    {/* Column 1: Payer */}
+                                    <div className="w-24 sm:w-28">
+                                      <span className="text-[10px] text-gray-400 block truncate">
+                                        {payerName} paid
+                                      </span>
+                                      <span className="text-xs sm:text-sm font-black text-gray-900 dark:text-white font-mono block">
+                                        INR{Number(exp.amount).toFixed(2)}
+                                      </span>
+                                    </div>
 
-                          {/* Expanded Detailed Breakdown */}
-                          {isExpanded && (
-                            <div className="mt-2.5 p-3.5 bg-gray-50 dark:bg-slate-800/80 rounded-xl space-y-3 text-xs border border-gray-100 dark:border-slate-800">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Split Breakdown</span>
-                                  <div className="space-y-1">
-                                    {Object.entries(exp.shares || {}).map(([mId, share]) => {
-                                      const mName = activeGroup.members?.find(m => m.id === mId)?.name || mId
-                                      return (
-                                        <div key={mId} className="flex items-center justify-between text-gray-700 dark:text-slate-300">
-                                          <span>{mName}</span>
-                                          <span className="font-mono font-bold">{formatCurrency(share)}</span>
+                                    {/* Column 2: Net Impact */}
+                                    <div className="w-24 sm:w-28">
+                                      {youLent > 0 ? (
+                                        <div>
+                                          <span className="text-[10px] text-gray-400 block truncate">you lent</span>
+                                          <span className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono block">
+                                            INR{youLent.toFixed(2)}
+                                          </span>
                                         </div>
-                                      )
-                                    })}
+                                      ) : youBorrowed > 0 ? (
+                                        <div>
+                                          <span className="text-[10px] text-gray-400 block truncate">{payerName} lent you</span>
+                                          <span className="text-xs sm:text-sm font-black text-[#e53935] dark:text-rose-400 font-mono block">
+                                            INR{youBorrowed.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <div>
+                                          <span className="text-[10px] text-gray-400 block">not involved</span>
+                                          <span className="text-xs text-gray-400 block">—</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Delete Trash Icon */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setDeleteExpenseTarget(exp)
+                                      }}
+                                      className="text-gray-300 hover:text-rose-600 p-1 rounded transition-colors"
+                                      title="Delete expense"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+
+                                    <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                   </div>
                                 </div>
 
-                                {/* Attached Bill Receipt Section */}
-                                <div>
-                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Attached Bill / Invoice</span>
-                                  {exp.receipt_url ? (
-                                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
-                                      <Paperclip className="h-4 w-4 text-blue-600" />
-                                      <span className="truncate flex-1 font-semibold">{exp.receipt_name || 'Bill Receipt'}</span>
+                                {/* Expanded Detailed Breakdown */}
+                                {isExpanded && (
+                                  <div className="p-3.5 bg-gray-50 dark:bg-slate-800/80 rounded-b-xl space-y-3 text-xs border-t border-gray-100 dark:border-slate-800">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                      <div>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Split Breakdown</span>
+                                        <div className="space-y-1">
+                                          {Object.entries(exp.shares || {}).map(([mId, share]) => {
+                                            const mName = activeGroup.members?.find(m => m.id === mId)?.name || mId
+                                            return (
+                                              <div key={mId} className="flex items-center justify-between text-gray-700 dark:text-slate-300">
+                                                <span>{mName}</span>
+                                                <span className="font-mono font-bold">{formatCurrency(share)}</span>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+
+                                      {/* Attached Bill Receipt Section */}
+                                      <div>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Attached Bill / Invoice</span>
+                                        {exp.receipt_url ? (
+                                          <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
+                                            <Paperclip className="h-4 w-4 text-blue-600" />
+                                            <span className="truncate flex-1 font-semibold">{exp.receipt_name || 'Bill Receipt'}</span>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setPreviewReceiptUrl(exp.receipt_url)
+                                              }}
+                                              className="btn-secondary text-[11px] py-1 px-2.5"
+                                            >
+                                              View Bill
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <p className="text-gray-400 italic">No bill receipt attached to this expense.</p>
+                                        )}
+
+                                        {exp.notes && (
+                                          <div className="mt-2">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Notes</span>
+                                            <p className="text-gray-600 dark:text-slate-300 italic">{exp.notes}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation()
-                                          setPreviewReceiptUrl(exp.receipt_url)
+                                          openEditExpenseModal(exp, activeGroup)
                                         }}
-                                        className="btn-secondary text-[11px] py-1 px-2.5"
+                                        className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1"
                                       >
-                                        View Bill
+                                        <Pencil className="h-3.5 w-3.5" /> Edit Expense
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setDeleteExpenseTarget(exp)
+                                        }}
+                                        className="text-rose-600 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" /> Delete Expense
                                       </button>
                                     </div>
-                                  ) : (
-                                    <p className="text-gray-400 italic">No bill receipt attached to this expense.</p>
-                                  )}
-
-                                  {exp.notes && (
-                                    <div className="mt-2">
-                                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Notes</span>
-                                      <p className="text-gray-600 dark:text-slate-300 italic">{exp.notes}</p>
-                                    </div>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
                               </div>
-
-                              <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    openEditExpenseModal(exp, activeGroup)
-                                  }}
-                                  className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1"
-                                >
-                                  <Pencil className="h-3.5 w-3.5" /> Edit Expense
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setDeleteExpenseTarget(exp)
-                                  }}
-                                  className="text-rose-600 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" /> Delete Expense
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                            )
+                          })}
                         </div>
-                      )
-                    })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -3103,12 +3226,65 @@ export default function Splitwise() {
         </div>
       </Modal>
 
-      {/* --- STATEMENT MODAL --- */}
-      <SplitwiseStatementModal
-        isOpen={showStatementModal}
-        onClose={() => setShowStatementModal(false)}
+      {/* --- EDIT GROUP MEMBER MODAL --- */}
+      <Modal
+        isOpen={showEditGroupMemberModal}
+        onClose={() => {
+          setShowEditGroupMemberModal(false)
+          setEditingGroupMember(null)
+        }}
+        title="Edit Group Member Name"
+      >
+        <form onSubmit={handleSaveGroupMemberEdit} className="space-y-4 text-xs">
+          <div>
+            <label className="label">Member Name *</label>
+            <input
+              type="text"
+              placeholder="e.g. Manoj Gowda"
+              value={editingGroupMember?.name || ''}
+              onChange={(e) => setEditingGroupMember(prev => ({ ...prev, name: e.target.value }))}
+              className="input-field text-xs font-semibold"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Phone Number (Optional for WhatsApp reminders)</label>
+            <input
+              type="tel"
+              placeholder="e.g. 9876543210"
+              value={editingGroupMember?.phone || ''}
+              onChange={(e) => setEditingGroupMember(prev => ({ ...prev, phone: e.target.value }))}
+              className="input-field text-xs"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEditGroupMemberModal(false)
+                setEditingGroupMember(null)
+              }}
+              className="btn-secondary text-xs"
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary text-xs font-bold bg-emerald-600 hover:bg-emerald-700">
+              Save Member
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* --- STATEMENT & PRINTABLE SUMMARY MODAL (PDF LAYOUT) --- */}
+      <SplitwisePrintableSummaryModal
+        isOpen={showPrintableSummaryModal || showStatementModal}
+        onClose={() => {
+          setShowPrintableSummaryModal(false)
+          setShowStatementModal(false)
+        }}
         group={activeGroup}
-        balanceDetails={activeGroupBalanceDetails}
       />
 
       {/* --- CONFIRM DIALOGS --- */}

@@ -24,11 +24,18 @@ import {
   RefreshCw,
   QrCode,
   Share2,
+  DollarSign,
+  MessageSquare,
+  UserCheck,
+  FileText,
+  Copy,
+  Check,
 } from 'lucide-react'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import AiReceiptScannerModal from '../components/AiReceiptScannerModal'
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal'
+import SplitwisePrintableSummaryModal from '../components/SplitwisePrintableSummaryModal'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { formatCurrency } from '../utils/formatCurrency'
 import { formatDate, today } from '../utils/dateUtils'
@@ -39,6 +46,11 @@ import {
   publishOrSyncSharedGroup,
 } from '../features/splitwise/api/sharedTripService'
 import { supabase } from '../lib/supabaseClient'
+import {
+  getExpenseCategoryVisuals,
+  groupExpensesByMonth,
+  formatSplitwiseCurrency,
+} from '../utils/splitwiseVisuals'
 
 export default function SharedTripPage() {
   const { shareToken } = useParams()
@@ -48,6 +60,7 @@ export default function SharedTripPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
 
   // Selected viewer identity (e.g. "I am Rahul")
   const [activeMemberId, setActiveMemberId] = useState(() => {
@@ -62,6 +75,8 @@ export default function SharedTripPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [showSettleModal, setShowSettleModal] = useState(false)
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
+  const [showEditMemberModal, setShowEditMemberModal] = useState(false)
+  const [showPrintableSummaryModal, setShowPrintableSummaryModal] = useState(false)
   const [showAiScannerModal, setShowAiScannerModal] = useState(false)
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState('')
   const [editExpenseTarget, setEditExpenseTarget] = useState(null)
@@ -69,8 +84,9 @@ export default function SharedTripPage() {
   const [expandedExpenseId, setExpandedExpenseId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Member join form
+  // Member join & edit forms
   const [newMemberForm, setNewMemberForm] = useState({ name: '', phone: '' })
+  const [editingMember, setEditingMember] = useState(null)
 
   // Settle form
   const [settleForm, setSettleForm] = useState({ from_id: '', to_id: '', amount: '', notes: '' })
@@ -104,7 +120,6 @@ export default function SharedTripPage() {
 
   // Load shared group from backend or fallback cache
   const loadGroupData = useCallback(async (isSilent = false) => {
-    // Never overwrite with remote poll if user edited locally within the last 15s
     if (isSilent && Date.now() - lastLocalEditRef.current < 15000) {
       return
     }
@@ -117,7 +132,6 @@ export default function SharedTripPage() {
       if (fetchErr || !loaded) {
         setError(fetchErr || 'Shared trip not found.')
       } else {
-        // If remote has fewer expenses than currently rendered, keep current expenses
         setGroup(prev => {
           if (prev?.expenses && loaded.expenses && loaded.expenses.length < prev.expenses.length) {
             return { ...loaded, expenses: prev.expenses }
@@ -141,7 +155,6 @@ export default function SharedTripPage() {
   useEffect(() => {
     if (!shareToken) return
 
-    // Supabase Realtime channel
     const channel = supabase
       .channel(`realtime-shared-${shareToken}`)
       .on(
@@ -155,7 +168,6 @@ export default function SharedTripPage() {
       )
       .subscribe()
 
-    // Interval poll fallback (every 6s)
     const interval = setInterval(() => {
       loadGroupData(true)
     }, 6000)
@@ -180,7 +192,7 @@ export default function SharedTripPage() {
 
   // --- Financial Balances & Settlements Calculation Engine ---
   const balanceDetails = useMemo(() => {
-    if (!group) return { netBalances: {}, simplifiedDebts: [], totalSpend: 0, yourNet: 0, youOwe: 0, youAreOwed: 0 }
+    if (!group) return { netBalances: {}, simplifiedDebts: [], totalSpend: 0, youNet: 0, youOwe: 0, youAreOwed: 0 }
 
     const netBalances = {}
     members.forEach(m => { netBalances[m.id] = 0 })
@@ -235,7 +247,7 @@ export default function SharedTripPage() {
         simplifiedDebts.push({
           from: deb.member,
           to: cred.member,
-          amount: Math.round(settleAmt),
+          amount: Math.round(settleAmt * 100) / 100,
         })
       }
 
@@ -421,7 +433,6 @@ export default function SharedTripPage() {
     let updatedExpenses = []
 
     if (editExpenseTarget) {
-      // Edit existing
       const updatedItem = {
         ...editExpenseTarget,
         title: isForeign
@@ -442,7 +453,6 @@ export default function SharedTripPage() {
       updatedExpenses = expenses.map(e => e.id === editExpenseTarget.id ? updatedItem : e)
       flash(`Updated "${updatedItem.title}"!`)
     } else {
-      // Create new
       const newItem = {
         id: `exp_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
         title: isForeign
@@ -469,7 +479,6 @@ export default function SharedTripPage() {
     setShowExpenseModal(false)
     setEditExpenseTarget(null)
 
-    // Sync to backend / local storage
     await updateSharedTripData(shareToken, { expenses: updatedExpenses })
   }
 
@@ -495,7 +504,8 @@ export default function SharedTripPage() {
 
     const settlementExpense = {
       id: `exp_settle_${Date.now()}`,
-      title: `🤝 Payment: ${payer} ➔ ${recipient}`,
+      title: `${payer} paid ${recipient}`,
+      is_settlement: true,
       amount: amt,
       currency: 'INR',
       date: today(),
@@ -512,7 +522,7 @@ export default function SharedTripPage() {
     setGroup(prev => ({ ...prev, expenses: updated }))
     setShowSettleModal(false)
     setSettleForm({ from_id: '', to_id: '', amount: '', notes: '' })
-    flash(`Recorded settlement payment of ${formatCurrency(amt)}!`)
+    flash(`Recorded settlement: ${payer} paid ${recipient} ${formatCurrency(amt)}!`)
     await updateSharedTripData(shareToken, { expenses: updated })
   }
 
@@ -535,8 +545,54 @@ export default function SharedTripPage() {
     setShowAddMemberModal(false)
     setNewMemberForm({ name: '', phone: '' })
     handleSelectMember(newMember.id)
-    flash(`Welcome ${newMember.name}! You are now a participant in this trip.`)
+    flash(`Added "${newMember.name}" to trip members!`)
 
+    await updateSharedTripData(shareToken, { members: updatedMembers })
+  }
+
+  // --- Handler: Edit Member Name & Phone ---
+  const handleStartEditMember = (m) => {
+    setEditingMember({ id: m.id, name: m.name || '', phone: m.phone || '' })
+    setShowEditMemberModal(true)
+  }
+
+  const handleSaveMemberEdit = async (e) => {
+    e.preventDefault()
+    if (!editingMember || !editingMember.name.trim()) return
+
+    const trimmedName = editingMember.name.trim()
+    const trimmedPhone = (editingMember.phone || '').trim()
+
+    const updatedMembers = members.map(m =>
+      m.id === editingMember.id ? { ...m, name: trimmedName, phone: trimmedPhone } : m
+    )
+
+    lastLocalEditRef.current = Date.now()
+    setGroup(prev => ({ ...prev, members: updatedMembers }))
+    setShowEditMemberModal(false)
+    setEditingMember(null)
+    flash(`Member name updated to "${trimmedName}"!`)
+
+    await updateSharedTripData(shareToken, { members: updatedMembers })
+  }
+
+  // --- Handler: Delete Empty Member ---
+  const handleDeleteMember = async (memberId) => {
+    const hasExpenses = expenses.some(e => e.paid_by_id === memberId || (e.paid_by && e.paid_by[memberId]))
+    const hasShares = expenses.some(e => e.shares && Number(e.shares[memberId]) > 0)
+
+    if (hasExpenses || hasShares) {
+      setError('Cannot delete a member who has expenses or shares. Settle up or reallocate first.')
+      return
+    }
+
+    const updatedMembers = members.filter(m => m.id !== memberId)
+    lastLocalEditRef.current = Date.now()
+    setGroup(prev => ({ ...prev, members: updatedMembers }))
+    if (activeMemberId === memberId) {
+      handleSelectMember('all')
+    }
+    flash('Member removed.')
     await updateSharedTripData(shareToken, { members: updatedMembers })
   }
 
@@ -585,6 +641,11 @@ export default function SharedTripPage() {
     )
   }, [expenses, searchQuery])
 
+  // Grouped expenses by Month & Year for Splitwise signature grouping
+  const expensesByMonth = useMemo(() => {
+    return groupExpensesByMonth(filteredExpenses)
+  }, [filteredExpenses])
+
   // WhatsApp quick payment reminder link
   const getWhatsAppLink = (debt) => {
     const fromMember = debt.from
@@ -595,6 +656,14 @@ export default function SharedTripPage() {
     return fromMember.phone
       ? `https://api.whatsapp.com/send?phone=${fromMember.phone.replace(/[^0-9]/g, '')}&text=${msg}`
       : `https://api.whatsapp.com/send?text=${msg}`
+  }
+
+  // Copy share link
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+    setCopiedLink(true)
+    setTimeout(() => setCopiedLink(false), 2500)
+    flash('Shared trip link copied to clipboard!')
   }
 
   // CSV Export for this trip
@@ -642,34 +711,42 @@ export default function SharedTripPage() {
     )
   }
 
-  // Budget calculations
-  const tripBudget = Number(group.budget || 0)
-  const budgetSpentPct = tripBudget > 0 ? Math.min(100, Math.round((balanceDetails.totalSpend / tripBudget) * 100)) : 0
-  const budgetRemaining = tripBudget > 0 ? tripBudget - balanceDetails.totalSpend : 0
+  // Active viewer name
+  const activeViewer = members.find(m => m.id === activeMemberId)
 
   return (
-    <div className="min-h-screen bg-gray-50/70 dark:bg-slate-950 text-gray-900 dark:text-white antialiased">
+    <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-gray-900 dark:text-white antialiased">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 px-4 sm:px-8 py-3.5">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 px-4 sm:px-8 py-3">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-2xl p-1.5 bg-gray-100 dark:bg-slate-800 rounded-xl">{group.icon || '🏖️'}</span>
+            <div className="w-9 h-9 rounded-full bg-[#e53935] text-white flex items-center justify-center text-base font-bold shadow-xs">
+              {group.icon || '✈️'}
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base sm:text-lg font-black text-gray-900 dark:text-white leading-tight">
                   {group.name}
                 </h1>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Shared Trip
+                  Live Trip Sync
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate max-w-xs sm:max-w-md">
-                {group.description || `${members.length} members sharing expenses`}
+              <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                {members.length} people • Anyone with this link can view & edit
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleCopyLink}
+              className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 font-bold"
+              title="Copy trip share link"
+            >
+              {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 text-gray-500" />}
+              <span className="hidden sm:inline">{copiedLink ? 'Copied' : 'Share Link'}</span>
+            </button>
             <button
               onClick={() => loadGroupData(true)}
               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
@@ -677,383 +754,704 @@ export default function SharedTripPage() {
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
-            <button
-              onClick={openNewExpenseModal}
-              className="btn-primary text-xs py-2 px-3.5 bg-[#ff652f] hover:bg-[#e55320] border-none font-extrabold flex items-center gap-1.5 shadow-sm"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Expense</span>
-            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content Container */}
-      <main className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         {/* Alerts */}
         {success && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
+          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
             <span>{success}</span>
           </div>
         )}
         {error && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs">
+            <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Privacy & Scope Disclaimer Notice */}
-        <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-slate-900 dark:via-emerald-950/30 dark:to-slate-900 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <Lock className="h-4 w-4" />
-            </div>
-            <div>
-              <strong className="text-emerald-950 dark:text-emerald-200 block text-xs">
-                Private & Isolated Trip Ledger
-              </strong>
-              <span className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80">
-                You can view, add, or edit expenses for <strong>{group.name}</strong> only. Other accounts and groups are inaccessible.
-              </span>
-            </div>
-          </div>
+        {/* 2-Column Responsive Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-          {/* Member Identity Selector ("I am...") */}
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">I am:</span>
-            <select
-              value={activeMemberId}
-              onChange={(e) => handleSelectMember(e.target.value)}
-              className="input-field text-xs font-bold py-1 px-2.5 bg-white dark:bg-slate-800 border-emerald-300 dark:border-emerald-700"
-            >
-              <option value="all">👀 Everyone / Group Overview</option>
-              {members.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
-            <button
-              onClick={() => setShowAddMemberModal(true)}
-              className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
-              title="Add my name to this trip"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
+          {/* ============================================================ */}
+          {/* LEFT PANEL / SIDEBAR: Members List, Edit Names, Settlements */}
+          {/* ============================================================ */}
+          <div className="lg:col-span-4 xl:col-span-3.5 space-y-5">
 
-        {/* 3-Box Balance Bar */}
-        <div className="card p-0 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 dark:divide-slate-800 text-center shadow-sm">
-          <div className="p-4">
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">Total Trip Spend</span>
-            <p className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white mt-1">
-              {formatCurrency(balanceDetails.totalSpend)}
-            </p>
-            <span className="text-[10px] text-gray-400">{expenses.length} expenses recorded</span>
-          </div>
-
-          <div className="p-4">
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              {activeMemberId === 'all' ? 'Pending Settlements' : 'You Owe'}
-            </span>
-            <p className="text-xl sm:text-2xl font-black text-[#ff652f] mt-1">
-              {formatCurrency(activeMemberId === 'all' ? balanceDetails.simplifiedDebts.reduce((s, d) => s + d.amount, 0) : balanceDetails.youOwe)}
-            </p>
-            <span className="text-[10px] text-gray-400">
-              {activeMemberId === 'all' ? `${balanceDetails.simplifiedDebts.length} debt paths` : 'to settle with friends'}
-            </span>
-          </div>
-
-          <div className="p-4">
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-              {activeMemberId === 'all' ? 'Members Active' : 'You Are Owed'}
-            </span>
-            <p className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
-              {activeMemberId === 'all' ? members.length : formatCurrency(balanceDetails.youAreOwed)}
-            </p>
-            <span className="text-[10px] text-gray-400">
-              {activeMemberId === 'all' ? 'travelers sharing costs' : 'pending from friends'}
-            </span>
-          </div>
-        </div>
-
-        {/* Trip Budget Gauge (if configured) */}
-        {tripBudget > 0 && (
-          <div className="card p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-extrabold text-gray-700 dark:text-slate-300">Trip Budget Pace</span>
-              <span className="font-bold text-gray-500">
-                {formatCurrency(balanceDetails.totalSpend)} of {formatCurrency(tripBudget)} ({budgetSpentPct}%)
-              </span>
-            </div>
-            <div className="w-full bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
-              <div
-                className={`h-full transition-all rounded-full ${
-                  budgetSpentPct >= 100 ? 'bg-rose-500' : budgetSpentPct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                }`}
-                style={{ width: `${budgetSpentPct}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[11px] text-gray-400">
-              <span>{budgetRemaining >= 0 ? `₹${Math.round(budgetRemaining)} remaining in budget` : `Over budget by ₹${Math.abs(Math.round(budgetRemaining))}`}</span>
-              <span>Target: {formatCurrency(tripBudget)}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Simplified Settlement Paths (Who owes who) */}
-        <div className="card space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <HandCoins className="h-4 w-4 text-emerald-600" />
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-700 dark:text-slate-200">
-                Settlement Routes ({balanceDetails.simplifiedDebts.length})
-              </h3>
-            </div>
-            <button
-              onClick={() => {
-                setSettleForm({
-                  from_id: balanceDetails.simplifiedDebts[0]?.from.id || '',
-                  to_id: balanceDetails.simplifiedDebts[0]?.to.id || '',
-                  amount: String(balanceDetails.simplifiedDebts[0]?.amount || ''),
-                  notes: 'Settlement payment',
-                })
-                setShowSettleModal(true)
-              }}
-              className="btn-secondary text-[11px] py-1 px-3 font-bold text-emerald-600 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50"
-            >
-              Record Payment
-            </button>
-          </div>
-
-          {balanceDetails.simplifiedDebts.length === 0 ? (
-            <div className="py-6 text-center space-y-1">
-              <CheckCircle2 className="h-6 w-6 text-emerald-500 mx-auto" />
-              <p className="text-xs font-bold text-gray-700 dark:text-slate-300">All trip debts are settled!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {balanceDetails.simplifiedDebts.map((debt, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-xl bg-gray-50/80 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <strong className="truncate text-gray-900 dark:text-white">{debt.from.name}</strong>
-                    <ArrowRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
-                    <strong className="truncate text-gray-900 dark:text-white">{debt.to.name}</strong>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                      {formatCurrency(debt.amount)}
-                    </span>
-                    <a
-                      href={getWhatsAppLink(debt)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="p-1.5 bg-[#25D366] text-white rounded-lg hover:bg-[#20ba59]"
-                      title="Send WhatsApp reminder"
-                    >
-                      <Send className="h-3 w-3" />
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Expenses Feed */}
-        <div className="card space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-gray-100 dark:border-slate-800">
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white text-sm">
-                Trip Expenses ({filteredExpenses.length})
-              </h3>
-              <p className="text-[11px] text-gray-400">Tap an expense to see who paid and split shares</p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search expenses..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input-field text-xs pl-8 py-1.5 w-44 sm:w-56"
-                />
+            {/* Trip Identity & Perspective Selector */}
+            <div className="card p-4 space-y-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400">
+                  Viewer Perspective
+                </span>
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full">
+                  {activeMemberId === 'all' ? 'All Members' : activeViewer?.name || 'Selected'}
+                </span>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-600 dark:text-slate-300 block">
+                  Select who you are:
+                </label>
+                <select
+                  value={activeMemberId}
+                  onChange={(e) => handleSelectMember(e.target.value)}
+                  className="input-field text-xs font-bold py-2 bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700"
+                >
+                  <option value="all">👀 Group Overview (Everyone)</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>👤 {m.name}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[11px] text-gray-400 italic">
+                Switching identity personalizes the "you lent" and "you borrowed" calculations.
+              </p>
+            </div>
+
+            {/* TRIP MEMBERS LIST (WITH EDIT NAME CAPABILITY) */}
+            <div className="card p-4 space-y-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-emerald-600" />
+                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-800 dark:text-slate-200">
+                    Group Members ({members.length})
+                  </h3>
+                </div>
+
+                <button
+                  onClick={() => setShowAddMemberModal(true)}
+                  className="text-[11px] font-extrabold text-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span>Add Member</span>
+                </button>
+              </div>
+
+              {members.length === 0 ? (
+                <div className="py-4 text-center text-xs text-gray-400">
+                  No members added yet. Click "+ Add Member" to get started.
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                  {members.map(m => {
+                    const netBal = balanceDetails.netBalances[m.id] || 0
+                    const isPositive = netBal > 0.05
+                    const isNegative = netBal < -0.05
+                    const isActive = activeMemberId === m.id
+
+                    return (
+                      <div
+                        key={m.id}
+                        className={`py-2.5 px-2 rounded-xl transition-all flex items-center justify-between gap-2 text-xs ${
+                          isActive
+                            ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60'
+                            : 'hover:bg-gray-50 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div
+                          onClick={() => handleSelectMember(m.id)}
+                          className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
+                          title="Click to view ledger as this person"
+                        >
+                          <div className={`w-8 h-8 rounded-full ${m.avatarBg || 'bg-emerald-600'} text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs`}>
+                            {m.name.charAt(0).toUpperCase()}
+                          </div>
+
+                          <div className="min-w-0">
+                            <strong className="text-gray-900 dark:text-white block truncate text-xs">
+                              {m.name}
+                            </strong>
+                            <div className="text-[10px]">
+                              {isPositive ? (
+                                <span className="text-emerald-600 font-extrabold">gets back {formatCurrency(netBal)}</span>
+                              ) : isNegative ? (
+                                <span className="text-[#e53935] font-extrabold">owes {formatCurrency(Math.abs(netBal))}</span>
+                              ) : (
+                                <span className="text-gray-400">settled up</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Member Action Buttons: Edit Name & Delete */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleStartEditMember(m)
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                            title="Edit member name / phone"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteMember(m.id)
+                            }}
+                            className="p-1.5 text-gray-300 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Remove member"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* SIMPLIFIED SETTLEMENT PATHS */}
+            <div className="card p-4 space-y-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <HandCoins className="h-4 w-4 text-emerald-600" />
+                  <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-800 dark:text-slate-200">
+                    Settlement Summary ({balanceDetails.simplifiedDebts.length})
+                  </h3>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSettleForm({
+                      from_id: balanceDetails.simplifiedDebts[0]?.from.id || '',
+                      to_id: balanceDetails.simplifiedDebts[0]?.to.id || '',
+                      amount: String(balanceDetails.simplifiedDebts[0]?.amount || ''),
+                      notes: 'Settlement payment',
+                    })
+                    setShowSettleModal(true)
+                  }}
+                  className="text-[11px] font-bold text-emerald-600 hover:underline"
+                >
+                  Record
+                </button>
+              </div>
+
+              {balanceDetails.simplifiedDebts.length === 0 ? (
+                <div className="py-4 text-center space-y-1">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
+                  <p className="text-xs font-bold text-gray-600 dark:text-slate-300">All dues are settled!</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {balanceDetails.simplifiedDebts.map((debt, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <strong className="text-[#ff652f] truncate">{debt.from.name}</strong>
+                          <span className="text-gray-400 text-[10px]">owes</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400 truncate">{debt.to.name}</strong>
+                        </div>
+                        <span className="font-extrabold text-gray-900 dark:text-white font-mono text-xs">
+                          {formatCurrency(debt.amount)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <a
+                          href={getWhatsAppLink(debt)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 bg-[#25D366] text-white rounded-lg hover:bg-[#20ba59]"
+                          title="Send WhatsApp reminder"
+                        >
+                          <Send className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* QUICK ACTIONS: STATEMENT & EXPORT */}
+            <div className="card p-3.5 space-y-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-xs">
+              <button
+                onClick={() => setShowPrintableSummaryModal(true)}
+                className="w-full btn-secondary py-2 px-3 flex items-center justify-center gap-2 font-bold text-gray-700 dark:text-slate-200"
+              >
+                <Printer className="h-3.5 w-3.5 text-emerald-600" />
+                <span>View Printable Summary (PDF)</span>
+              </button>
               <button
                 onClick={handleExportCsv}
-                className="btn-secondary text-xs py-1.5 px-2.5 flex items-center gap-1 font-bold"
-                title="Download CSV"
+                className="w-full btn-secondary py-2 px-3 flex items-center justify-center gap-2 font-bold text-gray-700 dark:text-slate-200"
               >
-                <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">CSV</span>
+                <Download className="h-3.5 w-3.5 text-blue-600" />
+                <span>Download Spreadsheet (CSV)</span>
               </button>
             </div>
           </div>
 
-          {filteredExpenses.length === 0 ? (
-            <div className="py-12 text-center space-y-2">
-              <Receipt className="h-8 w-8 text-gray-300 mx-auto" />
-              <p className="text-xs text-gray-400">No expenses found for this trip.</p>
-              <button
-                onClick={openNewExpenseModal}
-                className="btn-primary text-xs py-2 px-4 bg-[#ff652f] hover:bg-[#e55320] border-none font-bold"
-              >
-                Add First Expense
-              </button>
+          {/* ============================================================ */}
+          {/* CENTER / MAIN PANEL: Splitwise Screenshot Layout & Expenses   */}
+          {/* ============================================================ */}
+          <div className="lg:col-span-8 xl:col-span-8.5 space-y-5">
+
+            {/* GROUP BANNER (EXACT REPLICA OF SCREENSHOT HEADER) */}
+            <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {/* Airplane / Group Category Red Circle Badge */}
+                <div className="w-12 h-12 rounded-full bg-[#e53935] text-white flex items-center justify-center text-xl font-bold shadow-sm shrink-0">
+                  {group.icon || '✈️'}
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
+                    {group.name}
+                  </h2>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+                    {members.length} people
+                  </p>
+                </div>
+              </div>
+
+              {/* Signature Orange & Teal Buttons (Splitwise Official) */}
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={openNewExpenseModal}
+                  className="bg-[#ff652f] hover:bg-[#e8531f] text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add an expense</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSettleForm({
+                      from_id: balanceDetails.simplifiedDebts[0]?.from.id || members[1]?.id || '',
+                      to_id: balanceDetails.simplifiedDebts[0]?.to.id || members[0]?.id || '',
+                      amount: String(balanceDetails.simplifiedDebts[0]?.amount || ''),
+                      notes: 'Settlement payment',
+                    })
+                    setShowSettleModal(true)
+                  }}
+                  className="bg-[#5bc5a7] hover:bg-[#48b294] text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+                >
+                  <HandCoins className="h-4 w-4" />
+                  <span>Settle up</span>
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-100 dark:divide-slate-800">
-              {filteredExpenses.map(exp => {
-                const isExpanded = expandedExpenseId === exp.id
-                const payerName = exp.payer_mode === 'single'
-                  ? (members.find(m => m.id === exp.paid_by_id)?.name || 'Someone')
-                  : 'Multiple people'
 
-                const expDate = new Date(exp.date || today())
-                const monthStr = expDate.toLocaleString('default', { month: 'short' }).toUpperCase()
-                const dayStr = String(expDate.getDate()).padStart(2, '0')
+            {/* SPLITWISE 3-BOX BALANCE BAR */}
+            <div className="grid grid-cols-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden divide-x divide-gray-100 dark:divide-slate-800 text-center">
+              <div className="p-3 sm:p-4">
+                <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                  Total Trip Spend
+                </span>
+                <p className="text-base sm:text-xl font-black text-gray-900 dark:text-white mt-0.5">
+                  {formatCurrency(balanceDetails.totalSpend)}
+                </p>
+              </div>
 
-                return (
-                  <div key={exp.id} className="py-3">
-                    <div
-                      onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
-                      className="flex items-center justify-between gap-3 text-xs cursor-pointer hover:bg-gray-50/80 dark:hover:bg-slate-800/40 p-2 rounded-xl transition-all"
-                    >
-                      {/* Date Badge + Category Icon + Title */}
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex flex-col items-center justify-center text-center font-bold flex-shrink-0">
-                          <span className="text-[9px] text-gray-500 uppercase">{monthStr}</span>
-                          <span className="text-xs text-gray-900 dark:text-white leading-none">{dayStr}</span>
-                        </div>
+              <div className="p-3 sm:p-4">
+                <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                  {activeMemberId === 'all' ? 'Pending Debts' : 'You Owe'}
+                </span>
+                <p className="text-base sm:text-xl font-black text-[#ff652f] mt-0.5">
+                  {formatCurrency(activeMemberId === 'all' ? balanceDetails.simplifiedDebts.reduce((s, d) => s + d.amount, 0) : balanceDetails.youOwe)}
+                </p>
+              </div>
 
-                        <div className="min-w-0">
-                          <strong className="text-gray-900 dark:text-white block truncate text-xs sm:text-sm">
-                            {exp.title}
-                          </strong>
-                          <span className="text-[11px] text-gray-400">
-                            Paid by <strong className="text-gray-700 dark:text-slate-300">{payerName}</strong>
-                          </span>
-                        </div>
-                      </div>
+              <div className="p-3 sm:p-4">
+                <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                  {activeMemberId === 'all' ? 'Active Members' : 'You Are Owed'}
+                </span>
+                <p className="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {activeMemberId === 'all' ? members.length : formatCurrency(balanceDetails.youAreOwed)}
+                </p>
+              </div>
+            </div>
 
-                      {/* Amount & Arrow */}
-                      <div className="flex items-center gap-3 shrink-0">
-                        <div className="text-right">
-                          <strong className="text-sm font-black text-gray-900 dark:text-white block">
-                            {formatCurrency(exp.amount)}
-                          </strong>
-                          {exp.receipt_url && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setPreviewReceiptUrl(exp.receipt_url)
-                              }}
-                              className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-0.5 justify-end"
-                            >
-                              <Paperclip className="h-2.5 w-2.5" />
-                              <span>Bill</span>
-                            </button>
-                          )}
-                        </div>
-                        <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                      </div>
+            {/* EXPENSES LIST GROUPED BY MONTH (MATCHES SCREENSHOT) */}
+            <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+              {Object.keys(expensesByMonth).length === 0 ? (
+                <div className="p-12 text-center space-y-3">
+                  <Receipt className="h-10 w-10 text-gray-300 mx-auto" />
+                  <p className="text-sm font-bold text-gray-600 dark:text-slate-300">
+                    No expenses recorded for this trip yet.
+                  </p>
+                  <button
+                    onClick={openNewExpenseModal}
+                    className="btn-primary text-xs py-2 px-4 bg-[#ff652f] hover:bg-[#e8531f] border-none font-extrabold"
+                  >
+                    Add First Expense
+                  </button>
+                </div>
+              ) : (
+                Object.entries(expensesByMonth).map(([monthYear, monthExpenses]) => (
+                  <div key={monthYear}>
+                    {/* Month Header Row with "View printable summary" Link */}
+                    <div className="bg-[#f2f4f6] dark:bg-slate-800/80 px-4 py-2.5 flex items-center justify-between border-b border-gray-200 dark:border-slate-700">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                        {monthYear}
+                      </span>
+                      <button
+                        onClick={() => setShowPrintableSummaryModal(true)}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1"
+                      >
+                        <FileText className="h-3 w-3" />
+                        <span>View printable summary</span>
+                      </button>
                     </div>
 
-                    {/* Expanded Breakdown */}
-                    {isExpanded && (
-                      <div className="mt-2.5 p-3.5 bg-gray-50 dark:bg-slate-800/80 rounded-xl space-y-3 text-xs border border-gray-100 dark:border-slate-800">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                              Split Allocations
-                            </span>
-                            <div className="space-y-1">
-                              {Object.entries(exp.shares || {}).map(([mId, share]) => {
-                                const mName = members.find(m => m.id === mId)?.name || mId
-                                return (
-                                  <div key={mId} className="flex items-center justify-between text-gray-700 dark:text-slate-300">
-                                    <span>{mName}</span>
-                                    <span className="font-mono font-bold">{formatCurrency(share)}</span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
+                    {/* Expenses under this month */}
+                    <div className="divide-y divide-gray-100 dark:divide-slate-800">
+                      {monthExpenses.map(exp => {
+                        const isExpanded = expandedExpenseId === exp.id
+                        const isSettle =
+                          exp.is_settlement === true ||
+                          exp.id?.startsWith('exp_settle') ||
+                          exp.title?.startsWith('🤝') ||
+                          exp.title?.toLowerCase().includes(' paid ')
 
-                          <div>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                              Bill Invoice & Notes
-                            </span>
-                            {exp.receipt_url ? (
-                              <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
-                                <Paperclip className="h-4 w-4 text-blue-600" />
-                                <span className="truncate flex-1 font-semibold">{exp.receipt_name || 'Bill Receipt'}</span>
+                        const expDate = new Date(exp.date || Date.now())
+                        const monthAbbr = expDate.toLocaleString('en-US', { month: 'short' }).toUpperCase()
+                        const dayNum = String(expDate.getDate()).padStart(2, '0')
+
+                        // Payer name
+                        const payer = exp.payer_mode === 'single'
+                          ? (members.find(m => m.id === exp.paid_by_id) || { name: 'Someone' })
+                          : { name: 'Multiple people' }
+
+                        // Calculations relative to active viewer
+                        const activeShare = exp.shares?.[activeMemberId] || 0
+                        const isActivePayer = exp.payer_mode === 'single' && exp.paid_by_id === activeMemberId
+                        const youLent = isActivePayer ? (Number(exp.amount) - activeShare) : 0
+                        const youBorrowed = !isActivePayer && activeShare > 0 ? activeShare : 0
+                        const isInvolved = activeMemberId === 'all' || isActivePayer || activeShare > 0
+
+                        // Category visuals (pastel icon square)
+                        const categoryVisuals = getExpenseCategoryVisuals(exp.title, exp.notes)
+                        const CategoryIcon = categoryVisuals.icon
+
+                        // If it's a settlement payment item
+                        if (isSettle) {
+                          return (
+                            <div
+                              key={exp.id}
+                              onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
+                              className="p-3 hover:bg-gray-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-full bg-[#5bc5a7] text-white flex items-center justify-center shrink-0">
+                                  <DollarSign className="h-4 w-4" />
+                                </div>
+                                <span className="font-bold text-gray-800 dark:text-slate-200 truncate">
+                                  {exp.title} INR{Number(exp.amount).toFixed(2)}
+                                </span>
+                              </div>
+
+                              <div className="text-right text-gray-400 text-[11px] font-medium shrink-0 italic">
+                                not involved
+                              </div>
+                            </div>
+                          )
+                        }
+
+                        // Regular Expense Row (Matches Screenshot 2026-10-22 200231.png)
+                        return (
+                          <div key={exp.id} className="group">
+                            <div
+                              onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
+                              className="p-3 hover:bg-gray-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors flex items-center justify-between gap-3 text-xs"
+                            >
+                              {/* Left: Date Badge + Category Icon + Title */}
+                              <div className="flex items-center gap-3 min-w-0">
+                                {/* Date Badge */}
+                                <div className="flex flex-col items-center justify-center w-8 text-center shrink-0 leading-tight">
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                                    {monthAbbr}
+                                  </span>
+                                  <span className="text-base font-bold text-gray-600 dark:text-slate-300">
+                                    {dayNum}
+                                  </span>
+                                </div>
+
+                                {/* Category Pastel Square Icon */}
+                                <div className={`w-9 h-9 rounded-lg ${categoryVisuals.bgClass} ${categoryVisuals.textClass} flex items-center justify-center shrink-0 border ${categoryVisuals.borderClass}`}>
+                                  <CategoryIcon className="h-4 w-4" />
+                                </div>
+
+                                {/* Title & Note/Bill Indicators */}
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-bold text-gray-900 dark:text-white truncate text-xs sm:text-sm">
+                                      {exp.title}
+                                    </span>
+                                    {exp.notes && (
+                                      <MessageSquare className="h-3 w-3 text-gray-400 shrink-0" title="Has notes" />
+                                    )}
+                                    {exp.receipt_url && (
+                                      <Paperclip className="h-3 w-3 text-blue-500 shrink-0" title="Bill attached" />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right Columns: [Payer Column] & [Lent/Borrowed Column] */}
+                              <div className="flex items-center gap-4 sm:gap-6 shrink-0 text-right">
+                                {/* Column 1: Payer */}
+                                <div className="w-24 sm:w-28">
+                                  <span className="text-[10px] text-gray-400 block truncate">
+                                    {payer.name} paid
+                                  </span>
+                                  <span className="text-xs sm:text-sm font-black text-gray-900 dark:text-white font-mono block">
+                                    INR{Number(exp.amount).toFixed(2)}
+                                  </span>
+                                </div>
+
+                                {/* Column 2: Lent / Borrowed (Relative to active viewer) */}
+                                <div className="w-24 sm:w-28">
+                                  {activeMemberId === 'all' ? (
+                                    <div>
+                                      <span className="text-[10px] text-gray-400 block">split among</span>
+                                      <span className="text-xs font-bold text-gray-700 dark:text-slate-300">
+                                        {Object.keys(exp.shares || {}).length} people
+                                      </span>
+                                    </div>
+                                  ) : youLent > 0 ? (
+                                    <div>
+                                      <span className="text-[10px] text-gray-400 block truncate">you lent</span>
+                                      <span className="text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono block">
+                                        INR{youLent.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  ) : youBorrowed > 0 ? (
+                                    <div>
+                                      <span className="text-[10px] text-gray-400 block truncate">{payer.name} lent you</span>
+                                      <span className="text-xs sm:text-sm font-black text-[#e53935] dark:text-rose-400 font-mono block">
+                                        INR{youBorrowed.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <span className="text-[10px] text-gray-400 block">not involved</span>
+                                      <span className="text-xs text-gray-400 block">—</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Delete trash button */}
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    setPreviewReceiptUrl(exp.receipt_url)
+                                    setDeleteExpenseTarget(exp)
                                   }}
-                                  className="btn-secondary text-[11px] py-1 px-2.5 font-bold"
+                                  className="text-gray-300 hover:text-rose-600 p-1 rounded transition-colors"
+                                  title="Delete expense"
                                 >
-                                  View Bill
+                                  <Trash2 className="h-4 w-4" />
                                 </button>
                               </div>
-                            ) : (
-                              <p className="text-gray-400 italic">No bill receipt attached.</p>
-                            )}
+                            </div>
 
-                            {exp.notes && (
-                              <p className="mt-2 text-gray-600 dark:text-slate-300 italic">
-                                Note: {exp.notes}
-                              </p>
+                            {/* Expanded Detail Drawer */}
+                            {isExpanded && (
+                              <div className="bg-gray-50/90 dark:bg-slate-800/80 p-4 border-t border-gray-100 dark:border-slate-800 space-y-3 text-xs">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  {/* Shares Breakdown */}
+                                  <div>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                      Split Breakdown
+                                    </span>
+                                    <div className="space-y-1">
+                                      {Object.entries(exp.shares || {}).map(([mId, share]) => {
+                                        const mName = members.find(m => m.id === mId)?.name || mId
+                                        return (
+                                          <div key={mId} className="flex items-center justify-between text-gray-700 dark:text-slate-300">
+                                            <span>{mName}</span>
+                                            <span className="font-mono font-bold">INR{Number(share).toFixed(2)}</span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+
+                                  {/* Attached Bill & Notes */}
+                                  <div>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                      Bill & Notes
+                                    </span>
+                                    {exp.receipt_url ? (
+                                      <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 mb-2">
+                                        <Paperclip className="h-4 w-4 text-blue-600" />
+                                        <span className="truncate flex-1 font-semibold">{exp.receipt_name || 'Bill Receipt'}</span>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setPreviewReceiptUrl(exp.receipt_url)
+                                          }}
+                                          className="btn-secondary text-[11px] py-1 px-2.5 font-bold"
+                                        >
+                                          View Bill
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <p className="text-gray-400 italic">No bill receipt attached.</p>
+                                    )}
+
+                                    {exp.notes && (
+                                      <p className="text-gray-600 dark:text-slate-300 italic mt-1">
+                                        Note: {exp.notes}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openEditExpenseModal(exp)
+                                    }}
+                                    className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" /> Edit Expense
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setDeleteExpenseTarget(exp)
+                                    }}
+                                    className="text-rose-600 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                  </button>
+                                </div>
+                              </div>
                             )}
                           </div>
-                        </div>
-
-                        {/* Action buttons: Edit & Delete */}
-                        <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-200 dark:border-slate-700">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openEditExpenseModal(exp)
-                            }}
-                            className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 text-xs font-bold flex items-center gap-1"
-                          >
-                            <Pencil className="h-3.5 w-3.5" /> Edit Expense
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setDeleteExpenseTarget(exp)
-                            }}
-                            className="text-rose-600 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" /> Delete
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                        )
+                      })}
+                    </div>
                   </div>
-                )
-              })}
+                ))
+              )}
             </div>
-          )}
+          </div>
         </div>
       </main>
 
       {/* ============================================================ */}
-      {/* MODALS: Expense Create/Edit, AI Bill OCR, Member Join, Settle */}
+      {/* MODALS: Expense, Member Add/Edit, Settle, Printable Summary  */}
       {/* ============================================================ */}
 
-      {/* --- ADD / EDIT EXPENSE MODAL --- */}
+      {/* 1. PRINTABLE SUMMARY MODAL (PDF LAYOUT) */}
+      <SplitwisePrintableSummaryModal
+        isOpen={showPrintableSummaryModal}
+        onClose={() => setShowPrintableSummaryModal(false)}
+        group={group}
+      />
+
+      {/* 2. EDIT MEMBER MODAL */}
+      <Modal
+        isOpen={showEditMemberModal}
+        onClose={() => {
+          setShowEditMemberModal(false)
+          setEditingMember(null)
+        }}
+        title="Edit Member Name"
+      >
+        <form onSubmit={handleSaveMemberEdit} className="space-y-4 text-xs">
+          <div>
+            <label className="label">Member Name *</label>
+            <input
+              type="text"
+              placeholder="e.g. Manoj Gowda"
+              value={editingMember?.name || ''}
+              onChange={(e) => setEditingMember(prev => ({ ...prev, name: e.target.value }))}
+              className="input-field text-xs font-semibold"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Phone Number (Optional for WhatsApp)</label>
+            <input
+              type="tel"
+              placeholder="e.g. 9876543210"
+              value={editingMember?.phone || ''}
+              onChange={(e) => setEditingMember(prev => ({ ...prev, phone: e.target.value }))}
+              className="input-field text-xs"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEditMemberModal(false)
+                setEditingMember(null)
+              }}
+              className="btn-secondary text-xs"
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary text-xs font-bold bg-emerald-600 hover:bg-emerald-700">
+              Save Member
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 3. ADD MEMBER MODAL */}
+      <Modal
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+        title="Add Friend to this Trip"
+      >
+        <form onSubmit={handleAddMember} className="space-y-4 text-xs">
+          <div>
+            <label className="label">Member Name *</label>
+            <input
+              type="text"
+              placeholder="e.g. Vikram Verma"
+              value={newMemberForm.name}
+              onChange={(e) => setNewMemberForm(prev => ({ ...prev, name: e.target.value }))}
+              className="input-field text-xs font-semibold"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Phone Number (Optional for WhatsApp reminders)</label>
+            <input
+              type="tel"
+              placeholder="e.g. 9876543210"
+              value={newMemberForm.phone}
+              onChange={(e) => setNewMemberForm(prev => ({ ...prev, phone: e.target.value }))}
+              className="input-field text-xs"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+            <button type="button" onClick={() => setShowAddMemberModal(false)} className="btn-secondary text-xs">
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary text-xs font-bold">
+              Add to Trip
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 4. ADD / EDIT EXPENSE MODAL */}
       <Modal
         isOpen={showExpenseModal}
         onClose={() => {
@@ -1093,7 +1491,7 @@ export default function SharedTripPage() {
               <label className="label">Description / Title *</label>
               <input
                 type="text"
-                placeholder="e.g. Seafood Dinner, Scuba Diving, Taxi to Hotel"
+                placeholder="e.g. Ice cream, Diesel, Room booking cost"
                 value={expenseForm.title}
                 onChange={(e) => setExpenseForm(prev => ({ ...prev, title: e.target.value }))}
                 className="input-field text-xs font-semibold"
@@ -1157,6 +1555,18 @@ export default function SharedTripPage() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="label">Notes / Comments (Optional)</label>
+            <input
+              type="text"
+              placeholder="e.g. Dinner with drinks, petrol bill on highway"
+              value={expenseForm.notes}
+              onChange={(e) => setExpenseForm(prev => ({ ...prev, notes: e.target.value }))}
+              className="input-field text-xs"
+            />
           </div>
 
           {/* Who Paid */}
@@ -1304,44 +1714,7 @@ export default function SharedTripPage() {
         </form>
       </Modal>
 
-      {/* --- ADD / JOIN MEMBER MODAL --- */}
-      <Modal
-        isOpen={showAddMemberModal}
-        onClose={() => setShowAddMemberModal(false)}
-        title="Join this Trip"
-      >
-        <form onSubmit={handleAddMember} className="space-y-4 text-xs">
-          <div>
-            <label className="label">Your Name *</label>
-            <input
-              type="text"
-              placeholder="e.g. Vikram Verma"
-              value={newMemberForm.name}
-              onChange={(e) => setNewMemberForm(prev => ({ ...prev, name: e.target.value }))}
-              className="input-field text-xs font-semibold"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="label">Phone Number (Optional for WhatsApp reminders)</label>
-            <input
-              type="tel"
-              placeholder="e.g. 9876543210"
-              value={newMemberForm.phone}
-              onChange={(e) => setNewMemberForm(prev => ({ ...prev, phone: e.target.value }))}
-              className="input-field text-xs"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
-            <button type="button" onClick={() => setShowAddMemberModal(false)} className="btn-secondary text-xs">Cancel</button>
-            <button type="submit" className="btn-primary text-xs font-bold">Add to Trip</button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* --- SETTLE UP MODAL --- */}
+      {/* 5. SETTLE UP MODAL */}
       <Modal
         isOpen={showSettleModal}
         onClose={() => setShowSettleModal(false)}
@@ -1393,21 +1766,36 @@ export default function SharedTripPage() {
             />
           </div>
 
+          <div>
+            <label className="label">Notes (Optional)</label>
+            <input
+              type="text"
+              placeholder="e.g. Paid via GPay / PhonePe"
+              value={settleForm.notes}
+              onChange={(e) => setSettleForm(prev => ({ ...prev, notes: e.target.value }))}
+              className="input-field text-xs"
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
-            <button type="button" onClick={() => setShowSettleModal(false)} className="btn-secondary text-xs">Cancel</button>
-            <button type="submit" className="btn-primary text-xs font-bold">Record Settlement</button>
+            <button type="button" onClick={() => setShowSettleModal(false)} className="btn-secondary text-xs">
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary text-xs font-bold bg-[#5bc5a7] hover:bg-[#48b294]">
+              Record Settlement
+            </button>
           </div>
         </form>
       </Modal>
 
-      {/* --- AI RECEIPT SCANNER MODAL --- */}
+      {/* 6. AI RECEIPT SCANNER MODAL */}
       <AiReceiptScannerModal
         isOpen={showAiScannerModal}
         onClose={() => setShowAiScannerModal(false)}
         onApplyExtracted={handleApplyAiScan}
       />
 
-      {/* --- RECEIPT PREVIEW MODAL --- */}
+      {/* 7. RECEIPT PREVIEW MODAL */}
       <ReceiptPreviewModal
         isOpen={Boolean(previewReceiptUrl)}
         onClose={() => setPreviewReceiptUrl('')}
@@ -1415,7 +1803,7 @@ export default function SharedTripPage() {
         title="Trip Bill Receipt"
       />
 
-      {/* --- DELETE CONFIRM DIALOG --- */}
+      {/* 8. DELETE EXPENSE CONFIRM DIALOG */}
       <ConfirmDialog
         isOpen={Boolean(deleteExpenseTarget)}
         title="Delete Expense?"
