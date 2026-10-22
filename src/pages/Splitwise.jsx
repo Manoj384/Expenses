@@ -178,7 +178,10 @@ export default function Splitwise() {
   const [friends, setFriends] = useState(() => {
     try {
       const saved = localStorage.getItem(storageFriendsKey)
-      if (saved) return JSON.parse(saved)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
       return DEFAULT_MEMBERS.filter(m => !m.isOwner)
     } catch {
       return DEFAULT_MEMBERS.filter(m => !m.isOwner)
@@ -198,6 +201,39 @@ export default function Splitwise() {
     }
   })
 
+  // Reload groups, friends, and activities when authenticated user resolves
+  useEffect(() => {
+    if (!user?.id) return
+    try {
+      const userGroupsKey = `ft_splitwise_groups_${user.id}`
+      const userFriendsKey = `ft_splitwise_friends_${user.id}`
+      const userActivitiesKey = `ft_splitwise_activities_${user.id}`
+
+      const savedGroups = localStorage.getItem(userGroupsKey)
+      const guestGroups = localStorage.getItem('ft_splitwise_groups_guest')
+      if (savedGroups) {
+        setGroups(JSON.parse(savedGroups))
+      } else if (guestGroups) {
+        setGroups(JSON.parse(guestGroups))
+        localStorage.setItem(userGroupsKey, guestGroups)
+      }
+
+      const savedFriends = localStorage.getItem(userFriendsKey)
+      const guestFriends = localStorage.getItem('ft_splitwise_friends_guest')
+      if (savedFriends) {
+        setFriends(JSON.parse(savedFriends))
+      } else if (guestFriends) {
+        setFriends(JSON.parse(guestFriends))
+        localStorage.setItem(userFriendsKey, guestFriends)
+      }
+
+      const savedActivities = localStorage.getItem(userActivitiesKey)
+      if (savedActivities) {
+        setActivities(JSON.parse(savedActivities))
+      }
+    } catch {}
+  }, [user?.id])
+
   // --- Navigation & View Mode State ---
   // view: 'dashboard' | 'recent_activity' | 'all_expenses' | 'group' | 'friend'
   const [currentView, setCurrentView] = useState('dashboard')
@@ -214,6 +250,7 @@ export default function Splitwise() {
   const [showGroupModal, setShowGroupModal] = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [showFriendModal, setShowFriendModal] = useState(false)
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [showSettleModal, setShowSettleModal] = useState(false)
   const [showStatementModal, setShowStatementModal] = useState(false)
   const [showAiScannerModal, setShowAiScannerModal] = useState(false)
@@ -235,6 +272,8 @@ export default function Splitwise() {
 
   // Expense Form with Receipt / Bill Attachment State
   const [expenseForm, setExpenseForm] = useState({
+    split_target_type: 'group', // 'group' | 'friend'
+    friend_id: '',
     group_id: '',
     title: '',
     amount: '',
@@ -532,7 +571,7 @@ export default function Splitwise() {
         icon: groupForm.icon || '👥',
         members: [
           { id: 'm-1', name: 'You (Owner)', phone: '', isOwner: true },
-          ...friends.slice(0, 3).map(f => ({ id: f.id, name: f.name, phone: f.phone, isOwner: false })),
+          ...friends.map(f => ({ id: f.id, name: f.name, phone: f.phone || '', isOwner: false })),
         ],
         expenses: [],
         settlements: [],
@@ -720,11 +759,65 @@ export default function Splitwise() {
   }
 
   // --- Open Add Expense Modal with Smart Defaults ---
-  const openNewExpenseModal = (targetGroupId = null) => {
+  const openNewExpenseModal = (targetGroupId = null, targetFriendId = null) => {
+    // 1. Direct friend split request
+    if (targetFriendId || (currentView === 'friend' && activeFriendId)) {
+      const fId = targetFriendId || activeFriendId
+      const targetFriend = friends.find(f => f.id === fId) || friends[0]
+      const participants = [
+        { id: 'm-1', name: 'You (Owner)', isOwner: true },
+        targetFriend,
+      ].filter(Boolean)
+
+      const initialExact = {}
+      const initialPercent = {}
+      const initialShares = {}
+      const initialPaidBy = {}
+      participants.forEach(m => {
+        initialExact[m.id] = ''
+        initialPercent[m.id] = (100 / (participants.length || 1)).toFixed(1)
+        initialShares[m.id] = 1
+        initialPaidBy[m.id] = ''
+      })
+
+      setEditExpenseTarget(null)
+      setExpenseForm({
+        split_target_type: 'friend',
+        friend_id: targetFriend?.id || '',
+        group_id: '',
+        title: '',
+        amount: '',
+        currency: 'INR',
+        date: today(),
+        notes: '',
+        receipt_url: '',
+        receipt_name: '',
+        payer_mode: 'single',
+        paid_by_id: 'm-1',
+        paid_by: initialPaidBy,
+        split_type: 'equal',
+        selected_members: participants.map(m => m.id),
+        exact_shares: initialExact,
+        percent_shares: initialPercent,
+        ratio_shares: initialShares,
+      })
+      setShowExpenseModal(true)
+      return
+    }
+
+    // 2. Group split
     const targetGroup = groups.find(g => g.id === (targetGroupId || activeGroupId)) || groups[0]
     if (!targetGroup) return
 
-    const members = targetGroup.members || []
+    // Auto-enrich: If the group only has You (Owner), pull in friends from friends list so friends always appear!
+    let members = [...(targetGroup.members || [])]
+    if (members.length <= 1 && friends.length > 0) {
+      const missingFriends = friends.filter(f => !members.some(m => m.id === f.id)).slice(0, 4)
+      members = [...members, ...missingFriends.map(f => ({ id: f.id, name: f.name, phone: f.phone || '', isOwner: false }))]
+      const updated = groups.map(g => g.id === targetGroup.id ? { ...g, members } : g)
+      saveGroups(updated)
+    }
+
     const defaultSelected = members.map(m => m.id)
     const initialExact = {}
     const initialPercent = {}
@@ -740,6 +833,8 @@ export default function Splitwise() {
 
     setEditExpenseTarget(null)
     setExpenseForm({
+      split_target_type: 'group',
+      friend_id: '',
       group_id: targetGroup.id,
       title: '',
       amount: '',
@@ -786,6 +881,8 @@ export default function Splitwise() {
 
     setEditExpenseTarget(exp)
     setExpenseForm({
+      split_target_type: parentGroup.direct_friend_id ? 'friend' : 'group',
+      friend_id: parentGroup.direct_friend_id || '',
       group_id: parentGroup.id,
       title: exp.title || '',
       amount: String(exp.amount || ''),
@@ -846,11 +943,21 @@ export default function Splitwise() {
     return Object.values(expenseForm.paid_by || {}).reduce((sum, v) => sum + (parseFloat(v) || 0), 0)
   }, [expenseForm.payer_mode, expenseForm.paid_by, expenseForm.amount])
 
+  // Active Expense Participants (resolves group members or direct friend)
+  const activeExpenseParticipants = useMemo(() => {
+    if (expenseForm.split_target_type === 'friend') {
+      const selectedFriend = friends.find(f => f.id === expenseForm.friend_id) || friends[0]
+      const ownerMember = { id: 'm-1', name: 'You (Owner)', isOwner: true }
+      return selectedFriend ? [ownerMember, selectedFriend] : [ownerMember]
+    }
+    const targetGroup = groups.find(g => g.id === expenseForm.group_id) || activeGroup
+    return targetGroup?.members || []
+  }, [expenseForm.split_target_type, expenseForm.friend_id, expenseForm.group_id, groups, activeGroup, friends])
+
   // Calculate Split Shares Dynamically
   const calculatedSplitShares = useMemo(() => {
     const total = parseFloat(expenseForm.amount) || 0
-    const targetGroup = groups.find(g => g.id === expenseForm.group_id) || activeGroup
-    const activeMembers = targetGroup?.members || []
+    const activeMembers = activeExpenseParticipants
     const selectedIds = (expenseForm.selected_members || []).filter(id => activeMembers.some(m => m.id === id))
     const shares = {}
 
@@ -940,8 +1047,39 @@ export default function Splitwise() {
     let rawAmt = parseFloat(expenseForm.amount)
     if (!expenseForm.title.trim() || !rawAmt || rawAmt <= 0) return
 
-    const targetGroup = groups.find(g => g.id === expenseForm.group_id) || activeGroup
-    if (!targetGroup) return
+    let targetGroup = null
+    let workingGroups = [...groups]
+
+    if (expenseForm.split_target_type === 'friend') {
+      const friendObj = friends.find(f => f.id === expenseForm.friend_id) || friends[0]
+      if (!friendObj) {
+        setError('Please select a valid friend to split with.')
+        return
+      }
+      targetGroup = groups.find(g => g.direct_friend_id === friendObj.id || (g.members?.length === 2 && g.members.some(m => m.id === friendObj.id)))
+      if (!targetGroup) {
+        targetGroup = {
+          id: `grp_direct_${friendObj.id}`,
+          direct_friend_id: friendObj.id,
+          name: `🤝 ${friendObj.name}`,
+          description: `Direct 1-on-1 expenses with ${friendObj.name}`,
+          icon: '🤝',
+          members: [
+            { id: 'm-1', name: 'You (Owner)', isOwner: true },
+            { id: friendObj.id, name: friendObj.name, phone: friendObj.phone || '', isOwner: false },
+          ],
+          expenses: [],
+          settlements: [],
+        }
+        workingGroups = [targetGroup, ...groups]
+      }
+    } else {
+      targetGroup = groups.find(g => g.id === expenseForm.group_id) || activeGroup
+      if (!targetGroup) {
+        setError('Please select a valid group.')
+        return
+      }
+    }
 
     const isForeign = expenseForm.currency && expenseForm.currency !== 'INR'
     const finalInrAmt = isForeign ? Math.round(convertToInr(rawAmt, expenseForm.currency)) : rawAmt
@@ -990,7 +1128,7 @@ export default function Splitwise() {
         ratio_shares: expenseForm.ratio_shares,
       }
 
-      const updated = groups.map(g => {
+      const updated = workingGroups.map(g => {
         if (g.id === targetGroup.id) {
           const exists = (g.expenses || []).some(e => e.id === editExpenseTarget.id)
           return {
@@ -1044,7 +1182,7 @@ export default function Splitwise() {
       ratio_shares: expenseForm.ratio_shares,
     }
 
-    const updated = groups.map(g =>
+    const updated = workingGroups.map(g =>
       g.id === targetGroup.id
         ? { ...g, expenses: [newExpense, ...(g.expenses || [])] }
         : g
@@ -1397,7 +1535,15 @@ export default function Splitwise() {
             {/* Splitwise Signature Action Buttons */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => openNewExpenseModal()}
+                onClick={() => {
+                  if (currentView === 'friend' && activeFriendId) {
+                    openNewExpenseModal(null, activeFriendId)
+                  } else if (currentView === 'group' && activeGroup) {
+                    openNewExpenseModal(activeGroup.id)
+                  } else {
+                    openNewExpenseModal()
+                  }
+                }}
                 className="bg-[#ff652f] hover:bg-[#e8531f] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
               >
                 <Plus className="h-4 w-4" />
@@ -1682,9 +1828,19 @@ export default function Splitwise() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Net positions per member in this group */}
                 <div className="card space-y-3">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider pb-1 border-b border-gray-100 dark:border-slate-800">
-                    Group Member Balances
-                  </h4>
+                  <div className="flex items-center justify-between pb-1 border-b border-gray-100 dark:border-slate-800">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Group Member Balances
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddMemberModal(true)}
+                      className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      <span>Add Member</span>
+                    </button>
+                  </div>
                   <div className="divide-y divide-gray-50 dark:divide-slate-800">
                     {activeGroup.members?.map(m => {
                       const bal = activeGroupBalanceDetails.netBalances[m.id] || 0
@@ -2179,29 +2335,97 @@ export default function Splitwise() {
         size="lg"
       >
         <form onSubmit={handleSaveExpense} className="space-y-4 text-xs max-h-[82vh] overflow-y-auto pr-1">
-          {/* Target Group Selector */}
-          <div>
-            <label className="label">Group *</label>
-            <select
-              value={expenseForm.group_id}
-              onChange={(e) => {
-                const newGid = e.target.value
-                const targetGrp = groups.find(g => g.id === newGid)
-                const newMembers = targetGrp?.members || []
+          {/* Target Split Mode Switcher: Group vs 1-on-1 Friend */}
+          <div className="flex items-center gap-2 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                const targetGrp = groups.find(g => g.id === expenseForm.group_id) || activeGroup || groups[0]
+                const mList = targetGrp?.members || []
                 setExpenseForm(prev => ({
                   ...prev,
-                  group_id: newGid,
-                  paid_by_id: newMembers[0]?.id || 'm-1',
-                  selected_members: newMembers.map(m => m.id),
+                  split_target_type: 'group',
+                  group_id: targetGrp?.id || '',
+                  paid_by_id: mList[0]?.id || 'm-1',
+                  selected_members: mList.map(m => m.id),
                 }))
               }}
-              className="input-field text-xs font-bold"
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                expenseForm.split_target_type === 'group'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
             >
-              {groups.map(g => (
-                <option key={g.id} value={g.id}>{g.icon} {g.name}</option>
-              ))}
-            </select>
+              <Users className="h-3.5 w-3.5" />
+              <span>With a Group</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const fId = expenseForm.friend_id || friends[0]?.id || ''
+                setExpenseForm(prev => ({
+                  ...prev,
+                  split_target_type: 'friend',
+                  friend_id: fId,
+                  selected_members: ['m-1', fId].filter(Boolean),
+                }))
+              }}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                expenseForm.split_target_type === 'friend'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              <User className="h-3.5 w-3.5" />
+              <span>1-on-1 with a Friend</span>
+            </button>
           </div>
+
+          {/* Group or Friend Selector */}
+          {expenseForm.split_target_type === 'group' ? (
+            <div>
+              <label className="label">Group *</label>
+              <select
+                value={expenseForm.group_id}
+                onChange={(e) => {
+                  const newGid = e.target.value
+                  const targetGrp = groups.find(g => g.id === newGid)
+                  const newMembers = targetGrp?.members || []
+                  setExpenseForm(prev => ({
+                    ...prev,
+                    group_id: newGid,
+                    paid_by_id: newMembers[0]?.id || 'm-1',
+                    selected_members: newMembers.map(m => m.id),
+                  }))
+                }}
+                className="input-field text-xs font-bold"
+              >
+                {groups.map(g => (
+                  <option key={g.id} value={g.id}>{g.icon} {g.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="label">Friend to Split With *</label>
+              <select
+                value={expenseForm.friend_id || friends[0]?.id}
+                onChange={(e) => {
+                  const fId = e.target.value
+                  setExpenseForm(prev => ({
+                    ...prev,
+                    friend_id: fId,
+                    selected_members: ['m-1', fId],
+                  }))
+                }}
+                className="input-field text-xs font-bold text-emerald-600 dark:text-emerald-400"
+              >
+                {friends.map(f => (
+                  <option key={f.id} value={f.id}>👤 {f.name} {f.phone ? `(${f.phone})` : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* AI Bill Scanner One-Click Trigger Button */}
           <div className="p-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-800 dark:to-indigo-950/60 rounded-xl border border-blue-200 dark:border-blue-900/60 flex items-center justify-between gap-3">
@@ -2359,13 +2583,13 @@ export default function Splitwise() {
                 onChange={(e) => setExpenseForm(prev => ({ ...prev, paid_by_id: e.target.value }))}
                 className="input-field text-xs font-semibold"
               >
-                {(groups.find(g => g.id === expenseForm.group_id) || activeGroup)?.members?.map(m => (
+                {activeExpenseParticipants.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                {(groups.find(g => g.id === expenseForm.group_id) || activeGroup)?.members?.map(m => (
+                {activeExpenseParticipants.map(m => (
                   <div key={m.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
                     <span className="font-semibold truncate">{m.name}</span>
                     <input
@@ -2418,7 +2642,7 @@ export default function Splitwise() {
 
             {/* Member Participation Checkboxes */}
             <div className="space-y-1.5 pt-1">
-              {(groups.find(g => g.id === expenseForm.group_id) || activeGroup)?.members?.map(m => {
+              {activeExpenseParticipants.map(m => {
                 const isSelected = expenseForm.selected_members.includes(m.id)
                 return (
                   <div
@@ -2511,6 +2735,38 @@ export default function Splitwise() {
                   </div>
                 )
               })}
+
+              {/* Quick Add Other Friends to Group Split */}
+              {expenseForm.split_target_type === 'group' && friends.filter(f => !activeExpenseParticipants.some(m => m.id === f.id)).length > 0 && (
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60">
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-slate-400 block mb-1.5">
+                    + Include other friends from your account into this split:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {friends.filter(f => !activeExpenseParticipants.some(m => m.id === f.id)).map(f => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => {
+                          const newMember = { id: f.id, name: f.name, phone: f.phone || '', isOwner: false }
+                          const currentGid = expenseForm.group_id || activeGroup?.id
+                          const updated = groups.map(g => g.id === currentGid ? { ...g, members: [...(g.members || []), newMember] } : g)
+                          saveGroups(updated)
+                          lastLocalEditRef.current = Date.now()
+                          setExpenseForm(prev => ({
+                            ...prev,
+                            selected_members: [...prev.selected_members, f.id],
+                          }))
+                        }}
+                        className="text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded-lg px-2.5 py-1 flex items-center gap-1 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>{f.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className={`p-2.5 rounded-xl text-xs flex items-center justify-between ${
@@ -2577,7 +2833,11 @@ export default function Splitwise() {
                 required
               >
                 <option value="">Select Payer</option>
-                {activeGroup?.members?.map(m => (
+                {Array.from(new Map([
+                  ['m-1', { id: 'm-1', name: 'You (Owner)' }],
+                  ...((activeGroup?.members || []).map(m => [m.id, m])),
+                  ...friends.map(f => [f.id, f]),
+                ]).values()).map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
@@ -2592,7 +2852,11 @@ export default function Splitwise() {
                 required
               >
                 <option value="">Select Receiver</option>
-                {activeGroup?.members?.map(m => (
+                {Array.from(new Map([
+                  ['m-1', { id: 'm-1', name: 'You (Owner)' }],
+                  ...((activeGroup?.members || []).map(m => [m.id, m])),
+                  ...friends.map(f => [f.id, f]),
+                ]).values()).map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
@@ -2673,6 +2937,25 @@ export default function Splitwise() {
             />
           </div>
 
+          <div>
+            <label className="label">Group Members ({friends.length + 1})</label>
+            <div className="max-h-36 overflow-y-auto space-y-1 p-2 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="text-xs font-bold text-gray-700 dark:text-slate-300 flex items-center gap-1.5 p-1">
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                <span>You (Owner)</span>
+              </div>
+              {friends.map(f => (
+                <div key={f.id} className="text-xs font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1.5 p-1">
+                  <Check className="h-3.5 w-3.5 text-blue-600" />
+                  <span>{f.name}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              All friends in your account are automatically available to split expenses in this group.
+            </p>
+          </div>
+
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={() => setShowGroupModal(false)} className="btn-secondary text-xs">Cancel</button>
             <button type="submit" className="btn-primary text-xs">{editGroupTarget ? 'Save Changes' : 'Create Group'}</button>
@@ -2742,6 +3025,82 @@ export default function Splitwise() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* --- ADD MEMBER TO ACTIVE GROUP MODAL --- */}
+      <Modal
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+        title={`Add Member to ${activeGroup?.name || 'Group'}`}
+      >
+        <div className="space-y-4 text-xs">
+          <p className="text-gray-500 dark:text-slate-400">
+            Select a friend from your list to add into <strong>{activeGroup?.name}</strong>:
+          </p>
+
+          <div className="space-y-1.5 max-h-60 overflow-y-auto">
+            {friends.filter(f => !(activeGroup?.members || []).some(m => m.id === f.id)).length === 0 ? (
+              <div className="py-6 text-center space-y-2">
+                <p className="text-xs text-gray-400">All your friends are already in this group!</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddMemberModal(false)
+                    setFriendForm({ name: '', phone: '', email: '' })
+                    setShowFriendModal(true)
+                  }}
+                  className="btn-primary text-xs mx-auto flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Add New Friend to Splitwise</span>
+                </button>
+              </div>
+            ) : (
+              friends.filter(f => !(activeGroup?.members || []).some(m => m.id === f.id)).map(f => (
+                <div key={f.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold ${f.avatarBg || 'bg-emerald-600'}`}>
+                      {f.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="font-bold text-gray-900 dark:text-white block">{f.name}</span>
+                      {f.phone && <span className="text-[10px] text-gray-400">{f.phone}</span>}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newMember = { id: f.id, name: f.name, phone: f.phone || '', isOwner: false }
+                      const updated = groups.map(g => g.id === activeGroup.id ? { ...g, members: [...(g.members || []), newMember] } : g)
+                      saveGroups(updated)
+                      lastLocalEditRef.current = Date.now()
+                      if (activeGroup?.share_token) {
+                        updateSharedTripData(activeGroup.share_token, {
+                          members: [...(activeGroup.members || []), newMember],
+                        })
+                      }
+                      setShowAddMemberModal(false)
+                      flash(`Added ${f.name} to ${activeGroup.name}!`)
+                    }}
+                    className="btn-primary text-xs py-1 px-3 flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setShowAddMemberModal(false)}
+              className="btn-secondary text-xs"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </Modal>
 
       {/* --- STATEMENT MODAL --- */}
