@@ -44,11 +44,24 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
 
   // 2. Upsert to Supabase shared_splitwise_groups
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('shared_splitwise_groups')
-      .upsert(payload, { onConflict: 'id' })
+      .upsert(payload, { onConflict: 'share_token' })
       .select('*')
-      .single()
+      .maybeSingle()
+
+    // Fallback if schema uses primary key id for conflict resolution
+    if (error) {
+      const fallback = await supabase
+        .from('shared_splitwise_groups')
+        .upsert(payload, { onConflict: 'id' })
+        .select('*')
+        .maybeSingle()
+      if (!fallback.error && fallback.data) {
+        data = fallback.data
+        error = null
+      }
+    }
 
     if (error) {
       console.warn('[sharedTripService] Remote upsert failed (using local sync fallback):', error.message)
@@ -113,14 +126,12 @@ export async function updateSharedTripData(shareToken, { expenses, members, budg
   if (name !== undefined) updates.name = name
   if (description !== undefined) updates.description = description
 
-  // 1. Update local storage
+  // 1. Update local storage immediately
   try {
     const local = localStorage.getItem(`ft_shared_trip_${shareToken}`)
-    if (local) {
-      const parsed = JSON.parse(local)
-      const merged = { ...parsed, ...updates }
-      localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(merged))
-    }
+    const parsed = local ? JSON.parse(local) : {}
+    const merged = { ...parsed, ...updates }
+    localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(merged))
   } catch {}
 
   // 2. Update remote database

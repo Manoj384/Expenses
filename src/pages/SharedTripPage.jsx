@@ -95,6 +95,7 @@ export default function SharedTripPage() {
   })
 
   const billFileInputRef = useRef(null)
+  const lastLocalEditRef = useRef(0)
 
   const flash = (msg) => {
     setSuccess(msg)
@@ -103,6 +104,11 @@ export default function SharedTripPage() {
 
   // Load shared group from backend or fallback cache
   const loadGroupData = useCallback(async (isSilent = false) => {
+    // Never overwrite with remote poll if user edited locally within the last 15s
+    if (isSilent && Date.now() - lastLocalEditRef.current < 15000) {
+      return
+    }
+
     if (!isSilent) setLoading(true)
     setIsRefreshing(true)
     setError('')
@@ -111,7 +117,13 @@ export default function SharedTripPage() {
       if (fetchErr || !loaded) {
         setError(fetchErr || 'Shared trip not found.')
       } else {
-        setGroup(loaded)
+        // If remote has fewer expenses than currently rendered, keep current expenses
+        setGroup(prev => {
+          if (prev?.expenses && loaded.expenses && loaded.expenses.length < prev.expenses.length) {
+            return { ...loaded, expenses: prev.expenses }
+          }
+          return loaded
+        })
       }
     } catch (err) {
       setError(err?.message || 'Unable to connect to trip ledger.')
@@ -136,7 +148,7 @@ export default function SharedTripPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shared_splitwise_groups', filter: `share_token=eq.${shareToken}` },
         (payload) => {
-          if (payload.new) {
+          if (payload.new && Date.now() - lastLocalEditRef.current >= 5000) {
             setGroup(payload.new)
           }
         }
@@ -452,6 +464,7 @@ export default function SharedTripPage() {
       flash(`Added "${newItem.title}" (${formatCurrency(finalInrAmt)})!`)
     }
 
+    lastLocalEditRef.current = Date.now()
     setGroup(prev => ({ ...prev, expenses: updatedExpenses }))
     setShowExpenseModal(false)
     setEditExpenseTarget(null)
@@ -462,6 +475,7 @@ export default function SharedTripPage() {
 
   const handleDeleteExpense = async () => {
     if (!deleteExpenseTarget) return
+    lastLocalEditRef.current = Date.now()
     const updated = expenses.filter(e => e.id !== deleteExpenseTarget.id)
     setGroup(prev => ({ ...prev, expenses: updated }))
     setDeleteExpenseTarget(null)
@@ -475,6 +489,7 @@ export default function SharedTripPage() {
     const amt = parseFloat(settleForm.amount)
     if (!settleForm.from_id || !settleForm.to_id || !amt || amt <= 0) return
 
+    lastLocalEditRef.current = Date.now()
     const payer = members.find(m => m.id === settleForm.from_id)?.name || 'Someone'
     const recipient = members.find(m => m.id === settleForm.to_id)?.name || 'Someone'
 

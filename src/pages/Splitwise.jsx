@@ -8,7 +8,7 @@ import SplitwiseStatementModal from '../components/SplitwiseStatementModal'
 import AiReceiptScannerModal from '../components/AiReceiptScannerModal'
 import ReceiptPreviewModal from '../components/ReceiptPreviewModal'
 import ShareTripModal from '../components/ShareTripModal'
-import { publishOrSyncSharedGroup, fetchSharedGroupByToken } from '../features/splitwise/api/sharedTripService'
+import { publishOrSyncSharedGroup, fetchSharedGroupByToken, updateSharedTripData } from '../features/splitwise/api/sharedTripService'
 import { formatCurrency } from '../utils/formatCurrency'
 import { formatDate, today } from '../utils/dateUtils'
 import { SUPPORTED_CURRENCIES, convertToInr } from '../utils/currencyConverter'
@@ -254,6 +254,7 @@ export default function Splitwise() {
   })
 
   const billFileInputRef = useRef(null)
+  const lastLocalEditRef = useRef(0)
 
   const flash = (msg) => {
     setSuccess(msg)
@@ -581,10 +582,51 @@ export default function Splitwise() {
     if (!activeGroup?.share_token || !activeGroup?.is_shared) return
 
     const syncSharedTrip = async () => {
+      // 1. Guard: Never overwrite local data if user made changes in the last 15 seconds
+      if (Date.now() - lastLocalEditRef.current < 15000) {
+        return
+      }
+
       try {
         const { group: remoteGroup } = await fetchSharedGroupByToken(activeGroup.share_token)
-        if (remoteGroup && (remoteGroup.expenses?.length !== (activeGroup.expenses || []).length || remoteGroup.members?.length !== (activeGroup.members || []).length)) {
-          const updated = groups.map(g => g.id === activeGroup.id ? { ...g, expenses: remoteGroup.expenses || [], members: remoteGroup.members || [], budget: remoteGroup.budget } : g)
+        if (!remoteGroup) return
+
+        const localExpenses = activeGroup.expenses || []
+        const remoteExpenses = remoteGroup.expenses || []
+
+        // 2. Guard: If remote has fewer expenses than local, remote is behind! Push local to remote, never delete local!
+        if (remoteExpenses.length < localExpenses.length) {
+          updateSharedTripData(activeGroup.share_token, {
+            expenses: localExpenses,
+            members: activeGroup.members || [],
+            budget: activeGroup.budget || 0,
+          })
+          return
+        }
+
+        // 3. Check for genuine new remote items (e.g. friend added an expense from their phone)
+        const localIds = new Set(localExpenses.map(e => e.id))
+        const hasNewRemoteExpenses = remoteExpenses.some(e => !localIds.has(e.id))
+        const hasDifferentMembers = (remoteGroup.members || []).length !== (activeGroup.members || []).length
+
+        if (hasNewRemoteExpenses || hasDifferentMembers) {
+          // Merge safely: preserve all local expenses and append new remote expenses
+          const mergedExpenses = [...localExpenses]
+          remoteExpenses.forEach(re => {
+            if (!localIds.has(re.id)) {
+              mergedExpenses.push(re)
+            }
+          })
+          const updated = groups.map(g =>
+            g.id === activeGroup.id
+              ? {
+                  ...g,
+                  expenses: mergedExpenses,
+                  members: remoteGroup.members || g.members,
+                  budget: remoteGroup.budget ?? g.budget,
+                }
+              : g
+          )
           saveGroups(updated)
         }
       } catch {}
@@ -964,6 +1006,15 @@ export default function Splitwise() {
         }
       })
       saveGroups(updated)
+      lastLocalEditRef.current = Date.now()
+      const postGroup = updated.find(g => g.id === targetGroup.id)
+      if (postGroup?.share_token) {
+        updateSharedTripData(postGroup.share_token, {
+          expenses: postGroup.expenses,
+          members: postGroup.members,
+          budget: postGroup.budget,
+        })
+      }
       setEditExpenseTarget(null)
       setShowExpenseModal(false)
       flash(`Expense "${updatedExpense.title}" updated!`)
@@ -999,6 +1050,15 @@ export default function Splitwise() {
         : g
     )
     saveGroups(updated)
+    lastLocalEditRef.current = Date.now()
+    const postGroup = updated.find(g => g.id === targetGroup.id)
+    if (postGroup?.share_token) {
+      updateSharedTripData(postGroup.share_token, {
+        expenses: postGroup.expenses,
+        members: postGroup.members,
+        budget: postGroup.budget,
+      })
+    }
     setShowExpenseModal(false)
     flash(`Expense "${newExpense.title}" (${formatCurrency(finalInrAmt)}) added!`)
     logActivity(`You added "${newExpense.title}" in ${targetGroup.name}`)
@@ -1012,6 +1072,13 @@ export default function Splitwise() {
       expenses: (g.expenses || []).filter(e => e.id !== deleteExpenseTarget.id),
     }))
     saveGroups(updated)
+    lastLocalEditRef.current = Date.now()
+    if (activeGroup?.share_token) {
+      const remainingExpenses = (activeGroup.expenses || []).filter(e => e.id !== deleteExpenseTarget.id)
+      updateSharedTripData(activeGroup.share_token, {
+        expenses: remainingExpenses,
+      })
+    }
     setDeleteExpenseTarget(null)
     flash('Expense deleted.')
     logActivity(`You deleted expense "${deleteExpenseTarget.title}"`)
@@ -1041,6 +1108,13 @@ export default function Splitwise() {
         : g
     )
     saveGroups(updated)
+    lastLocalEditRef.current = Date.now()
+    const postGroup = updated.find(g => g.id === targetGroup.id)
+    if (postGroup?.share_token) {
+      updateSharedTripData(postGroup.share_token, {
+        expenses: postGroup.expenses,
+      })
+    }
     setShowSettleModal(false)
 
     const fromPerson = targetGroup.members?.find(m => m.id === settleForm.from_id)?.name || 'Someone'

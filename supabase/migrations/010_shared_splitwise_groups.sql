@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS shared_splitwise_groups (
   id           text PRIMARY KEY,
-  owner_id     uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  owner_id     uuid DEFAULT NULL,
   share_token  text UNIQUE NOT NULL,
   name         text NOT NULL,
   description  text,
@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS shared_splitwise_groups (
 -- Index for instant lookup by share_token
 CREATE INDEX IF NOT EXISTS idx_shared_splitwise_groups_token ON shared_splitwise_groups(share_token);
 CREATE INDEX IF NOT EXISTS idx_shared_splitwise_groups_owner ON shared_splitwise_groups(owner_id);
+
+-- Explicitly grant permissions to anon and authenticated API roles
+GRANT ALL ON TABLE shared_splitwise_groups TO anon, authenticated, service_role;
 
 -- Enable Row Level Security
 ALTER TABLE shared_splitwise_groups ENABLE ROW LEVEL SECURITY;

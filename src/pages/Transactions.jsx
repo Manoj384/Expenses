@@ -171,6 +171,7 @@ export default function Transactions() {
   const handleFormSuccess = () => {
     setShowAdd(false)
     setEditTarget(null)
+    setPage(1)
     fetchTransactions()
     window.dispatchEvent(new CustomEvent('transaction-updated'))
   }
