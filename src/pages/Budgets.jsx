@@ -69,7 +69,7 @@ export default function Budgets() {
       const [catRes, budRes, txRes] = await Promise.all([
         supabase.from('categories').select('*').eq('user_id', user.id).eq('type', 'expense'),
         supabase.from('budgets').select('*').eq('user_id', user.id),
-        supabase.from('transactions').select('amount, category_id, type').eq('user_id', user.id).gte('date', monthStart).lte('date', monthEnd),
+        supabase.from('transactions').select('id, amount, category_id, type, note').eq('user_id', user.id).gte('date', monthStart).lte('date', monthEnd),
       ])
 
       const cats = catRes.data || []
@@ -80,6 +80,8 @@ export default function Budgets() {
       const spentByCat = {}
       let detectedIncome = 0
       for (const tx of txRes.data || []) {
+        const isSavings = tx.type === 'savings' || tx.note?.startsWith('[Savings]') || (typeof localStorage !== 'undefined' && localStorage.getItem(`ft_tx_type_${tx.id}`) === 'savings')
+        if (isSavings) continue
         if (tx.type === 'expense' && tx.category_id) {
           spentByCat[tx.category_id] = (spentByCat[tx.category_id] || 0) + parseFloat(tx.amount || 0)
         } else if (tx.type === 'income') {

@@ -88,7 +88,13 @@ export default function Transactions() {
         .order('created_at', { ascending: false })
         .range(from, to)
 
-      if (filters.type) q = q.eq('type', filters.type)
+      if (filters.type) {
+        if (filters.type === 'savings') {
+          q = q.or('type.eq.savings,note.ilike.%[Savings]%')
+        } else {
+          q = q.eq('type', filters.type)
+        }
+      }
       if (filters.category_id) q = q.eq('category_id', filters.category_id)
       if (filters.payment_method_id) q = q.eq('payment_method_id', filters.payment_method_id)
       if (filters.start_date) q = q.gte('date', filters.start_date)
@@ -96,7 +102,13 @@ export default function Transactions() {
 
       const { data, error: fetchErr, count } = await retryFetch(() => q)
       if (fetchErr) throw fetchErr
-      setTransactions(data || [])
+
+      const normalizedData = (data || []).map((t) => {
+        const isSavings = t.type === 'savings' || t.note?.startsWith('[Savings]') || (typeof localStorage !== 'undefined' && localStorage.getItem(`ft_tx_type_${t.id}`) === 'savings')
+        return isSavings ? { ...t, type: 'savings' } : t
+      })
+
+      setTransactions(normalizedData)
       setTotalCount(count || 0)
     } catch (err) {
       setError(err?.message ? `Unable to load transactions: ${err.message}` : 'Unable to load transactions. Please try again.')
@@ -135,6 +147,7 @@ export default function Transactions() {
       const { error: delErr } = await supabase.from('transactions').delete().eq('id', transaction.id).eq('user_id', user.id)
       if (delErr) throw delErr
       setTransactions((prev) => prev.filter((t) => t.id !== transaction.id))
+      window.dispatchEvent(new CustomEvent('transaction-updated'))
 
       toast.action('Transaction deleted.', 'Undo', async () => {
         const { id, created_at, categories, payment_methods, ...restoredTransaction } = transaction
@@ -159,6 +172,7 @@ export default function Transactions() {
     setShowAdd(false)
     setEditTarget(null)
     fetchTransactions()
+    window.dispatchEvent(new CustomEvent('transaction-updated'))
   }
 
   const handleFilterChange = (e) => {

@@ -49,13 +49,31 @@ export const transactionRepository = {
       date: transaction.date || new Date().toISOString().slice(0, 10),
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('transactions')
       .insert(payload)
       .select('*, categories(id, name, type), payment_methods(id, name, type)')
       .single()
 
+    if (error && (error.code === '23514' || error.message?.includes('check constraint') || error.message?.includes('transactions_type_check'))) {
+      if (payload.type === 'savings') {
+        const fallbackNote = payload.note
+          ? (payload.note.includes('[Savings]') ? payload.note : `[Savings] ${payload.note}`)
+          : '[Savings]'
+        const fallbackRes = await supabase
+          .from('transactions')
+          .insert({ ...payload, type: 'expense', note: fallbackNote })
+          .select('*, categories(id, name, type), payment_methods(id, name, type)')
+          .single()
+        if (!fallbackRes.error && fallbackRes.data) {
+          try { localStorage.setItem(`ft_tx_type_${fallbackRes.data.id}`, 'savings') } catch {}
+          return fallbackRes.data
+        }
+      }
+    }
+
     if (error) throw error
+    try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('transaction-updated')) } catch {}
     return data
   },
 
@@ -69,7 +87,7 @@ export const transactionRepository = {
     delete payload.id
     delete payload.user_id
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('transactions')
       .update(payload)
       .eq('id', id)
@@ -77,7 +95,27 @@ export const transactionRepository = {
       .select('*, categories(id, name, type), payment_methods(id, name, type)')
       .single()
 
+    if (error && (error.code === '23514' || error.message?.includes('check constraint') || error.message?.includes('transactions_type_check'))) {
+      if (payload.type === 'savings') {
+        const fallbackNote = payload.note
+          ? (payload.note.includes('[Savings]') ? payload.note : `[Savings] ${payload.note}`)
+          : '[Savings]'
+        const fallbackRes = await supabase
+          .from('transactions')
+          .update({ ...payload, type: 'expense', note: fallbackNote })
+          .eq('id', id)
+          .eq('user_id', userId)
+          .select('*, categories(id, name, type), payment_methods(id, name, type)')
+          .single()
+        if (!fallbackRes.error) {
+          try { localStorage.setItem(`ft_tx_type_${id}`, 'savings') } catch {}
+          return fallbackRes.data
+        }
+      }
+    }
+
     if (error) throw error
+    try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('transaction-updated')) } catch {}
     return data
   },
 
@@ -94,6 +132,7 @@ export const transactionRepository = {
       .eq('user_id', userId)
 
     if (error) throw error
+    try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('transaction-updated')) } catch {}
     return true
   },
 

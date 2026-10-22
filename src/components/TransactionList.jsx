@@ -105,7 +105,7 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
               ? 'text-indigo-600 dark:text-indigo-400'
               : 'text-rose-600 dark:text-rose-400'
           }`}>
-            {tx.type === 'income' ? '+' : tx.type === 'savings' ? '₹' : '-'}{formatCurrency(tx.amount)}
+            {tx.type === 'income' ? '+' : tx.type === 'savings' ? '' : '-'}{formatCurrency(tx.amount)}
           </p>
         </div>
 
@@ -123,7 +123,9 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
 
         <div className="flex items-center justify-between gap-2 mt-1">
           {tx.note
-            ? <p className="text-xs text-gray-500 dark:text-slate-400 italic truncate flex-1">"{tx.note}"</p>
+            ? <p className="text-xs text-gray-500 dark:text-slate-400 italic truncate flex-1">
+                "{tx.note.startsWith('[Savings] ') ? tx.note.slice(10) : tx.note === '[Savings]' ? 'Savings Allocation' : tx.note}"
+              </p>
             : <span />
           }
           {receipt && (
@@ -322,7 +324,9 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                       </td>
                       <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'} text-gray-500 dark:text-slate-400 max-w-[200px]`}>
                         <div className="flex items-center gap-2">
-                          <span className="truncate">{tx.note || '—'}</span>
+                          <span className="truncate">
+                            {tx.note?.startsWith('[Savings] ') ? tx.note.slice(10) : tx.note === '[Savings]' ? 'Savings Allocation' : (tx.note || '—')}
+                          </span>
                           {receipt && (
                             <button
                               onClick={() => setPreviewReceipt(receipt)}
@@ -342,7 +346,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                           ? 'text-indigo-600 dark:text-indigo-400'
                           : 'text-rose-600 dark:text-rose-400'
                       }`}>
-                        {tx.type === 'income' ? '+' : tx.type === 'savings' ? '₹' : '-'}{formatCurrency(tx.amount)}
+                        {tx.type === 'income' ? '+' : tx.type === 'savings' ? '' : '-'}{formatCurrency(tx.amount)}
                       </td>
                       <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'} text-right whitespace-nowrap`}>
                         <div className="flex items-center justify-end gap-1">

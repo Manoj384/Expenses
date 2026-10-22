@@ -14,4 +14,8 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
+      - key: VITE_APP_URL
+        sync: false
+      - key: VITE_GEMINI_API_KEY
+        sync: false
 # Configure GEMINI_API_KEY only as a Supabase Edge Function secret, never as VITE_GEMINI_API_KEY.

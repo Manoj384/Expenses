@@ -35,6 +35,8 @@ export default function Dashboard() {
 
   const [monthIncome, setMonthIncome] = useState(0)
   const [monthExpense, setMonthExpense] = useState(0)
+  const [monthSavings, setMonthSavings] = useState(0)
+  const [allTimeSavings, setAllTimeSavings] = useState(0)
   const [activeSips, setActiveSips] = useState(0)
   const [totalDebt, setTotalDebt] = useState(0)
   const [recentTxns, setRecentTxns] = useState([])
@@ -66,10 +68,10 @@ export default function Dashboard() {
       const monthStart = startOfMonth()
       const monthEnd = endOfMonth()
 
-      const [txRes, sipRes, debtRes, recentRes, upcomingRes, mfRes, goalRes] = await Promise.all([
+      const [txRes, sipRes, debtRes, recentRes, upcomingRes, mfRes, goalRes, allTxRes] = await Promise.all([
         supabase
           .from('transactions')
-          .select('type, amount, payment_methods(name)')
+          .select('id, type, amount, note, date, payment_methods(name)')
           .eq('user_id', user.id)
           .gte('date', monthStart)
           .lte('date', monthEnd),
@@ -112,21 +114,34 @@ export default function Dashboard() {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
+
+        supabase
+          .from('transactions')
+          .select('id, type, amount, note, date')
+          .eq('user_id', user.id),
       ])
 
       if (txRes.error) throw txRes.error
 
       let income = 0
       let expense = 0
-      let monthSavings = 0
+      let monthSavingsTotal = 0
       const payMap = {}
 
-      for (const tx of txRes.data || []) {
+      const normalizeTx = (rawTx) => {
+        const isSavings = rawTx.type === 'savings' || rawTx.note?.startsWith('[Savings]') || (typeof localStorage !== 'undefined' && localStorage.getItem(`ft_tx_type_${rawTx.id}`) === 'savings')
+        return isSavings ? { ...rawTx, type: 'savings' } : rawTx
+      }
+
+      const normalizedMonth = (txRes.data || []).map(normalizeTx)
+      const normalizedRecent = (recentRes.data || []).map(normalizeTx)
+
+      for (const tx of normalizedMonth) {
         const amt = Number(tx.amount)
         if (tx.type === 'income') {
           income += amt
         } else if (tx.type === 'savings') {
-          monthSavings += amt
+          monthSavingsTotal += amt
         } else {
           expense += amt
           const pName = tx.payment_methods?.name || 'Cash / Direct'
@@ -134,13 +149,23 @@ export default function Dashboard() {
         }
       }
 
+      let allTimeSavingsTotal = 0
+      for (const rawTx of allTxRes.data || []) {
+        const tx = normalizeTx(rawTx)
+        if (tx.type === 'savings') {
+          allTimeSavingsTotal += Number(tx.amount || 0)
+        }
+      }
+
       setMonthIncome(income)
       setMonthExpense(expense)
+      setMonthSavings(monthSavingsTotal)
+      setAllTimeSavings(allTimeSavingsTotal)
       setActiveSips(sipRes.count !== null && sipRes.count > 0 ? sipRes.count : defaultSips.length)
       setDebtsList(debtRes.data || [])
       setTotalDebt((debtRes.data || []).reduce((s, d) => s + Number(d.outstanding || 0), 0))
-      setRecentTxns(recentRes.data || [])
-      setAllMonthTxns(txRes.data || [])
+      setRecentTxns(normalizedRecent)
+      setAllMonthTxns(normalizedMonth)
       setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
       // Mutual funds live sync with instant caching
@@ -215,8 +240,13 @@ export default function Dashboard() {
     }
   }, [fetchData])
 
-  const netSavings = monthIncome - monthExpense
-  const savingsRate = monthIncome > 0 ? ((netSavings / monthIncome) * 100).toFixed(0) : 0
+  const unspentSurplus = monthIncome - monthExpense
+  const netSavings = monthIncome > 0
+    ? unspentSurplus
+    : (monthSavings > 0 ? (monthSavings - monthExpense) : (allTimeSavings > 0 ? allTimeSavings : unspentSurplus))
+  const savingsRate = monthIncome > 0
+    ? ((Math.max(0, netSavings) / monthIncome) * 100).toFixed(0)
+    : (monthSavings > 0 ? 100 : 0)
 
   // Past expenses total
   const pastTotal = pastData.reduce((s, d) => s + d.amount, 0)
@@ -273,7 +303,13 @@ export default function Dashboard() {
           value={formatCurrency(netSavings)}
           icon={netSavings >= 0 ? PiggyBank : ArrowDownRight}
           color={netSavings >= 0 ? 'blue' : 'red'}
-          subtitle={`Savings Rate: ${savingsRate}%`}
+          subtitle={
+            monthSavings > 0
+              ? `Savings: +${formatCurrency(monthSavings)}${allTimeSavings > monthSavings ? ` • Total: ${formatCurrency(allTimeSavings)}` : ''}`
+              : allTimeSavings > 0
+              ? `Total Saved: ${formatCurrency(allTimeSavings)} • Rate: ${savingsRate}%`
+              : `Savings Rate: ${savingsRate}%`
+          }
         />
         <SummaryCard
           title="Active SIPs"
@@ -447,7 +483,9 @@ export default function Dashboard() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm text-gray-800 font-medium truncate">
-                        {tx.categories?.name || tx.note || 'Uncategorized'}
+                        {tx.type === 'savings'
+                          ? (tx.note?.replace(/^\[Savings\]\s*/, '') || tx.categories?.name || 'Savings Allocation')
+                          : (tx.categories?.name || (tx.note ? tx.note.replace(/^\[Savings\]\s*/, '') : 'Uncategorized'))}
                       </p>
                       <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
                         <span>{formatDate(tx.date)}</span>
@@ -467,7 +505,7 @@ export default function Dashboard() {
                       ? 'text-indigo-600 dark:text-indigo-400'
                       : 'text-rose-600'
                   }`}>
-                    {tx.type === 'income' ? '+' : tx.type === 'savings' ? '₹' : '-'}{formatCurrency(tx.amount)}
+                    {tx.type === 'income' ? '+' : tx.type === 'savings' ? '' : '-'}{formatCurrency(tx.amount)}
                   </p>
                 </div>
               ))}

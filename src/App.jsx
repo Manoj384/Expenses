@@ -30,6 +30,7 @@ const Reminders    = lazy(() => import('./pages/Reminders'))
 const AiCopilotPage = lazy(() => import('./pages/AiCopilotPage'))
 const FinancialPlanningPage = lazy(() => import('./pages/FinancialPlanningPage'))
 const EmcStandards = lazy(() => import('./pages/EmcStandards'))
+const SharedTripPage = lazy(() => import('./pages/SharedTripPage'))
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -64,6 +65,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/login"  element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/shared-trip/:shareToken" element={<SharedTripPage />} />
+        <Route path="/splitwise/share/:shareToken" element={<SharedTripPage />} />
 
         <Route path="/"                   element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/dashboard"          element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

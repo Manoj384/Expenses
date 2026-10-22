@@ -57,14 +57,14 @@ export default function Reports() {
       const [{ data: txns, error: txErr }, { data: priorTxns }] = await Promise.all([
         supabase
           .from('transactions')
-          .select('type, amount, date, categories(name), payment_methods(name)')
+          .select('id, type, amount, note, date, categories(name), payment_methods(name)')
           .eq('user_id', user.id)
           .gte('date', startDate)
           .lte('date', endDate)
           .order('date', { ascending: true }),
         supabase
           .from('transactions')
-          .select('type, amount, date')
+          .select('id, type, amount, note, date')
           .eq('user_id', user.id)
           .gte('date', priorStartDate)
           .lte('date', priorEndDate)
@@ -81,11 +81,14 @@ export default function Reports() {
 
       let totalIncome = 0
       let totalExpense = 0
+      let totalSavings = 0
       const catMap = {}
       const payMap = {}
       const dayMap = {}
 
-      for (const tx of txns || []) {
+      for (const rawTx of txns || []) {
+        const isSavings = rawTx.type === 'savings' || rawTx.note?.startsWith('[Savings]') || (typeof localStorage !== 'undefined' && localStorage.getItem(`ft_tx_type_${rawTx.id}`) === 'savings')
+        const tx = isSavings ? { ...rawTx, type: 'savings' } : rawTx
         const amount = Number(tx.amount)
         const mKey = tx.date.slice(0, 7)
 
@@ -93,8 +96,8 @@ export default function Reports() {
           totalIncome += amount
           if (monthMap[mKey]) monthMap[mKey].income += amount
         } else if (tx.type === 'savings') {
-          // Exclude savings/investments from regular expense total
-          continue
+          totalSavings += amount
+          if (monthMap[mKey]) monthMap[mKey].savings = (monthMap[mKey].savings || 0) + amount
         } else {
           // expense or debit
           totalExpense += amount
@@ -153,12 +156,18 @@ export default function Reports() {
         }))
       setDailyData(dailyArr)
 
-      const netSavings = totalIncome - totalExpense
-      const savingsRate = totalIncome > 0 ? ((netSavings / totalIncome) * 100).toFixed(1) : 0
+      const unspentSurplus = totalIncome - totalExpense
+      const netSavings = totalIncome > 0
+        ? unspentSurplus
+        : (totalSavings > 0 ? (totalSavings - totalExpense) : unspentSurplus)
+      const savingsRate = totalIncome > 0
+        ? ((Math.max(0, netSavings) / totalIncome) * 100).toFixed(1)
+        : (totalSavings > 0 ? 100 : 0)
 
       setSummary({
         totalIncome,
         totalExpense,
+        totalSavings,
         netSavings,
         savingsRate,
         topCategory: catArr[0]?.name || '—',
@@ -289,7 +298,11 @@ export default function Reports() {
               <p className={`text-2xl font-bold ${summary.netSavings >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
                 {formatCurrency(summary.netSavings)}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Savings Rate: {summary.savingsRate}%</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {summary.totalSavings > 0
+                  ? `Savings: ${formatCurrency(summary.totalSavings)} • Rate: ${summary.savingsRate}%`
+                  : `Savings Rate: ${summary.savingsRate}%`}
+              </p>
             </div>
 
             <div className="card p-4">

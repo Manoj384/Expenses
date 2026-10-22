@@ -40,12 +40,29 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
     return currentTime()
   })()
 
+  const effectiveInitialType = (() => {
+    if (!editData) return 'expense'
+    if (editData.type === 'savings') return 'savings'
+    try {
+      if (editData.id && localStorage.getItem(`ft_tx_type_${editData.id}`) === 'savings') return 'savings'
+    } catch {}
+    if (editData.note && editData.note.startsWith('[Savings]')) return 'savings'
+    return editData.type ?? 'expense'
+  })()
+
+  const cleanInitialNote = (() => {
+    if (!editData?.note) return ''
+    if (editData.note.startsWith('[Savings] ')) return editData.note.slice(10)
+    if (editData.note === '[Savings]') return ''
+    return editData.note
+  })()
+
   const [form, setForm] = useState({
-    type:              editData?.type              ?? 'expense',
+    type:              effectiveInitialType,
     amount:            editData?.amount            ?? '',
     category_id:       editData?.category_id       ?? '',
     payment_method_id: editData?.payment_method_id ?? '',
-    note:              editData?.note              ?? '',
+    note:              cleanInitialNote,
     date:              editData?.date              ?? today(),
     time:              initialTime,
   })
@@ -211,6 +228,30 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
         ? await supabase.from('transactions').update(fullPayload).eq('id', editData.id)
         : await supabase.from('transactions').insert(fullPayload).select()
 
+      // Fallback if DB check constraint rejects type 'savings'
+      if (res.error && (res.error.code === '23514' || res.error.message?.includes('check constraint') || res.error.message?.includes('transactions_type_check'))) {
+        if (form.type === 'savings') {
+          const fallbackNote = form.note.trim()
+            ? (form.note.includes('[Savings]') ? form.note.trim() : `[Savings] ${form.note.trim()}`)
+            : '[Savings]'
+          const fallbackPayload = {
+            ...fullPayload,
+            type: 'expense',
+            note: fallbackNote,
+          }
+          res = editData?.id
+            ? await supabase.from('transactions').update(fallbackPayload).eq('id', editData.id)
+            : await supabase.from('transactions').insert(fallbackPayload).select()
+
+          if (!res.error) {
+            const savedId = editData?.id || res.data?.[0]?.id
+            if (savedId) {
+              try { localStorage.setItem(`ft_tx_type_${savedId}`, 'savings') } catch {}
+            }
+          }
+        }
+      }
+
       // Fallback if receipt_url or created_at modification is rejected by schema cache
       if (res.error && (res.error.code === 'PGRST204' || res.error.message?.includes('column') || res.error.message?.includes('schema cache'))) {
         const basicPayload = {
@@ -226,6 +267,24 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
         res = editData?.id
           ? await supabase.from('transactions').update(basicPayload).eq('id', editData.id)
           : await supabase.from('transactions').insert(basicPayload).select()
+
+        if (res.error && (res.error.code === '23514' || res.error.message?.includes('check constraint') || res.error.message?.includes('transactions_type_check'))) {
+          if (form.type === 'savings') {
+            const fallbackNote = form.note.trim()
+              ? (form.note.includes('[Savings]') ? form.note.trim() : `[Savings] ${form.note.trim()}`)
+              : '[Savings]'
+            res = editData?.id
+              ? await supabase.from('transactions').update({ ...basicPayload, type: 'expense', note: fallbackNote }).eq('id', editData.id)
+              : await supabase.from('transactions').insert({ ...basicPayload, type: 'expense', note: fallbackNote }).select()
+
+            if (!res.error) {
+              const savedId = editData?.id || res.data?.[0]?.id
+              if (savedId) {
+                try { localStorage.setItem(`ft_tx_type_${savedId}`, 'savings') } catch {}
+              }
+            }
+          }
+        }
       }
 
       if (res.error) throw res.error
@@ -234,12 +293,18 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
       if (savedId) {
         try {
           localStorage.setItem(`ft_tx_time_${savedId}`, finalTime)
+          if (form.type === 'savings') {
+            localStorage.setItem(`ft_tx_type_${savedId}`, 'savings')
+          } else {
+            localStorage.removeItem(`ft_tx_type_${savedId}`)
+          }
           if (finalReceiptUrl) {
             localStorage.setItem(`ft_receipt_${savedId}`, finalReceiptUrl)
           }
         } catch {}
       }
 
+      window.dispatchEvent(new CustomEvent('transaction-updated'))
       onSuccess()
     } catch (err) {
       setError(err?.message || 'Unable to save transaction. Please try again.')
