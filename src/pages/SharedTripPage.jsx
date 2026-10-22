@@ -30,6 +30,9 @@ import {
   FileText,
   Copy,
   Check,
+  Activity,
+  History,
+  Tag,
 } from 'lucide-react'
 import Modal from '../components/Modal'
 import ConfirmDialog from '../components/ConfirmDialog'
@@ -44,6 +47,8 @@ import {
   fetchSharedGroupByToken,
   updateSharedTripData,
   publishOrSyncSharedGroup,
+  parseGroupMetadata,
+  serializeGroupMetadata,
 } from '../features/splitwise/api/sharedTripService'
 import { supabase } from '../lib/supabaseClient'
 import {
@@ -51,6 +56,25 @@ import {
   groupExpensesByMonth,
   formatSplitwiseCurrency,
 } from '../utils/splitwiseVisuals'
+
+function formatTimeAgo(isoString) {
+  if (!isoString) return 'Recent'
+  const date = new Date(isoString)
+  if (isNaN(date.getTime())) return String(isoString)
+
+  const diffMs = Date.now() - date.getTime()
+  const diffSecs = Math.floor(diffMs / 1000)
+  const diffMins = Math.floor(diffSecs / 60)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffSecs < 45) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays}d ago`
+  return `${date.toLocaleString('en-US', { month: 'short' })} ${date.getDate()}`
+}
 
 export default function SharedTripPage() {
   const { shareToken } = useParams()
@@ -76,6 +100,7 @@ export default function SharedTripPage() {
   const [showSettleModal, setShowSettleModal] = useState(false)
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [showEditMemberModal, setShowEditMemberModal] = useState(false)
+  const [showEditTripModal, setShowEditTripModal] = useState(false)
   const [showPrintableSummaryModal, setShowPrintableSummaryModal] = useState(false)
   const [showAiScannerModal, setShowAiScannerModal] = useState(false)
   const [previewReceiptUrl, setPreviewReceiptUrl] = useState('')
@@ -87,6 +112,9 @@ export default function SharedTripPage() {
   // Member join & edit forms
   const [newMemberForm, setNewMemberForm] = useState({ name: '', phone: '' })
   const [editingMember, setEditingMember] = useState(null)
+
+  // Trip details edit form
+  const [editTripForm, setEditTripForm] = useState({ name: '', description: '', icon: '✈️' })
 
   // Settle form
   const [settleForm, setSettleForm] = useState({ from_id: '', to_id: '', amount: '', notes: '' })
@@ -161,8 +189,13 @@ export default function SharedTripPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shared_splitwise_groups', filter: `share_token=eq.${shareToken}` },
         (payload) => {
-          if (payload.new && Date.now() - lastLocalEditRef.current >= 5000) {
-            setGroup(payload.new)
+          if (payload.new && Date.now() - lastLocalEditRef.current >= 4000) {
+            const meta = parseGroupMetadata(payload.new.description)
+            setGroup({
+              ...payload.new,
+              description: meta.description,
+              activities: meta.activities,
+            })
           }
         }
       )
@@ -189,6 +222,50 @@ export default function SharedTripPage() {
   // Members & Expenses derived lists
   const members = useMemo(() => group?.members || [], [group])
   const expenses = useMemo(() => group?.expenses || [], [group])
+
+  // Active viewer object
+  const activeViewer = useMemo(() => {
+    return members.find(m => m.id === activeMemberId) || null
+  }, [members, activeMemberId])
+
+  // Helper to append and persist an audit activity log
+  const recordActivity = useCallback((actionText, type = 'info', details = '') => {
+    const actorName = activeViewer?.name || (members[0]?.name ? `${members[0].name} (Owner)` : 'Someone')
+    const newLog = {
+      id: `act_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      actor: actorName,
+      action: actionText,
+      type,
+      details,
+      timestamp: new Date().toISOString(),
+    }
+
+    const currentActs = group?.activities || []
+    const updatedActs = [newLog, ...currentActs].slice(0, 50)
+    setGroup(prev => ({ ...prev, activities: updatedActs }))
+    return updatedActs
+  }, [activeViewer, members, group?.activities])
+
+  // Derived combined activities (synthesized if no explicit logs exist)
+  const displayActivities = useMemo(() => {
+    const explicit = group?.activities || []
+    if (explicit.length > 0) return explicit
+
+    // Auto-synthesize from existing expenses if empty
+    const synthesized = []
+    expenses.forEach(exp => {
+      const payerName = members.find(m => m.id === exp.paid_by_id)?.name || 'Someone'
+      const isSettle = exp.is_settlement || exp.title?.includes('paid')
+      synthesized.push({
+        id: `synth_${exp.id}`,
+        actor: payerName,
+        action: isSettle ? exp.title : `Added expense "${exp.title}" (${formatCurrency(exp.amount)})`,
+        type: isSettle ? 'settlement' : 'expense_add',
+        timestamp: exp.date || new Date().toISOString(),
+      })
+    })
+    return synthesized
+  }, [group?.activities, expenses, members])
 
   // --- Financial Balances & Settlements Calculation Engine ---
   const balanceDetails = useMemo(() => {
@@ -431,6 +508,7 @@ export default function SharedTripPage() {
     }
 
     let updatedExpenses = []
+    let logAction = ''
 
     if (editExpenseTarget) {
       const updatedItem = {
@@ -451,6 +529,7 @@ export default function SharedTripPage() {
         shares: finalShares,
       }
       updatedExpenses = expenses.map(e => e.id === editExpenseTarget.id ? updatedItem : e)
+      logAction = `Updated expense "${updatedItem.title}" (${formatCurrency(finalInrAmt)})`
       flash(`Updated "${updatedItem.title}"!`)
     } else {
       const newItem = {
@@ -471,25 +550,31 @@ export default function SharedTripPage() {
         shares: finalShares,
       }
       updatedExpenses = [newItem, ...expenses]
+      logAction = `Added expense "${newItem.title}" (${formatCurrency(finalInrAmt)})`
       flash(`Added "${newItem.title}" (${formatCurrency(finalInrAmt)})!`)
     }
 
+    const updatedActs = recordActivity(logAction, editExpenseTarget ? 'expense_edit' : 'expense_add')
     lastLocalEditRef.current = Date.now()
-    setGroup(prev => ({ ...prev, expenses: updatedExpenses }))
+    setGroup(prev => ({ ...prev, expenses: updatedExpenses, activities: updatedActs }))
     setShowExpenseModal(false)
     setEditExpenseTarget(null)
 
-    await updateSharedTripData(shareToken, { expenses: updatedExpenses })
+    await updateSharedTripData(shareToken, { expenses: updatedExpenses, activities: updatedActs })
   }
 
   const handleDeleteExpense = async () => {
     if (!deleteExpenseTarget) return
+    const logAction = `Deleted expense "${deleteExpenseTarget.title}" (${formatCurrency(deleteExpenseTarget.amount)})`
+    const updatedActs = recordActivity(logAction, 'expense_delete')
+
     lastLocalEditRef.current = Date.now()
     const updated = expenses.filter(e => e.id !== deleteExpenseTarget.id)
-    setGroup(prev => ({ ...prev, expenses: updated }))
+    setGroup(prev => ({ ...prev, expenses: updated, activities: updatedActs }))
     setDeleteExpenseTarget(null)
     flash('Expense removed.')
-    await updateSharedTripData(shareToken, { expenses: updated })
+
+    await updateSharedTripData(shareToken, { expenses: updated, activities: updatedActs })
   }
 
   // --- Handlers: Settle Up ---
@@ -498,7 +583,6 @@ export default function SharedTripPage() {
     const amt = parseFloat(settleForm.amount)
     if (!settleForm.from_id || !settleForm.to_id || !amt || amt <= 0) return
 
-    lastLocalEditRef.current = Date.now()
     const payer = members.find(m => m.id === settleForm.from_id)?.name || 'Someone'
     const recipient = members.find(m => m.id === settleForm.to_id)?.name || 'Someone'
 
@@ -518,12 +602,61 @@ export default function SharedTripPage() {
       },
     }
 
+    const logAction = `Recorded settlement: ${payer} paid ${recipient} ${formatCurrency(amt)}`
+    const updatedActs = recordActivity(logAction, 'settlement')
+
+    lastLocalEditRef.current = Date.now()
     const updated = [settlementExpense, ...expenses]
-    setGroup(prev => ({ ...prev, expenses: updated }))
+    setGroup(prev => ({ ...prev, expenses: updated, activities: updatedActs }))
     setShowSettleModal(false)
     setSettleForm({ from_id: '', to_id: '', amount: '', notes: '' })
-    flash(`Recorded settlement: ${payer} paid ${recipient} ${formatCurrency(amt)}!`)
-    await updateSharedTripData(shareToken, { expenses: updated })
+    flash(`Recorded settlement payment of ${formatCurrency(amt)}!`)
+
+    await updateSharedTripData(shareToken, { expenses: updated, activities: updatedActs })
+  }
+
+  // --- Handler: Edit Trip Name, Icon & Description ---
+  const handleOpenEditTrip = () => {
+    setEditTripForm({
+      name: group?.name || '',
+      description: group?.description || '',
+      icon: group?.icon || '✈️',
+    })
+    setShowEditTripModal(true)
+  }
+
+  const handleSaveTripEdit = async (e) => {
+    e.preventDefault()
+    if (!editTripForm.name.trim()) return
+
+    const newName = editTripForm.name.trim()
+    const newDesc = (editTripForm.description || '').trim()
+    const newIcon = editTripForm.icon || '✈️'
+    const oldName = group?.name || 'Trip'
+
+    const logAction = oldName !== newName
+      ? `Renamed trip from "${oldName}" to "${newName}"`
+      : `Updated trip details & icon`
+
+    const updatedActs = recordActivity(logAction, 'trip_edit')
+
+    lastLocalEditRef.current = Date.now()
+    setGroup(prev => ({
+      ...prev,
+      name: newName,
+      icon: newIcon,
+      description: newDesc,
+      activities: updatedActs,
+    }))
+    setShowEditTripModal(false)
+    flash(`Trip updated to "${newName}"!`)
+
+    await updateSharedTripData(shareToken, {
+      name: newName,
+      icon: newIcon,
+      description: newDesc,
+      activities: updatedActs,
+    })
   }
 
   // --- Handler: Add / Join as new member to this trip ---
@@ -540,14 +673,17 @@ export default function SharedTripPage() {
       avatarBg: bgColors[Math.floor(Math.random() * bgColors.length)],
     }
 
+    const logAction = `Added new member "${newMember.name}" to trip`
+    const updatedActs = recordActivity(logAction, 'member_add')
+
     const updatedMembers = [...members, newMember]
-    setGroup(prev => ({ ...prev, members: updatedMembers }))
+    setGroup(prev => ({ ...prev, members: updatedMembers, activities: updatedActs }))
     setShowAddMemberModal(false)
     setNewMemberForm({ name: '', phone: '' })
     handleSelectMember(newMember.id)
     flash(`Added "${newMember.name}" to trip members!`)
 
-    await updateSharedTripData(shareToken, { members: updatedMembers })
+    await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
   }
 
   // --- Handler: Edit Member Name & Phone ---
@@ -562,22 +698,27 @@ export default function SharedTripPage() {
 
     const trimmedName = editingMember.name.trim()
     const trimmedPhone = (editingMember.phone || '').trim()
+    const oldName = members.find(m => m.id === editingMember.id)?.name || 'Member'
+
+    const logAction = `Renamed member "${oldName}" ➔ "${trimmedName}"`
+    const updatedActs = recordActivity(logAction, 'member_edit')
 
     const updatedMembers = members.map(m =>
       m.id === editingMember.id ? { ...m, name: trimmedName, phone: trimmedPhone } : m
     )
 
     lastLocalEditRef.current = Date.now()
-    setGroup(prev => ({ ...prev, members: updatedMembers }))
+    setGroup(prev => ({ ...prev, members: updatedMembers, activities: updatedActs }))
     setShowEditMemberModal(false)
     setEditingMember(null)
     flash(`Member name updated to "${trimmedName}"!`)
 
-    await updateSharedTripData(shareToken, { members: updatedMembers })
+    await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
   }
 
   // --- Handler: Delete Empty Member ---
   const handleDeleteMember = async (memberId) => {
+    const mem = members.find(m => m.id === memberId)
     const hasExpenses = expenses.some(e => e.paid_by_id === memberId || (e.paid_by && e.paid_by[memberId]))
     const hasShares = expenses.some(e => e.shares && Number(e.shares[memberId]) > 0)
 
@@ -586,14 +727,17 @@ export default function SharedTripPage() {
       return
     }
 
+    const logAction = `Removed member "${mem?.name || 'Someone'}"`
+    const updatedActs = recordActivity(logAction, 'member_delete')
+
     const updatedMembers = members.filter(m => m.id !== memberId)
     lastLocalEditRef.current = Date.now()
-    setGroup(prev => ({ ...prev, members: updatedMembers }))
+    setGroup(prev => ({ ...prev, members: updatedMembers, activities: updatedActs }))
     if (activeMemberId === memberId) {
       handleSelectMember('all')
     }
     flash('Member removed.')
-    await updateSharedTripData(shareToken, { members: updatedMembers })
+    await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
   }
 
   // Handle Bill Receipt File Upload
@@ -711,9 +855,6 @@ export default function SharedTripPage() {
     )
   }
 
-  // Active viewer name
-  const activeViewer = members.find(m => m.id === activeMemberId)
-
   return (
     <div className="min-h-screen bg-[#f8f9fa] dark:bg-slate-950 text-gray-900 dark:text-white antialiased">
       {/* Top Navbar */}
@@ -728,12 +869,19 @@ export default function SharedTripPage() {
                 <h1 className="text-base sm:text-lg font-black text-gray-900 dark:text-white leading-tight">
                   {group.name}
                 </h1>
+                <button
+                  onClick={handleOpenEditTrip}
+                  className="p-1 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-md"
+                  title="Rename trip"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
                   Live Trip Sync
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                {members.length} people • Anyone with this link can view & edit
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate max-w-xs sm:max-w-md">
+                {group.description || `${members.length} people sharing expenses`}
               </p>
             </div>
           </div>
@@ -774,13 +922,13 @@ export default function SharedTripPage() {
           </div>
         )}
 
-        {/* 2-Column Responsive Layout */}
+        {/* 3-Column Responsive Layout: Left (Members), Center (Ledger), Right (Recent Activity Logs) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
           {/* ============================================================ */}
-          {/* LEFT PANEL / SIDEBAR: Members List, Edit Names, Settlements */}
+          {/* LEFT PANEL (lg:col-span-3): Members List, Edit Names, Settle */}
           {/* ============================================================ */}
-          <div className="lg:col-span-4 xl:col-span-3.5 space-y-5">
+          <div className="lg:col-span-3 space-y-5">
 
             {/* Trip Identity & Perspective Selector */}
             <div className="card p-4 space-y-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
@@ -808,9 +956,6 @@ export default function SharedTripPage() {
                   ))}
                 </select>
               </div>
-              <p className="text-[11px] text-gray-400 italic">
-                Switching identity personalizes the "you lent" and "you borrowed" calculations.
-              </p>
             </div>
 
             {/* TRIP MEMBERS LIST (WITH EDIT NAME CAPABILITY) */}
@@ -819,7 +964,7 @@ export default function SharedTripPage() {
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-emerald-600" />
                   <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-800 dark:text-slate-200">
-                    Group Members ({members.length})
+                    Members ({members.length})
                   </h3>
                 </div>
 
@@ -828,13 +973,13 @@ export default function SharedTripPage() {
                   className="text-[11px] font-extrabold text-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-400 flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 transition-colors"
                 >
                   <UserPlus className="h-3.5 w-3.5" />
-                  <span>Add Member</span>
+                  <span>Add</span>
                 </button>
               </div>
 
               {members.length === 0 ? (
                 <div className="py-4 text-center text-xs text-gray-400">
-                  No members added yet. Click "+ Add Member" to get started.
+                  No members added yet. Click "+ Add" to invite friends.
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -917,7 +1062,7 @@ export default function SharedTripPage() {
                 <div className="flex items-center gap-2">
                   <HandCoins className="h-4 w-4 text-emerald-600" />
                   <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-800 dark:text-slate-200">
-                    Settlement Summary ({balanceDetails.simplifiedDebts.length})
+                    Settlements ({balanceDetails.simplifiedDebts.length})
                   </h3>
                 </div>
 
@@ -938,22 +1083,22 @@ export default function SharedTripPage() {
               </div>
 
               {balanceDetails.simplifiedDebts.length === 0 ? (
-                <div className="py-4 text-center space-y-1">
+                <div className="py-3 text-center space-y-1">
                   <CheckCircle2 className="h-5 w-5 text-emerald-500 mx-auto" />
                   <p className="text-xs font-bold text-gray-600 dark:text-slate-300">All dues are settled!</p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="space-y-2 max-h-56 overflow-y-auto">
                   {balanceDetails.simplifiedDebts.map((debt, idx) => (
                     <div
                       key={idx}
                       className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 flex items-center justify-between gap-2 text-xs"
                     >
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <strong className="text-[#ff652f] truncate">{debt.from.name}</strong>
-                          <span className="text-gray-400 text-[10px]">owes</span>
-                          <strong className="text-emerald-600 dark:text-emerald-400 truncate">{debt.to.name}</strong>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <strong className="text-[#ff652f] truncate text-[11px]">{debt.from.name}</strong>
+                          <span className="text-gray-400 text-[9px]">owes</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400 truncate text-[11px]">{debt.to.name}</strong>
                         </div>
                         <span className="font-extrabold text-gray-900 dark:text-white font-mono text-xs">
                           {formatCurrency(debt.amount)}
@@ -984,7 +1129,7 @@ export default function SharedTripPage() {
                 className="w-full btn-secondary py-2 px-3 flex items-center justify-center gap-2 font-bold text-gray-700 dark:text-slate-200"
               >
                 <Printer className="h-3.5 w-3.5 text-emerald-600" />
-                <span>View Printable Summary (PDF)</span>
+                <span>Printable Summary (PDF)</span>
               </button>
               <button
                 onClick={handleExportCsv}
@@ -997,21 +1142,30 @@ export default function SharedTripPage() {
           </div>
 
           {/* ============================================================ */}
-          {/* CENTER / MAIN PANEL: Splitwise Screenshot Layout & Expenses   */}
+          {/* CENTER PANEL (lg:col-span-6): Header, Balances & Expenses Feed */}
           {/* ============================================================ */}
-          <div className="lg:col-span-8 xl:col-span-8.5 space-y-5">
+          <div className="lg:col-span-6 space-y-5">
 
-            {/* GROUP BANNER (EXACT REPLICA OF SCREENSHOT HEADER) */}
+            {/* GROUP BANNER (EXACT REPLICA OF SCREENSHOT HEADER WITH EDIT TRIP BUTTON) */}
             <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 {/* Airplane / Group Category Red Circle Badge */}
                 <div className="w-12 h-12 rounded-full bg-[#e53935] text-white flex items-center justify-center text-xl font-bold shadow-sm shrink-0">
                   {group.icon || '✈️'}
                 </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
-                    {group.name}
-                  </h2>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight truncate">
+                      {group.name}
+                    </h2>
+                    <button
+                      onClick={handleOpenEditTrip}
+                      className="p-1 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+                      title="Edit trip name & icon"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                     {members.length} people
                   </p>
@@ -1019,10 +1173,10 @@ export default function SharedTripPage() {
               </div>
 
               {/* Signature Orange & Teal Buttons (Splitwise Official) */}
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={openNewExpenseModal}
-                  className="bg-[#ff652f] hover:bg-[#e8531f] text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+                  className="bg-[#ff652f] hover:bg-[#e8531f] text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Add an expense</span>
@@ -1038,7 +1192,7 @@ export default function SharedTripPage() {
                     })
                     setShowSettleModal(true)
                   }}
-                  className="bg-[#5bc5a7] hover:bg-[#48b294] text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
+                  className="bg-[#5bc5a7] hover:bg-[#48b294] text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-xs flex items-center gap-1.5 transition-all"
                 >
                   <HandCoins className="h-4 w-4" />
                   <span>Settle up</span>
@@ -1048,29 +1202,29 @@ export default function SharedTripPage() {
 
             {/* SPLITWISE 3-BOX BALANCE BAR */}
             <div className="grid grid-cols-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden divide-x divide-gray-100 dark:divide-slate-800 text-center">
-              <div className="p-3 sm:p-4">
-                <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                  Total Trip Spend
+              <div className="p-3">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                  Total Spend
                 </span>
-                <p className="text-base sm:text-xl font-black text-gray-900 dark:text-white mt-0.5">
+                <p className="text-sm sm:text-lg font-black text-gray-900 dark:text-white mt-0.5">
                   {formatCurrency(balanceDetails.totalSpend)}
                 </p>
               </div>
 
-              <div className="p-3 sm:p-4">
-                <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+              <div className="p-3">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
                   {activeMemberId === 'all' ? 'Pending Debts' : 'You Owe'}
                 </span>
-                <p className="text-base sm:text-xl font-black text-[#ff652f] mt-0.5">
+                <p className="text-sm sm:text-lg font-black text-[#ff652f] mt-0.5">
                   {formatCurrency(activeMemberId === 'all' ? balanceDetails.simplifiedDebts.reduce((s, d) => s + d.amount, 0) : balanceDetails.youOwe)}
                 </p>
               </div>
 
-              <div className="p-3 sm:p-4">
-                <span className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+              <div className="p-3">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
                   {activeMemberId === 'all' ? 'Active Members' : 'You Are Owed'}
                 </span>
-                <p className="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+                <p className="text-sm sm:text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
                   {activeMemberId === 'all' ? members.length : formatCurrency(balanceDetails.youAreOwed)}
                 </p>
               </div>
@@ -1095,7 +1249,7 @@ export default function SharedTripPage() {
                 Object.entries(expensesByMonth).map(([monthYear, monthExpenses]) => (
                   <div key={monthYear}>
                     {/* Month Header Row with "View printable summary" Link */}
-                    <div className="bg-[#f2f4f6] dark:bg-slate-800/80 px-4 py-2.5 flex items-center justify-between border-b border-gray-200 dark:border-slate-700">
+                    <div className="bg-[#f2f4f6] dark:bg-slate-800/80 px-4 py-2 flex items-center justify-between border-b border-gray-200 dark:border-slate-700">
                       <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-slate-400">
                         {monthYear}
                       </span>
@@ -1132,7 +1286,6 @@ export default function SharedTripPage() {
                         const isActivePayer = exp.payer_mode === 'single' && exp.paid_by_id === activeMemberId
                         const youLent = isActivePayer ? (Number(exp.amount) - activeShare) : 0
                         const youBorrowed = !isActivePayer && activeShare > 0 ? activeShare : 0
-                        const isInvolved = activeMemberId === 'all' || isActivePayer || activeShare > 0
 
                         // Category visuals (pastel icon square)
                         const categoryVisuals = getExpenseCategoryVisuals(exp.title, exp.notes)
@@ -1205,7 +1358,7 @@ export default function SharedTripPage() {
                               {/* Right Columns: [Payer Column] & [Lent/Borrowed Column] */}
                               <div className="flex items-center gap-4 sm:gap-6 shrink-0 text-right">
                                 {/* Column 1: Payer */}
-                                <div className="w-24 sm:w-28">
+                                <div className="w-20 sm:w-24">
                                   <span className="text-[10px] text-gray-400 block truncate">
                                     {payer.name} paid
                                   </span>
@@ -1345,21 +1498,175 @@ export default function SharedTripPage() {
               )}
             </div>
           </div>
+
+          {/* ============================================================ */}
+          {/* RIGHT PANEL (lg:col-span-3): RECENT ACTIVITY / AUDIT LOGS    */}
+          {/* ============================================================ */}
+          <div className="lg:col-span-3 space-y-4">
+            <div className="card p-4 space-y-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800">
+              <div className="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                    <History className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-800 dark:text-slate-200">
+                      Recent Activity
+                    </h3>
+                    <span className="text-[10px] text-gray-400 block leading-tight">Live changes & audit feed</span>
+                  </div>
+                </div>
+
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300">
+                  {displayActivities.length} logs
+                </span>
+              </div>
+
+              {displayActivities.length === 0 ? (
+                <div className="py-6 text-center space-y-1 text-gray-400">
+                  <Clock className="h-6 w-6 mx-auto text-gray-300 mb-1" />
+                  <p className="text-xs font-bold">No activity recorded yet</p>
+                  <p className="text-[10px]">Changes made by participants will appear here in real time.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+                  {displayActivities.map((act) => {
+                    const isDelete = act.type?.includes('delete')
+                    const isAdd = act.type?.includes('add')
+                    const isEdit = act.type?.includes('edit')
+                    const isSettle = act.type === 'settlement'
+
+                    const borderBadge = isDelete
+                      ? 'border-l-2 border-rose-500 bg-rose-50/40 dark:bg-rose-950/20'
+                      : isAdd
+                      ? 'border-l-2 border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20'
+                      : isSettle
+                      ? 'border-l-2 border-teal-500 bg-teal-50/40 dark:bg-teal-950/20'
+                      : isEdit
+                      ? 'border-l-2 border-amber-500 bg-amber-50/40 dark:bg-amber-950/20'
+                      : 'border-l-2 border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20'
+
+                    return (
+                      <div
+                        key={act.id}
+                        className={`p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 text-xs transition-all ${borderBadge}`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <strong className="text-gray-900 dark:text-white truncate font-extrabold text-[11px]">
+                            {act.actor}
+                          </strong>
+                          <span className="text-[9px] text-gray-400 font-medium shrink-0 flex items-center gap-0.5">
+                            <Clock className="h-2.5 w-2.5" />
+                            <span>{formatTimeAgo(act.timestamp)}</span>
+                          </span>
+                        </div>
+
+                        <p className="text-[11px] text-gray-700 dark:text-slate-300 leading-snug">
+                          {act.action}
+                        </p>
+
+                        {act.details && (
+                          <span className="text-[10px] text-gray-400 block mt-0.5 font-mono">
+                            {act.details}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </main>
 
       {/* ============================================================ */}
-      {/* MODALS: Expense, Member Add/Edit, Settle, Printable Summary  */}
+      {/* MODALS: Trip Edit, Expense, Member Add/Edit, Settle, Summary */}
       {/* ============================================================ */}
 
-      {/* 1. PRINTABLE SUMMARY MODAL (PDF LAYOUT) */}
+      {/* 1. EDIT TRIP NAME & DETAILS MODAL */}
+      <Modal
+        isOpen={showEditTripModal}
+        onClose={() => setShowEditTripModal(false)}
+        title="Edit Trip Details & Name"
+      >
+        <form onSubmit={handleSaveTripEdit} className="space-y-4 text-xs">
+          <div>
+            <label className="label">Trip / Group Name *</label>
+            <input
+              type="text"
+              placeholder="e.g. Bandaje trek, Goa Trip, Flat 402"
+              value={editTripForm.name}
+              onChange={(e) => setEditTripForm(prev => ({ ...prev, name: e.target.value }))}
+              className="input-field text-xs font-bold text-sm"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Trip Icon / Emoji</label>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl p-2 rounded-xl bg-gray-100 dark:bg-slate-800">{editTripForm.icon}</span>
+              <input
+                type="text"
+                value={editTripForm.icon}
+                onChange={(e) => setEditTripForm(prev => ({ ...prev, icon: e.target.value }))}
+                className="input-field text-xs w-20 text-center"
+                maxLength={4}
+              />
+            </div>
+            {/* Quick Emoji Picks */}
+            <div className="flex flex-wrap gap-1.5">
+              {['✈️', '🏖️', '🏔️', '🏕️', '🚗', '🍽️', '🌴', '🎟️', '🛵', '🚢', '🏠', '🎉'].map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setEditTripForm(prev => ({ ...prev, icon: emoji }))}
+                  className={`text-lg p-1.5 rounded-lg border hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors ${
+                    editTripForm.icon === emoji ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950' : 'border-gray-200 dark:border-slate-700'
+                  }`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Trip Description</label>
+            <input
+              type="text"
+              placeholder="e.g. Flights, stay advance, and activities"
+              value={editTripForm.description}
+              onChange={(e) => setEditTripForm(prev => ({ ...prev, description: e.target.value }))}
+              className="input-field text-xs"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setShowEditTripModal(false)}
+              className="btn-secondary text-xs"
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary text-xs font-bold bg-emerald-600 hover:bg-emerald-700">
+              Save Trip Changes
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 2. PRINTABLE SUMMARY MODAL (PDF LAYOUT) */}
       <SplitwisePrintableSummaryModal
         isOpen={showPrintableSummaryModal}
         onClose={() => setShowPrintableSummaryModal(false)}
         group={group}
       />
 
-      {/* 2. EDIT MEMBER MODAL */}
+      {/* 3. EDIT MEMBER MODAL */}
       <Modal
         isOpen={showEditMemberModal}
         onClose={() => {
@@ -1410,7 +1717,7 @@ export default function SharedTripPage() {
         </form>
       </Modal>
 
-      {/* 3. ADD MEMBER MODAL */}
+      {/* 4. ADD MEMBER MODAL */}
       <Modal
         isOpen={showAddMemberModal}
         onClose={() => setShowAddMemberModal(false)}
@@ -1451,7 +1758,7 @@ export default function SharedTripPage() {
         </form>
       </Modal>
 
-      {/* 4. ADD / EDIT EXPENSE MODAL */}
+      {/* 5. ADD / EDIT EXPENSE MODAL */}
       <Modal
         isOpen={showExpenseModal}
         onClose={() => {
@@ -1714,7 +2021,7 @@ export default function SharedTripPage() {
         </form>
       </Modal>
 
-      {/* 5. SETTLE UP MODAL */}
+      {/* 6. SETTLE UP MODAL */}
       <Modal
         isOpen={showSettleModal}
         onClose={() => setShowSettleModal(false)}
@@ -1788,14 +2095,14 @@ export default function SharedTripPage() {
         </form>
       </Modal>
 
-      {/* 6. AI RECEIPT SCANNER MODAL */}
+      {/* 7. AI RECEIPT SCANNER MODAL */}
       <AiReceiptScannerModal
         isOpen={showAiScannerModal}
         onClose={() => setShowAiScannerModal(false)}
         onApplyExtracted={handleApplyAiScan}
       />
 
-      {/* 7. RECEIPT PREVIEW MODAL */}
+      {/* 8. RECEIPT PREVIEW MODAL */}
       <ReceiptPreviewModal
         isOpen={Boolean(previewReceiptUrl)}
         onClose={() => setPreviewReceiptUrl('')}
@@ -1803,7 +2110,7 @@ export default function SharedTripPage() {
         title="Trip Bill Receipt"
       />
 
-      {/* 8. DELETE EXPENSE CONFIRM DIALOG */}
+      {/* 9. DELETE EXPENSE CONFIRM DIALOG */}
       <ConfirmDialog
         isOpen={Boolean(deleteExpenseTarget)}
         title="Delete Expense?"

@@ -6,6 +6,34 @@
 import { supabase } from '../../../lib/supabaseClient'
 
 /**
+ * Parse group description to extract clean description and structured activities
+ */
+export function parseGroupMetadata(rawDesc = '') {
+  if (!rawDesc || typeof rawDesc !== 'string') return { description: '', activities: [] }
+  const trimmed = rawDesc.trim()
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      return {
+        description: parsed.text || '',
+        activities: Array.isArray(parsed.activities) ? parsed.activities : [],
+      }
+    } catch {}
+  }
+  return { description: rawDesc, activities: [] }
+}
+
+/**
+ * Serialize clean description and structured activities into description column
+ */
+export function serializeGroupMetadata(descText = '', activities = []) {
+  return JSON.stringify({
+    text: descText || '',
+    activities: (activities || []).slice(0, 50),
+  })
+}
+
+/**
  * Generate a friendly alphanumeric share token
  */
 export function generateShareToken() {
@@ -24,12 +52,16 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
   if (!group) throw new Error('Group is required.')
 
   const shareToken = group.share_token || generateShareToken()
+  const { description: cleanDesc, activities: parsedActs } = parseGroupMetadata(group.description)
+  const allActs = group.activities || parsedActs || []
+  const serializedDesc = serializeGroupMetadata(cleanDesc || group.description, allActs)
+
   const payload = {
     id: group.id,
     owner_id: userId || null,
     share_token: shareToken,
     name: group.name,
-    description: group.description || '',
+    description: serializedDesc,
     icon: group.icon || '🏖️',
     budget: Number(group.budget || 0),
     members: group.members || [],
@@ -37,9 +69,15 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
     updated_at: new Date().toISOString(),
   }
 
+  const hydratedLocal = {
+    ...payload,
+    description: cleanDesc,
+    activities: allActs,
+  }
+
   // 1. Always cache locally for instant offline / fallback access
   try {
-    localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(payload))
+    localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(hydratedLocal))
   } catch {}
 
   // 2. Upsert to Supabase shared_splitwise_groups
@@ -66,13 +104,19 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
     if (error) {
       console.warn('[sharedTripService] Remote upsert failed (using local sync fallback):', error.message)
     } else if (data) {
-      return { ...data, shareUrl: getShareUrl(shareToken) }
+      const meta = parseGroupMetadata(data.description)
+      return {
+        ...data,
+        description: meta.description,
+        activities: meta.activities,
+        shareUrl: getShareUrl(shareToken),
+      }
     }
   } catch (err) {
     console.warn('[sharedTripService] Network/database sync fallback:', err)
   }
 
-  return { ...payload, shareUrl: getShareUrl(shareToken) }
+  return { ...hydratedLocal, shareUrl: getShareUrl(shareToken) }
 }
 
 /**
@@ -90,11 +134,16 @@ export async function fetchSharedGroupByToken(shareToken) {
       .maybeSingle()
 
     if (!error && data) {
-      // Keep local shadow cache updated
+      const meta = parseGroupMetadata(data.description)
+      const groupWithActs = {
+        ...data,
+        description: meta.description,
+        activities: meta.activities,
+      }
       try {
-        localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(data))
+        localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(groupWithActs))
       } catch {}
-      return { group: data, error: null }
+      return { group: groupWithActs, error: null }
     }
   } catch (err) {
     console.warn('[sharedTripService] Remote fetch error:', err)
@@ -104,7 +153,12 @@ export async function fetchSharedGroupByToken(shareToken) {
   try {
     const local = localStorage.getItem(`ft_shared_trip_${shareToken}`)
     if (local) {
-      return { group: JSON.parse(local), error: null }
+      const parsed = JSON.parse(local)
+      const meta = parseGroupMetadata(parsed.description)
+      return {
+        group: { ...parsed, description: meta.description, activities: parsed.activities || meta.activities },
+        error: null,
+      }
     }
   } catch {}
 
@@ -112,9 +166,9 @@ export async function fetchSharedGroupByToken(shareToken) {
 }
 
 /**
- * Update expenses or members in a shared trip (called by friends or owner)
+ * Update expenses, members, name, icon, description, activities in a shared trip
  */
-export async function updateSharedTripData(shareToken, { expenses, members, budget, name, description }) {
+export async function updateSharedTripData(shareToken, { expenses, members, budget, name, description, icon, activities }) {
   if (!shareToken) return false
 
   const updates = {
@@ -124,13 +178,35 @@ export async function updateSharedTripData(shareToken, { expenses, members, budg
   if (members !== undefined) updates.members = members
   if (budget !== undefined) updates.budget = Number(budget)
   if (name !== undefined) updates.name = name
-  if (description !== undefined) updates.description = description
+  if (icon !== undefined) updates.icon = icon
+
+  // Handle description & activities serialization
+  if (description !== undefined || activities !== undefined) {
+    let currentDesc = description
+    let currentActs = activities
+    try {
+      const local = localStorage.getItem(`ft_shared_trip_${shareToken}`)
+      if (local) {
+        const parsed = JSON.parse(local)
+        const meta = parseGroupMetadata(parsed.description)
+        if (currentDesc === undefined) currentDesc = meta.description
+        if (currentActs === undefined) currentActs = parsed.activities || meta.activities
+      }
+    } catch {}
+    updates.description = serializeGroupMetadata(currentDesc, currentActs)
+  }
 
   // 1. Update local storage immediately
   try {
     const local = localStorage.getItem(`ft_shared_trip_${shareToken}`)
     const parsed = local ? JSON.parse(local) : {}
-    const merged = { ...parsed, ...updates }
+    const meta = parseGroupMetadata(updates.description || parsed.description)
+    const merged = {
+      ...parsed,
+      ...updates,
+      description: meta.description,
+      activities: activities !== undefined ? activities : (parsed.activities || meta.activities),
+    }
     localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(merged))
   } catch {}
 

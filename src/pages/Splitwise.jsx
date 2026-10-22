@@ -44,6 +44,7 @@ import {
   Scale,
   Paperclip,
   Activity,
+  History,
   List,
   Search,
   Filter,
@@ -1667,8 +1668,25 @@ export default function Splitwise() {
                       {activeGroup?.icon || '✈️'}
                     </div>
                     <div>
-                      <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
-                        {activeGroup?.name || 'Group'}
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
+                          {activeGroup?.name || 'Group'}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditGroupTarget(activeGroup)
+                            setGroupForm({
+                              name: activeGroup.name || '',
+                              description: activeGroup.description || '',
+                              icon: activeGroup.icon || '✈️',
+                            })
+                            setShowGroupModal(true)
+                          }}
+                          className="p-1 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-md transition-colors"
+                          title="Rename Group / Trip"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                       <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
                         {activeGroup?.members?.length || 0} people
@@ -2034,12 +2052,12 @@ export default function Splitwise() {
                 </div>
 
                 {/* Who Owes Whom (Simplified Debts) */}
-                <div className="card lg:col-span-2 space-y-3">
+                <div className="card space-y-3">
                   <div className="flex items-center justify-between pb-1 border-b border-gray-100 dark:border-slate-800">
                     <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                      Settlement Summary (Who Owes Whom)
+                      Settlements ({activeGroupBalanceDetails.debts.length})
                     </h4>
-                    <span className="text-[10px] text-gray-400">Simplified Route</span>
+                    <span className="text-[10px] text-gray-400">Routes</span>
                   </div>
 
                   {activeGroupBalanceDetails.debts.length === 0 ? (
@@ -2048,19 +2066,21 @@ export default function Splitwise() {
                       <p className="text-xs text-gray-500">All dues in this group are settled up!</p>
                     </div>
                   ) : (
-                    <div className="space-y-2 max-h-56 overflow-y-auto">
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {activeGroupBalanceDetails.debts.map((debt, idx) => (
                         <div key={idx} className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 flex items-center justify-between gap-2 text-xs">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <strong className="text-[#ff652f]">{debt.from.name}</strong>
-                            <span className="text-gray-400">owes</span>
-                            <strong className="text-emerald-600 dark:text-emerald-400">{debt.to.name}</strong>
-                            <span className="font-extrabold text-gray-900 dark:text-white ml-1">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <strong className="text-[#ff652f] truncate text-[11px]">{debt.from.name}</strong>
+                              <span className="text-gray-400 text-[9px]">owes</span>
+                              <strong className="text-emerald-600 dark:text-emerald-400 truncate text-[11px]">{debt.to.name}</strong>
+                            </div>
+                            <span className="font-extrabold text-gray-900 dark:text-white font-mono text-xs">
                               {formatCurrency(debt.amount)}
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <a
                               href={getWhatsAppLink(debt)}
                               target="_blank"
@@ -2069,11 +2089,10 @@ export default function Splitwise() {
                               title="Send WhatsApp payment reminder"
                             >
                               <Send className="h-3 w-3" />
-                              <span className="hidden sm:inline">WhatsApp</span>
                             </a>
                             <button
                               onClick={() => quickSettle(debt)}
-                              className="btn-secondary text-[10px] py-1 px-2.5 font-bold"
+                              className="btn-secondary text-[10px] py-1 px-2 font-bold"
                             >
                               Settle
                             </button>
@@ -2082,6 +2101,49 @@ export default function Splitwise() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Recent Group Activity (Live Audit Logs) */}
+                <div className="card space-y-3">
+                  <div className="flex items-center justify-between pb-1 border-b border-gray-100 dark:border-slate-800">
+                    <div className="flex items-center gap-1.5">
+                      <History className="h-4 w-4 text-indigo-600" />
+                      <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                        Recent Activity
+                      </h4>
+                    </div>
+                    <span className="text-[10px] text-gray-400">Live logs</span>
+                  </div>
+
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {(activeGroup.activities && activeGroup.activities.length > 0) ? (
+                      activeGroup.activities.map(act => (
+                        <div key={act.id} className="p-2 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 text-xs">
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <strong className="text-gray-900 dark:text-white text-[11px]">{act.actor}</strong>
+                            <span className="text-[9px] text-gray-400">{act.timestamp ? new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                          </div>
+                          <p className="text-[11px] text-gray-600 dark:text-slate-300 leading-snug">{act.action}</p>
+                        </div>
+                      ))
+                    ) : (activeGroup.expenses && activeGroup.expenses.length > 0) ? (
+                      activeGroup.expenses.slice(0, 6).map(exp => (
+                        <div key={exp.id} className="p-2 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 text-xs">
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <strong className="text-gray-900 dark:text-white text-[11px]">
+                              {activeGroup.members?.find(m => m.id === exp.paid_by_id)?.name || 'Someone'}
+                            </strong>
+                            <span className="text-[9px] text-gray-400">{exp.date}</span>
+                          </div>
+                          <p className="text-[11px] text-gray-600 dark:text-slate-300 leading-snug">
+                            Added "{exp.title}" ({formatCurrency(exp.amount)})
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-gray-400 py-6 text-center italic">No changes recorded yet.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
