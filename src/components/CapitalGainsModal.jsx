@@ -13,7 +13,7 @@ export default function CapitalGainsModal({ isOpen, onClose, funds = [] }) {
 
   if (!isOpen) return null
 
-  let totInv = 0, totVal = 0, ltcgGain = 0, stcgGain = 0
+  let totInv = 0, totVal = 0, ltcgGain = 0, stcgGain = 0, ltcgLoss = 0, stcgLoss = 0
 
   const items = funds.map((f, i) => {
     const inv = parseFloat(f.invested_amount || 0)
@@ -27,13 +27,23 @@ export default function CapitalGainsModal({ isOpen, onClose, funds = [] }) {
     if (gain > 0) {
       if (hMode === 'ltcg') ltcgGain += gain
       else stcgGain += gain
+    } else {
+      if (hMode === 'ltcg') ltcgLoss += Math.abs(gain)
+      else stcgLoss += Math.abs(gain)
     }
     return { ...f, itemKey, inv, val, gain, hMode }
   })
 
+  let netLtcgGain = Math.max(0, ltcgGain - ltcgLoss)
+  let netStcgGain = Math.max(0, stcgGain - stcgLoss)
+  let excessStcgLoss = Math.max(0, stcgLoss - stcgGain)
+  if (excessStcgLoss > 0 && netLtcgGain > 0) {
+    netLtcgGain = Math.max(0, netLtcgGain - excessStcgLoss)
+  }
+
   const totGain = totVal - totInv
-  const stcgTax = stcgGain * STCG_RATE
-  const ltcgTaxable = Math.max(0, ltcgGain - LTCG_EXEMPT)
+  const stcgTax = netStcgGain * STCG_RATE
+  const ltcgTaxable = Math.max(0, netLtcgGain - LTCG_EXEMPT)
   const ltcgTax = ltcgTaxable * LTCG_RATE
   const totTax = stcgTax + ltcgTax
 

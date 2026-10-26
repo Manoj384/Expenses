@@ -18,9 +18,9 @@ export async function parseGrowwExcel(arrayBuffer) {
     for (const r of rows) {
       if (!r || !r.length) continue
 
-      // Check for Header row
-      const firstCell = String(r[0] || '').trim()
-      if (firstCell.toLowerCase() === 'scheme name') {
+      // Check for Header row in any column
+      const isHeaderRow = r.some((cell) => String(cell || '').trim().toLowerCase() === 'scheme name')
+      if (isHeaderRow) {
         headerFound = true
         // Dynamically match column indices
         r.forEach((col, idx) => {

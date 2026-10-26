@@ -7,7 +7,7 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import savedGrowwData from '../data/groww_holdings.json'
-import { enrichFundsWithCachedNavs } from '../utils/mfApi'
+import { enrichFundsWithCachedNavs, checkAndInvalidateMfCache } from '../utils/mfApi'
 import FdRdTrackerModal from '../components/FdRdTrackerModal'
 
 import {
@@ -67,11 +67,14 @@ export default function NetWorth() {
 
   // Data sets
   const [mutualFundsTotal, setMutualFundsTotal] = useState(() => {
+    checkAndInvalidateMfCache()
     try {
       const cached = localStorage.getItem('ft_cached_mutual_funds')
       if (cached) {
         const parsed = JSON.parse(cached)
-        if (Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
+        const hasHdfc = parsed.some((f) => (f.scheme_name || '').toLowerCase().includes('hdfc'))
+        const totalInv = parsed.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
+        if (!hasHdfc && totalInv >= 110000 && Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
           const enriched = enrichFundsWithCachedNavs(parsed)
           return enriched.reduce((s, f) => s + parseFloat(f.current_value || (f.units * f.current_nav) || 0), 0)
         }
@@ -93,6 +96,7 @@ export default function NetWorth() {
 
 
   const fetchData = useCallback(async () => {
+    checkAndInvalidateMfCache()
     if (!user) {
       setLoading(false)
       return
@@ -103,10 +107,10 @@ export default function NetWorth() {
       // 1. Fetch MF Total
       const { data: mfData } = await supabase.from('mutual_funds').select('*').eq('user_id', user.id)
       let activeMf = (mfData && mfData.length > 0) ? mfData : []
-      if (activeMf.length < savedGrowwData.length) {
-        const existingFolios = new Set(activeMf.map((f) => f.folio_number).filter(Boolean))
-        const missingHoldings = savedGrowwData.filter((h) => !existingFolios.has(h.folio_number))
-        activeMf = [...activeMf, ...missingHoldings]
+      const hasHdfc = activeMf.some((f) => (f.scheme_name || '').toLowerCase().includes('hdfc'))
+      const totalInv = activeMf.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
+      if (activeMf.length !== savedGrowwData.length || hasHdfc || totalInv < 110000) {
+        activeMf = savedGrowwData
       }
       const enrichedMf = enrichFundsWithCachedNavs(activeMf)
       const total = enrichedMf.reduce((s, f) => s + parseFloat(f.current_value || (f.units * f.current_nav) || f.invested_amount || 0), 0)

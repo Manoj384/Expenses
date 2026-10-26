@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,6 +21,7 @@ import {
   Calculator,
   PieChart as PieIcon,
   HelpCircle,
+  Target,
 } from 'lucide-react'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { buildPortfolioTimeline } from '../utils/mfApi'
@@ -37,6 +38,7 @@ export default function GrowwPortfolioGrowthChart({ funds = [] }) {
   const [timeframe, setTimeframe] = useState('1Y')
   const [selectedScheme, setSelectedScheme] = useState('ALL') // 'ALL' or scheme code
   const [chartData, setChartData] = useState([])
+  const [showBenchmark, setShowBenchmark] = useState(true)
   const [loadingChart, setLoadingChart] = useState(true)
   const [hoveredPoint, setHoveredPoint] = useState(null)
 
@@ -88,11 +90,36 @@ export default function GrowwPortfolioGrowthChart({ funds = [] }) {
     return () => { isMounted = false }
   }, [funds, timeframe, selectedScheme])
 
-  // Calculation for Period Stats
-  const startPoint = chartData[0] || {}
-  const endPoint = chartData[chartData.length - 1] || {}
+  // Enrich chartData with Nifty 50 Total Return Index (TRI) benchmark trajectory (~14.2% CAGR)
+  const enrichedChartData = useMemo(() => {
+    if (!chartData || chartData.length === 0) return []
+    const startVal = chartData[0]?.currentValue || chartData[0]?.invested || 10000
+    const totalPts = chartData.length
+    const getTs = (pt) => (typeof pt?.timestamp === 'number' && pt.timestamp > 0) ? pt.timestamp : (pt?.timestamp?.getTime ? pt.timestamp.getTime() : Date.now())
+    const startTs = getTs(chartData[0])
+    const endTs = getTs(chartData[totalPts - 1])
+    const totalDays = Math.max(1, (endTs - startTs) / (1000 * 3600 * 24))
+
+    return chartData.map((d, i) => {
+      const progress = i / (totalPts - 1 || 1)
+      const elapsedYears = (progress * totalDays) / 365.25
+      const niftyReturn = Math.pow(1 + 0.142, elapsedYears) - 1
+      const niftyBenchmark = Math.round(startVal * (1 + niftyReturn))
+      return {
+        ...d,
+        niftyBenchmark,
+      }
+    })
+  }, [chartData])
+
+  // Calculation for Period Stats & Benchmark Alpha
+  const startPoint = enrichedChartData[0] || {}
+  const endPoint = enrichedChartData[enrichedChartData.length - 1] || {}
   const currentInvested = endPoint.invested || 0
   const currentVal = endPoint.currentValue || 0
+  const portfolioReturnPct = startPoint.currentValue > 0 ? ((currentVal - startPoint.currentValue) / startPoint.currentValue) * 100 : 0
+  const niftyReturnPct = startPoint.niftyBenchmark > 0 ? ((endPoint.niftyBenchmark - startPoint.niftyBenchmark) / startPoint.niftyBenchmark) * 100 : 0
+  const alpha = portfolioReturnPct - niftyReturnPct
 
   // Values shown in banner (either hovered or latest)
   const activeVal = hoveredPoint ? hoveredPoint.currentValue : currentVal
@@ -178,6 +205,20 @@ export default function GrowwPortfolioGrowthChart({ funds = [] }) {
               ))}
             </div>
 
+            {/* Nifty 50 TRI Benchmark Toggle */}
+            <button
+              onClick={() => setShowBenchmark(!showBenchmark)}
+              className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                showBenchmark
+                  ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-xs'
+                  : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 hover:bg-gray-200'
+              }`}
+              title="Compare portfolio performance against Nifty 50 Total Return Index (TRI)"
+            >
+              <Target className="h-3.5 w-3.5 text-amber-500" />
+              <span>Nifty 50 TRI</span>
+            </button>
+
             {/* Calculator Toggle */}
             <button
               onClick={() => setShowSipCalculator(!showSipCalculator)}
@@ -209,7 +250,7 @@ export default function GrowwPortfolioGrowthChart({ funds = [] }) {
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={chartData}
+                data={enrichedChartData}
                 onMouseMove={(e) => {
                   if (e && e.activePayload && e.activePayload.length) {
                     setHoveredPoint(e.activePayload[0].payload)
@@ -260,6 +301,12 @@ export default function GrowwPortfolioGrowthChart({ funds = [] }) {
                             <span className="text-slate-300">Invested:</span>
                             <span className="text-slate-200">{formatCurrency(data.invested)}</span>
                           </div>
+                          {showBenchmark && data.niftyBenchmark && (
+                            <div className="flex items-center justify-between gap-4 text-amber-300">
+                              <span>Nifty 50 TRI:</span>
+                              <strong className="font-bold">{formatCurrency(data.niftyBenchmark)}</strong>
+                            </div>
+                          )}
                           <div className="flex items-center justify-between gap-4 pt-1 border-t border-slate-800">
                             <span className="text-slate-300">Net Profit:</span>
                             <strong className={data.profit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
@@ -290,6 +337,17 @@ export default function GrowwPortfolioGrowthChart({ funds = [] }) {
                   dot={false}
                   name="Invested Amount"
                 />
+                {showBenchmark && (
+                  <Line
+                    type="monotone"
+                    dataKey="niftyBenchmark"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={false}
+                    name="Nifty 50 TRI Benchmark"
+                  />
+                )}
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -297,18 +355,34 @@ export default function GrowwPortfolioGrowthChart({ funds = [] }) {
 
         {/* Graph Bottom Legend & Stats Chips */}
         <div className="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <span className="flex items-center gap-1.5 font-medium text-gray-700 dark:text-gray-200">
               <span className="w-3 h-3 bg-emerald-500 rounded-sm"></span>
               Current Market Value
             </span>
             <span className="flex items-center gap-1.5 font-medium text-gray-500 dark:text-gray-400">
               <span className="w-3 h-0.5 bg-indigo-500 border-t border-dashed border-indigo-500"></span>
-              Invested Capital Baseline
+              Invested Capital
             </span>
+            {showBenchmark && (
+              <span className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+                <span className="w-3 h-0.5 bg-amber-500 border-t border-dashed border-amber-500"></span>
+                Nifty 50 TRI (~14.2% p.a.)
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-4 text-gray-600 dark:text-gray-300">
+          <div className="flex items-center gap-3 flex-wrap text-gray-600 dark:text-gray-300">
+            {showBenchmark && (
+              <span className={`px-2.5 py-0.5 rounded-full font-bold text-xs flex items-center gap-1 ${
+                alpha >= 0
+                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+              }`}>
+                <Target className="h-3 w-3" />
+                Alpha: {alpha >= 0 ? '+' : ''}{alpha.toFixed(2)}% {alpha >= 0 ? '(Outperforming!)' : ''}
+              </span>
+            )}
             <span>
               Period Low: <strong className="font-semibold text-gray-800 dark:text-white">{formatCurrency(periodLow)}</strong>
             </span>

@@ -55,6 +55,7 @@ import {
   ExternalLink,
   MessageCircle,
   MessageSquare,
+  Zap,
 } from 'lucide-react'
 
 const DEFAULT_MEMBERS = [
@@ -349,6 +350,44 @@ export default function Splitwise() {
       setActiveGroupId(groups[0].id)
     }
   }, [groups, activeGroupId])
+
+  // Handle Splitwise URL hash navigation (#/friends/:id, #/groups/:id, #/dashboard, etc.)
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash || ''
+      const friendMatch = hash.match(/friends\/([a-zA-Z0-9_-]+)/)
+      const groupMatch = hash.match(/groups\/([a-zA-Z0-9_-]+)/)
+
+      if (friendMatch) {
+        const targetId = friendMatch[1]
+        let match = friends.find(f => f.id === targetId || String(f.id).includes(targetId) || (f.phone && f.phone.includes(targetId)))
+        if (!match && friends.length > 0) {
+          match = friends[0]
+        }
+        if (match) {
+          setActiveFriendId(match.id)
+          setCurrentView('friend')
+        }
+      } else if (groupMatch) {
+        const targetId = groupMatch[1]
+        const match = groups.find(g => g.id === targetId || g.share_token === targetId)
+        if (match) {
+          setActiveGroupId(match.id)
+          setCurrentView('group')
+        }
+      } else if (hash.includes('recent_activity')) {
+        setCurrentView('recent_activity')
+      } else if (hash.includes('all_expenses')) {
+        setCurrentView('all_expenses')
+      } else if (hash.includes('dashboard')) {
+        setCurrentView('dashboard')
+      }
+    }
+
+    handleHash()
+    window.addEventListener('hashchange', handleHash)
+    return () => window.removeEventListener('hashchange', handleHash)
+  }, [friends, groups])
 
   // Feedback states
   const [error, setError] = useState('')
@@ -1421,12 +1460,27 @@ export default function Splitwise() {
     setShowSettleModal(true)
   }
 
-  // All Expenses unified collection
+  // All Expenses unified collection including settlements
   const allExpensesList = useMemo(() => {
     const list = []
     groups.forEach(g => {
       (g.expenses || []).forEach(e => {
         list.push({ ...e, groupName: g.name, groupIcon: g.icon, groupId: g.id })
+      })
+      ;(g.settlements || []).forEach(s => {
+        list.push({
+          id: s.id || `stl-${s.date}-${Math.random()}`,
+          title: 'Settlement Payment',
+          amount: parseFloat(s.amount || 0),
+          date: s.date || today(),
+          is_settlement: true,
+          from_id: s.from_id,
+          to_id: s.to_id,
+          notes: s.notes || 'Settled up',
+          groupName: g.name,
+          groupIcon: g.icon,
+          groupId: g.id,
+        })
       })
     })
     list.sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -1444,15 +1498,92 @@ export default function Splitwise() {
     )
   }, [allExpensesList, searchQuery])
 
-  // Expenses for the active friend view
+  // Expenses for the active friend view (direct + shared groups + settlements)
   const activeFriendExpenses = useMemo(() => {
     if (!activeFriend) return []
-    return allExpensesList.filter(e =>
-      (e.shares && e.shares[activeFriend.id] !== undefined) ||
-      e.paid_by_id === activeFriend.id ||
-      (e.paid_by && e.paid_by[activeFriend.id] !== undefined)
-    )
+    return allExpensesList.filter(e => {
+      if (e.is_settlement) {
+        return (
+          (e.from_id === activeFriend.id && e.to_id === 'm-1') ||
+          (e.from_id === 'm-1' && e.to_id === activeFriend.id)
+        )
+      }
+      return (
+        (e.shares && e.shares[activeFriend.id] !== undefined) ||
+        e.paid_by_id === activeFriend.id ||
+        (e.paid_by && e.paid_by[activeFriend.id] !== undefined)
+      )
+    })
   }, [allExpensesList, activeFriend])
+
+  // Shared groups with active friend
+  const sharedGroupsWithFriend = useMemo(() => {
+    if (!activeFriend) return []
+    return groups.filter(g =>
+      !g.is_direct && (g.members || []).some(m => m.id === activeFriend.id)
+    )
+  }, [groups, activeFriend])
+
+  // Breakdown of balances per shared group with active friend
+  const friendGroupBreakdown = useMemo(() => {
+    if (!activeFriend) return []
+    return sharedGroupsWithFriend.map(g => {
+      let friendOwesYou = 0
+      let youOweFriend = 0
+      ;(g.expenses || []).forEach(e => {
+        if (e.payer_mode === 'single' && e.paid_by_id === 'm-1') {
+          friendOwesYou += (e.shares?.[activeFriend.id] || 0)
+        } else if (e.paid_by && e.paid_by['m-1']) {
+          const youRatio = e.paid_by['m-1'] / (e.amount || 1)
+          friendOwesYou += (e.shares?.[activeFriend.id] || 0) * youRatio
+        }
+
+        if (e.payer_mode === 'single' && e.paid_by_id === activeFriend.id) {
+          youOweFriend += (e.shares?.['m-1'] || 0)
+        } else if (e.paid_by && e.paid_by[activeFriend.id]) {
+          const fRatio = e.paid_by[activeFriend.id] / (e.amount || 1)
+          youOweFriend += (e.shares?.['m-1'] || 0) * fRatio
+        }
+      })
+      ;(g.settlements || []).forEach(s => {
+        if (s.from_id === 'm-1' && s.to_id === activeFriend.id) {
+          youOweFriend -= parseFloat(s.amount || 0)
+        } else if (s.from_id === activeFriend.id && s.to_id === 'm-1') {
+          friendOwesYou -= parseFloat(s.amount || 0)
+        }
+      })
+      const net = friendOwesYou - youOweFriend
+      return { group: g, net }
+    })
+  }, [sharedGroupsWithFriend, activeFriend])
+
+  const getFriendExpenseImpact = useCallback((exp, friend) => {
+    if (!friend) return { type: 'neutral', text: 'not involved', amount: 0, color: 'text-gray-400' }
+    if (exp.is_settlement) {
+      if (exp.from_id === 'm-1' && exp.to_id === friend.id) {
+        return { type: 'settlement', text: `you paid ${friend.name}`, amount: exp.amount, color: 'text-teal-600 dark:text-teal-400' }
+      }
+      if (exp.from_id === friend.id && exp.to_id === 'm-1') {
+        return { type: 'settlement', text: `${friend.name} paid you`, amount: exp.amount, color: 'text-teal-600 dark:text-teal-400' }
+      }
+      return { type: 'settlement', text: 'settlement', amount: exp.amount, color: 'text-teal-600' }
+    }
+
+    const isYouPayer = exp.payer_mode === 'single' ? exp.paid_by_id === 'm-1' : (exp.paid_by?.['m-1'] > 0)
+    const isFriendPayer = exp.payer_mode === 'single' ? exp.paid_by_id === friend.id : (exp.paid_by?.[friend.id] > 0)
+
+    const friendShare = exp.shares?.[friend.id] || 0
+    const yourShare = exp.shares?.['m-1'] || 0
+
+    if (isYouPayer && friendShare > 0) {
+      return { type: 'lent', text: `you lent ${formatCurrency(friendShare)}`, amount: friendShare, color: 'text-[#1cc29f]' }
+    }
+    if (isFriendPayer && yourShare > 0) {
+      return { type: 'borrowed', text: `you borrowed ${formatCurrency(yourShare)}`, amount: yourShare, color: 'text-[#ff652f]' }
+    }
+
+    return { type: 'neutral', text: 'not involved', amount: 0, color: 'text-gray-400' }
+  }, [])
 
   return (
     <Layout title="Splitwise & Group Expenses">
@@ -1481,7 +1612,10 @@ export default function Splitwise() {
           {/* Main Views Navigation */}
           <div className="card p-2 space-y-1 shadow-sm">
             <button
-              onClick={() => setCurrentView('dashboard')}
+              onClick={() => {
+                setCurrentView('dashboard')
+                window.location.hash = '#/dashboard'
+              }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                 currentView === 'dashboard'
                   ? 'bg-emerald-600 text-white shadow-xs'
@@ -1500,7 +1634,10 @@ export default function Splitwise() {
             </button>
 
             <button
-              onClick={() => setCurrentView('recent_activity')}
+              onClick={() => {
+                setCurrentView('recent_activity')
+                window.location.hash = '#/recent_activity'
+              }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                 currentView === 'recent_activity'
                   ? 'bg-emerald-600 text-white shadow-xs'
@@ -1513,7 +1650,10 @@ export default function Splitwise() {
             </button>
 
             <button
-              onClick={() => setCurrentView('all_expenses')}
+              onClick={() => {
+                setCurrentView('all_expenses')
+                window.location.hash = '#/all_expenses'
+              }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
                 currentView === 'all_expenses'
                   ? 'bg-emerald-600 text-white shadow-xs'
@@ -1551,6 +1691,7 @@ export default function Splitwise() {
                     onClick={() => {
                       setActiveGroupId(grp.id)
                       setCurrentView('group')
+                      window.location.hash = `#/groups/${grp.id}`
                     }}
                     className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-left transition-all ${
                       isActive
@@ -1604,6 +1745,7 @@ export default function Splitwise() {
                       onClick={() => {
                         setActiveFriendId(f.id)
                         setCurrentView('friend')
+                        window.location.hash = `#/friends/${f.id}`
                       }}
                       className="flex items-center gap-2 truncate flex-1 min-w-0 text-left"
                     >
@@ -1695,10 +1837,19 @@ export default function Splitwise() {
                   </div>
                 )}
                 {currentView === 'friend' && (
-                  <>
-                    <User className="h-6 w-6 text-emerald-600" />
-                    <span>{activeFriend?.name || 'Friend'}</span>
-                  </>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-base shadow-xs shrink-0 ${activeFriend?.avatarBg || 'bg-[#1cc29f]'}`}>
+                      {activeFriend?.name?.charAt(0)?.toUpperCase() || 'F'}
+                    </div>
+                    <div>
+                      <div className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight">
+                        {activeFriend?.name || 'Friend'}
+                      </div>
+                      <p className="text-xs text-gray-400 font-medium">
+                        {activeFriend?.phone || activeFriend?.email || 'Splitwise Friend'}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </h2>
               {currentView === 'group' && activeGroup?.description && (
@@ -1726,12 +1877,22 @@ export default function Splitwise() {
 
               <button
                 onClick={() => {
-                  setSettleForm({
-                    from_id: activeGroup?.members?.[1]?.id || friends[0]?.id || '',
-                    to_id: 'm-1',
-                    amount: '',
-                    notes: '',
-                  })
+                  if (currentView === 'friend' && activeFriend) {
+                    const netBal = globalBalances.friendNetBalances[activeFriend.id] || 0
+                    setSettleForm({
+                      from_id: netBal > 0 ? activeFriend.id : 'm-1',
+                      to_id: netBal > 0 ? 'm-1' : activeFriend.id,
+                      amount: String(Math.abs(Math.round(netBal || 0)) || ''),
+                      notes: `Settlement with ${activeFriend.name}`,
+                    })
+                  } else {
+                    setSettleForm({
+                      from_id: activeGroup?.members?.[1]?.id || friends[0]?.id || '',
+                      to_id: 'm-1',
+                      amount: '',
+                      notes: '',
+                    })
+                  }
                   setShowSettleModal(true)
                 }}
                 className="bg-[#5bc5a7] hover:bg-[#48b294] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
@@ -2394,125 +2555,401 @@ export default function Splitwise() {
 
           {/* ======================================================== */}
           {/* VIEW 3: INDIVIDUAL FRIEND 1-ON-1 VIEW                     */}
+          {/* Authentic Splitwise Friend Ledger Experience               */}
           {/* ======================================================== */}
           {currentView === 'friend' && activeFriend && (
             <div className="space-y-6">
-              {/* Friend Balance Hero */}
-              <div className="card p-5 bg-white dark:bg-slate-900 shadow-sm border border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-extrabold text-lg ${activeFriend.avatarBg || 'bg-emerald-600'}`}>
-                    {activeFriend.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white">{activeFriend.name}</h3>
-                    {activeFriend.phone && <p className="text-xs text-gray-400">{activeFriend.phone}</p>}
-                    <p className="text-xs font-bold mt-1">
-                      {globalBalances.friendNetBalances[activeFriend.id] > 0.5 ? (
-                        <span className="text-emerald-600">{activeFriend.name} owes you {formatCurrency(globalBalances.friendNetBalances[activeFriend.id])}</span>
-                      ) : globalBalances.friendNetBalances[activeFriend.id] < -0.5 ? (
-                        <span className="text-[#ff652f]">You owe {activeFriend.name} {formatCurrency(Math.abs(globalBalances.friendNetBalances[activeFriend.id]))}</span>
-                      ) : (
-                        <span className="text-gray-500">You and {activeFriend.name} are all settled up!</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setSettleForm({
-                        from_id: globalBalances.friendNetBalances[activeFriend.id] > 0 ? activeFriend.id : 'm-1',
-                        to_id: globalBalances.friendNetBalances[activeFriend.id] > 0 ? 'm-1' : activeFriend.id,
-                        amount: String(Math.abs(Math.round(globalBalances.friendNetBalances[activeFriend.id] || 0))),
-                        notes: `Settlement with ${activeFriend.name}`,
-                      })
-                      setShowSettleModal(true)
-                    }}
-                    className="btn-primary text-xs py-2 px-3"
-                  >
-                    Settle up
-                  </button>
-
-                  <a
-                    href={getWhatsAppLink({ from: activeFriend, amount: Math.abs(globalBalances.friendNetBalances[activeFriend.id] || 0) })}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"
-                  >
-                    <Send className="h-3.5 w-3.5" />
-                    <span>WhatsApp</span>
-                  </a>
-
-                  <button
-                    onClick={() => {
-                      setEditFriendTarget(activeFriend)
-                      setFriendForm({
-                        name: activeFriend.name || '',
-                        phone: activeFriend.phone || '',
-                        email: activeFriend.email || '',
-                      })
-                      setShowFriendModal(true)
-                    }}
-                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5"
-                    title="Edit friend details"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    <span>Edit</span>
-                  </button>
-
-                  <button
-                    onClick={() => setDeleteFriendTarget(activeFriend)}
-                    className="btn-secondary text-xs py-2 px-3 text-rose-600 border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950 flex items-center gap-1.5 font-bold"
-                    title="Delete friend"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Shared Expenses with this friend */}
-              <div className="card space-y-3">
-                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider pb-2 border-b border-gray-100 dark:border-slate-800">
-                  Shared Expenses with {activeFriend.name} ({activeFriendExpenses.length})
-                </h4>
-
-                {activeFriendExpenses.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-6 text-center">No shared expenses with {activeFriend.name} yet.</p>
-                ) : (
-                  <div className="divide-y divide-gray-100 dark:divide-slate-800">
-                    {activeFriendExpenses.map(exp => (
-                      <div key={exp.id} className="py-2.5 flex items-center justify-between text-xs">
-                        <div>
-                          <strong className="text-gray-900 dark:text-white block">{exp.title}</strong>
-                          <span className="text-[11px] text-gray-400">{exp.groupName} • {formatDate(exp.date)}</span>
+              {/* Friend Overall Balance Banner */}
+              {(() => {
+                const netBal = globalBalances.friendNetBalances[activeFriend.id] || 0
+                const isOwed = netBal > 0.5
+                const owes = netBal < -0.5
+                return (
+                  <div className={`card p-6 border shadow-xs transition-all ${
+                    isOwed
+                      ? 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/40'
+                      : owes
+                      ? 'bg-orange-50/60 dark:bg-orange-950/20 border-orange-200/80 dark:border-orange-800/40'
+                      : 'bg-gray-50/80 dark:bg-slate-900 border-gray-200 dark:border-slate-800'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-black text-xl shadow-sm ${activeFriend.avatarBg || 'bg-[#1cc29f]'}`}>
+                          {activeFriend.name.charAt(0).toUpperCase()}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className="font-extrabold text-gray-900 dark:text-white">
-                            {formatCurrency(exp.amount)}
+                        <div>
+                          <span className={`text-[11px] font-extrabold uppercase tracking-wider block ${
+                            isOwed ? 'text-emerald-700 dark:text-emerald-400' : owes ? 'text-orange-700 dark:text-orange-400' : 'text-gray-500'
+                          }`}>
+                            {isOwed ? 'YOU ARE OWED OVERALL' : owes ? 'YOU OWE OVERALL' : 'SETTLED UP'}
                           </span>
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => openEditExpenseModal(exp)}
-                              className="p-1 rounded text-gray-400 hover:text-emerald-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                              title="Edit Expense"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteExpenseTarget(exp)}
-                              className="p-1 rounded text-gray-400 hover:text-rose-600 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-                              title="Delete Expense"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
+                          <h3 className={`text-2xl sm:text-3xl font-black ${
+                            isOwed ? 'text-[#1cc29f]' : owes ? 'text-[#ff652f]' : 'text-gray-800 dark:text-white'
+                          }`}>
+                            {isOwed ? `+${formatCurrency(netBal)}` : owes ? `-${formatCurrency(Math.abs(netBal))}` : 'All settled up!'}
+                          </h3>
+                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                            {isOwed
+                              ? `${activeFriend.name} owes you across direct expenses and shared groups.`
+                              : owes
+                              ? `You owe ${activeFriend.name} across direct expenses and shared groups.`
+                              : `You and ${activeFriend.name} have zero outstanding balance.`}
+                          </p>
                         </div>
                       </div>
-                    ))}
+
+                      {/* Top Action Buttons matching Splitwise UI */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => openNewExpenseModal(null, activeFriend.id)}
+                          className="bg-[#ff652f] hover:bg-[#e8531f] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span>Add an expense</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setSettleForm({
+                              from_id: netBal > 0 ? activeFriend.id : 'm-1',
+                              to_id: netBal > 0 ? 'm-1' : activeFriend.id,
+                              amount: String(Math.abs(Math.round(netBal || 0)) || ''),
+                              notes: `Settlement with ${activeFriend.name}`,
+                            })
+                            setShowSettleModal(true)
+                          }}
+                          className="bg-[#5bc5a7] hover:bg-[#48b294] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+                        >
+                          <HandCoins className="h-4 w-4" />
+                          <span>Settle up</span>
+                        </button>
+
+                        <a
+                          href={getWhatsAppLink({ from: activeFriend, amount: Math.abs(netBal) })}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                          title="Send polite WhatsApp reminder"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">WhatsApp</span>
+                        </a>
+
+                        <button
+                          onClick={() => {
+                            setEditFriendTarget(activeFriend)
+                            setFriendForm({
+                              name: activeFriend.name || '',
+                              phone: activeFriend.phone || '',
+                              email: activeFriend.email || '',
+                            })
+                            setShowFriendModal(true)
+                          }}
+                          className="btn-secondary text-xs py-2.5 px-3 flex items-center gap-1.5"
+                          title="Edit friend details"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => setDeleteFriendTarget(activeFriend)}
+                          className="btn-secondary text-xs py-2.5 px-3 text-rose-600 border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 dark:hover:bg-rose-950 flex items-center gap-1.5 font-bold"
+                          title="Delete friend"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
+                )
+              })()}
+
+              {/* 2-Column Responsive Layout matching real Splitwise Friend Page */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Main Feed Column (8 cols): Monthly grouped timeline */}
+                <div className="lg:col-span-8 space-y-4">
+                  {/* Search / Filter in Friend Ledger */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="h-3.5 w-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={`Search expenses with ${activeFriend.name}...`}
+                        className="w-full pl-9 pr-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400 font-medium">
+                      {activeFriendExpenses.length} transactions
+                    </span>
+                  </div>
+
+                  {/* Monthly timeline */}
+                  {activeFriendExpenses.length === 0 ? (
+                    <div className="card text-center py-12 space-y-3">
+                      <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+                        <Users className="h-6 w-6" />
+                      </div>
+                      <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                        No expenses with {activeFriend.name} yet
+                      </h4>
+                      <p className="text-xs text-gray-400 max-w-sm mx-auto">
+                        Add an expense to start sharing bills, groceries, or trip costs.
+                      </p>
+                      <button
+                        onClick={() => openNewExpenseModal(null, activeFriend.id)}
+                        className="btn-primary text-xs py-2 px-4 inline-flex items-center gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add an expense
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {Object.entries(groupExpensesByMonth(
+                        searchQuery.trim()
+                          ? activeFriendExpenses.filter(e => e.title.toLowerCase().includes(searchQuery.toLowerCase()) || (e.notes || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                          : activeFriendExpenses
+                      )).map(([monthYear, monthExps]) => (
+                        <div key={monthYear} className="border border-gray-100 dark:border-slate-800 rounded-xl overflow-hidden shadow-xs">
+                          {/* Month Header Row */}
+                          <div className="bg-gray-50 dark:bg-slate-800/80 px-4 py-2 flex items-center justify-between border-b border-gray-100 dark:border-slate-800">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                              {monthYear}
+                            </span>
+                            <span className="text-[11px] text-gray-400 font-medium">
+                              {monthExps.length} {monthExps.length === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+
+                          <div className="divide-y divide-gray-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                            {monthExps.map(exp => {
+                              const isExpanded = expandedExpenseId === exp.id
+                              const expDate = new Date(exp.date || today())
+                              const monthStr = expDate.toLocaleString('default', { month: 'short' }).toUpperCase()
+                              const dayStr = String(expDate.getDate()).padStart(2, '0')
+                              const catVisuals = getExpenseCategoryVisuals(exp.title, exp.notes)
+                              const CatIcon = catVisuals.icon
+
+                              // Impact on relationship with activeFriend
+                              const impact = getFriendExpenseImpact(exp, activeFriend)
+
+                              const payerName = exp.payer_mode === 'single'
+                                ? (exp.paid_by_id === 'm-1' ? 'you' : exp.paid_by_id === activeFriend.id ? activeFriend.name : (friends.find(f => f.id === exp.paid_by_id)?.name || 'Someone'))
+                                : 'multiple people'
+
+                              return (
+                                <div key={exp.id} className="group">
+                                  <div
+                                    onClick={() => setExpandedExpenseId(isExpanded ? null : exp.id)}
+                                    className="flex items-center justify-between gap-3 text-xs cursor-pointer hover:bg-gray-50/80 dark:hover:bg-slate-800/40 p-3 transition-all"
+                                  >
+                                    {/* Left: Date Badge + Category Pastel Icon + Title + Group Badge */}
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="flex flex-col items-center justify-center w-8 text-center shrink-0 leading-tight">
+                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                                          {monthStr}
+                                        </span>
+                                        <span className="text-base font-bold text-gray-600 dark:text-slate-300">
+                                          {dayStr}
+                                        </span>
+                                      </div>
+
+                                      <div className={`w-9 h-9 rounded-lg ${catVisuals.bgClass} ${catVisuals.textClass} flex items-center justify-center shrink-0 border ${catVisuals.borderClass}`}>
+                                        <CatIcon className="h-4 w-4" />
+                                      </div>
+
+                                      <div className="min-w-0">
+                                        <div className="font-extrabold text-gray-900 dark:text-white text-sm truncate flex items-center gap-1.5">
+                                          <span>{exp.title}</span>
+                                          {exp.notes && (
+                                            <MessageSquare className="h-3 w-3 text-gray-400 shrink-0" title="Notes attached" />
+                                          )}
+                                          {exp.receipt_url && (
+                                            <Paperclip className="h-3 w-3 text-blue-500 shrink-0" title="Bill attached" />
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          {exp.groupName && !exp.is_direct ? (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-semibold border border-purple-100 dark:border-purple-900/40">
+                                              {exp.groupIcon || '👥'} {exp.groupName}
+                                            </span>
+                                          ) : (
+                                            <span className="text-[10px] text-gray-400">Direct expense</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Right: Payer & Lent/Borrowed Impact */}
+                                    <div className="flex items-center gap-4 sm:gap-6 text-right shrink-0">
+                                      <div className="hidden sm:block">
+                                        <span className="text-[10px] text-gray-400 block uppercase">
+                                          {payerName} paid
+                                        </span>
+                                        <strong className="text-gray-900 dark:text-white font-extrabold">
+                                          {formatCurrency(exp.amount)}
+                                        </strong>
+                                      </div>
+
+                                      <div className="min-w-[90px]">
+                                        <span className="text-[10px] text-gray-400 block uppercase">
+                                          {impact.type === 'lent' ? 'you lent' : impact.type === 'borrowed' ? 'you borrowed' : 'impact'}
+                                        </span>
+                                        <strong className={`font-black text-xs ${impact.color}`}>
+                                          {impact.type === 'lent' || impact.type === 'borrowed'
+                                            ? formatCurrency(impact.amount)
+                                            : impact.text}
+                                        </strong>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Expanded Accordion Details */}
+                                  {isExpanded && (
+                                    <div className="px-4 pb-4 pt-2 bg-gray-50/50 dark:bg-slate-800/30 border-t border-gray-100 dark:border-slate-800 text-xs space-y-3">
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-gray-500">
+                                        <span>Added on {formatDate(exp.date)}</span>
+                                        {exp.notes && (
+                                          <span className="italic">Note: "{exp.notes}"</span>
+                                        )}
+                                      </div>
+
+                                      {/* Shares breakdown */}
+                                      {exp.shares && (
+                                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-gray-100 dark:border-slate-800 space-y-1.5">
+                                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                                            Split Breakdown
+                                          </span>
+                                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                            {Object.entries(exp.shares).map(([mId, shareAmt]) => {
+                                              const mName = mId === 'm-1' ? 'You' : mId === activeFriend.id ? activeFriend.name : (friends.find(f => f.id === mId)?.name || 'Member')
+                                              return (
+                                                <div key={mId} className="flex items-center justify-between text-xs p-1.5 bg-gray-50 dark:bg-slate-800 rounded-lg">
+                                                  <span className="font-semibold text-gray-700 dark:text-slate-300">{mName}</span>
+                                                  <span className="font-mono font-bold text-gray-900 dark:text-white">{formatCurrency(shareAmt)}</span>
+                                                </div>
+                                              )
+                                            })}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Action buttons */}
+                                      <div className="flex items-center justify-between pt-1">
+                                        {exp.receipt_url ? (
+                                          <button
+                                            onClick={() => setPreviewReceiptUrl(exp.receipt_url)}
+                                            className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 font-bold flex items-center gap-1"
+                                          >
+                                            <Paperclip className="h-3.5 w-3.5" /> View Receipt
+                                          </button>
+                                        ) : (
+                                          <span />
+                                        )}
+
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => openEditExpenseModal(exp)}
+                                            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
+                                          >
+                                            <Pencil className="h-3 w-3" /> Edit
+                                          </button>
+                                          <button
+                                            onClick={() => setDeleteExpenseTarget(exp)}
+                                            className="btn-secondary text-xs py-1.5 px-3 text-rose-600 border-rose-200 dark:border-rose-900/40 hover:bg-rose-50 flex items-center gap-1 font-bold"
+                                          >
+                                            <Trash2 className="h-3 w-3" /> Delete
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Sidebar Column (4 cols): Breakdown & Quick Actions */}
+                <div className="lg:col-span-4 space-y-4">
+                  {/* Card 1: Balance Breakdown by Groups */}
+                  <div className="card p-4 space-y-3 shadow-xs">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Scale className="h-3.5 w-3.5 text-emerald-600" />
+                      Balance Breakdown with {activeFriend.name}
+                    </h4>
+
+                    {friendGroupBreakdown.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-2">
+                        No shared groups yet. All expenses are direct 1-on-1.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {friendGroupBreakdown.map(({ group: grp, net }) => (
+                          <div
+                            key={grp.id}
+                            onClick={() => {
+                              setActiveGroupId(grp.id)
+                              setCurrentView('group')
+                              window.location.hash = `#/groups/${grp.id}`
+                            }}
+                            className="p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer transition-all flex items-center justify-between text-xs"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-base">{grp.icon || '👥'}</span>
+                              <span className="font-bold text-gray-800 dark:text-slate-200 truncate">{grp.name}</span>
+                            </div>
+                            <span className={`font-mono font-bold whitespace-nowrap ${
+                              net > 0.5 ? 'text-emerald-600' : net < -0.5 ? 'text-[#ff652f]' : 'text-gray-400'
+                            }`}>
+                              {net > 0.5 ? `+${formatCurrency(net)}` : net < -0.5 ? `-${formatCurrency(Math.abs(net))}` : 'Settled'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card 2: Quick Settle & Reminder Actions */}
+                  <div className="card p-4 space-y-3 shadow-xs">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Zap className="h-3.5 w-3.5 text-amber-500" />
+                      Quick Settle & Reminders
+                    </h4>
+
+                    <button
+                      onClick={() => {
+                        const netBal = globalBalances.friendNetBalances[activeFriend.id] || 0
+                        setSettleForm({
+                          from_id: netBal > 0 ? activeFriend.id : 'm-1',
+                          to_id: netBal > 0 ? 'm-1' : activeFriend.id,
+                          amount: String(Math.abs(Math.round(netBal || 0)) || ''),
+                          notes: `Settlement with ${activeFriend.name}`,
+                        })
+                        setShowSettleModal(true)
+                      }}
+                      className="w-full py-2.5 bg-[#5bc5a7] hover:bg-[#48b294] text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all"
+                    >
+                      <HandCoins className="h-4 w-4" />
+                      <span>Record a payment</span>
+                    </button>
+
+                    <a
+                      href={getWhatsAppLink({ from: activeFriend, amount: Math.abs(globalBalances.friendNetBalances[activeFriend.id] || 0) })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Send className="h-4 w-4" />
+                      <span>Send WhatsApp Reminder</span>
+                    </a>
+                  </div>
+                </div>
               </div>
             </div>
           )}

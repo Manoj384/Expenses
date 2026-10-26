@@ -29,7 +29,7 @@ export default function PortfolioHealthModal({ isOpen, onClose, funds = [] }) {
     const name = (f.scheme_name || '').toLowerCase()
     const val = parseFloat(f.current_value || (f.units * f.current_nav) || 0)
 
-    if (cat.includes('mid') || name.includes('midcap') || name.includes('mid cap') || name.includes('growth')) {
+    if (cat.includes('mid') || name.includes('midcap') || name.includes('mid cap') || name.includes('growth mid cap')) {
       midCapVal += val
     } else if (cat.includes('small') || name.includes('small')) {
       smallCapVal += val
@@ -44,6 +44,17 @@ export default function PortfolioHealthModal({ isOpen, onClose, funds = [] }) {
   const midPct = totalVal > 0 ? (midCapVal / totalVal) * 100 : 0
   const flexiPct = totalVal > 0 ? (flexiCapVal / totalVal) * 100 : 0
   const largePct = totalVal > 0 ? (largeCapVal / totalVal) * 100 : 0
+
+  // Dynamic Portfolio Health Score (0-100)
+  let healthScore = 70
+  if (funds.length >= 4) healthScore += 10
+  if (funds.length >= 6) healthScore += 5
+  const maxCap = Math.max(smallPct, midPct, flexiPct, largePct)
+  if (maxCap < 55) healthScore += 10
+  else if (maxCap > 75) healthScore -= 10
+  const totInv = funds.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
+  if (totalVal >= totInv) healthScore += 5
+  healthScore = Math.min(96, Math.max(50, Math.round(healthScore)))
 
   // Multi-folio check
   const schemeNames = {}
@@ -64,7 +75,9 @@ export default function PortfolioHealthModal({ isOpen, onClose, funds = [] }) {
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                 Portfolio Health Rating
               </span>
-              <h3 className="text-2xl font-black text-white">88 / 100 • Strong Growth</h3>
+              <h3 className="text-2xl font-black text-white">
+                {healthScore} / 100 • {healthScore >= 85 ? 'Strong Growth' : healthScore >= 75 ? 'Healthy & Diversified' : 'Moderate'}
+              </h3>
               <p className="text-xs text-teal-200 mt-0.5">
                 Aggressive compounding strategy with top-quartile active equity funds.
               </p>

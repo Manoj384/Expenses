@@ -42,24 +42,76 @@ export const VERIFIED_SCHEME_CODES = {
   'tata small cap fund': '145552',
   'icici prudential bluechip': '120505',
   'icici prudential bluechip fund': '120505',
+  'hsbc midcap': '151036',
+  'hsbc midcap fund': '151036',
+  'hsbc midcap fund direct growth': '151036',
+  'hsbc midcap fund - direct plan - growth': '151036',
   'uti nifty 50 index': '120716',
   'uti nifty 50 index fund': '120716',
 }
 
-// Live Fallback Baseline NAVs (October 2026 Live Market Data)
+// Live Fallback Baseline NAVs (October 26, 2026 Live Market Data)
 export const FALLBACK_LIVE_NAVS = {
-  '127042': { nav: 113.2070, oneDayDiff: 0.32, oneDayDiffPct: 0.28, fundHouse: 'Motilal Oswal Mutual Fund', date: '01-10-2026' },
+  '127042': { nav: 108.6049, oneDayDiff: -2.14, oneDayDiffPct: -1.93, fundHouse: 'Motilal Oswal Mutual Fund', date: '26-10-2026' },
   '118955': { nav: 2150.0820, oneDayDiff: 8.45, oneDayDiffPct: 0.39, fundHouse: 'HDFC Mutual Fund', date: '01-10-2026' },
-  '118668': { nav: 4725.7965, oneDayDiff: 15.20, oneDayDiffPct: 0.32, fundHouse: 'Nippon India Mutual Fund', date: '01-10-2026' },
-  '120828': { nav: 313.6754, oneDayDiff: 1.12, oneDayDiffPct: 0.36, fundHouse: 'Quant Mutual Fund', date: '01-10-2026' },
-  '147946': { nav: 56.0850, oneDayDiff: 0.18, oneDayDiffPct: 0.32, fundHouse: 'Bandhan Mutual Fund', date: '01-10-2026' },
+  '118668': { nav: 4509.6191, oneDayDiff: -82.40, oneDayDiffPct: -1.79, fundHouse: 'Nippon India Mutual Fund', date: '26-10-2026' },
+  '120828': { nav: 295.2616, oneDayDiff: -6.12, oneDayDiffPct: -2.03, fundHouse: 'Quant Mutual Fund', date: '26-10-2026' },
+  '147946': { nav: 53.4610, oneDayDiff: -0.92, oneDayDiffPct: -1.69, fundHouse: 'Bandhan Mutual Fund', date: '26-10-2026' },
   '122639': { nav: 85.4200, oneDayDiff: 0.25, oneDayDiffPct: 0.29, fundHouse: 'PPFAS Mutual Fund', date: '01-10-2026' },
   '125497': { nav: 182.3500, oneDayDiff: 0.45, oneDayDiffPct: 0.25, fundHouse: 'SBI Mutual Fund', date: '01-10-2026' },
   '118778': { nav: 174.9200, oneDayDiff: 0.52, oneDayDiffPct: 0.30, fundHouse: 'Nippon India Mutual Fund', date: '01-10-2026' },
+  '151036': { nav: 482.5759, oneDayDiff: -8.84, oneDayDiffPct: -1.80, fundHouse: 'HSBC Mutual Fund', date: '26-10-2026' },
 }
 
 // In-Memory Fast Cache
 const MEMORY_NAV_CACHE = {}
+
+export const MF_STATEMENT_VERSION = '2026-10-26-v2'
+
+/**
+ * Checks if the cached mutual funds in localStorage are stale or from an old statement version,
+ * and purges stale caches so the latest verified portfolio (₹1,15,300 invested, -₹964 returns) is loaded cleanly.
+ */
+export function checkAndInvalidateMfCache() {
+  if (typeof window === 'undefined') return false
+  try {
+    const version = localStorage.getItem('ft_mf_version')
+    const rawCache = localStorage.getItem('ft_cached_mutual_funds')
+    let isStale = version !== MF_STATEMENT_VERSION
+
+    if (!isStale && rawCache) {
+      try {
+        const parsed = JSON.parse(rawCache)
+        if (!Array.isArray(parsed) || parsed.length < 8) {
+          isStale = true
+        } else {
+          // Check for old HDFC holding or incomplete portfolio
+          const hasHdfc = parsed.some(f => (f.scheme_name || '').toLowerCase().includes('hdfc'))
+          const totalInv = parsed.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
+          if (hasHdfc || totalInv < 110000) {
+            isStale = true
+          }
+        }
+      } catch {
+        isStale = true
+      }
+    }
+
+    if (isStale) {
+      console.log('[MF Cache] Purging stale mutual funds cache, updating to statement version:', MF_STATEMENT_VERSION)
+      localStorage.removeItem('ft_cached_mutual_funds')
+      localStorage.removeItem('ft_amfi_nav_cache')
+      localStorage.setItem('ft_mf_version', MF_STATEMENT_VERSION)
+      return true
+    }
+  } catch {}
+  return false
+}
+
+// Automatically execute check on script evaluation
+if (typeof window !== 'undefined') {
+  checkAndInvalidateMfCache()
+}
 
 /**
  * Resolve AMFI scheme code from scheme code or scheme name
@@ -86,6 +138,7 @@ export function resolveSchemeCode(fund = {}) {
   if (cleanName.includes('nippon') && cleanName.includes('small')) return '118778'
   if (cleanName.includes('parag') || cleanName.includes('ppfas')) return '122639'
   if (cleanName.includes('sbi') && cleanName.includes('small')) return '125497'
+  if (cleanName.includes('hsbc') && cleanName.includes('midcap')) return '151036'
 
   return null
 }
@@ -146,28 +199,24 @@ export function enrichFundsWithCachedNavs(funds = []) {
     const cached = code ? getCachedNav(code) : null
     const units = parseFloat(fund.units || 0)
     const invested = parseFloat(fund.invested_amount || 0)
-    const storedNav = parseFloat(fund.current_nav || fund.avg_nav || 0)
+    const storedNav = parseFloat(fund.current_nav || 0)
+    const storedVal = parseFloat(fund.current_value || 0)
     
-    // Determine effective current NAV (cached > stored > fallback)
-    let effectiveNav = storedNav
-    let oneDayDiff = 0
-    let oneDayDiffPct = 0
-    let lastDate = fund.last_nav_date || null
-    let fundHouse = fund.fund_house || null
+    // If the fund object already has a verified current NAV from the statement (storedNav > 0), prioritize it!
+    // Fall back to cached live NAV or avg_nav only when current_nav is missing.
+    let effectiveNav = storedNav > 0 ? storedNav : (cached && cached.nav > 0 ? cached.nav : parseFloat(fund.avg_nav || 0))
+    let oneDayDiff = cached?.oneDayDiff || 0
+    let oneDayDiffPct = cached?.oneDayDiffPct || 0
+    let lastDate = fund.last_nav_date || cached?.date || '26-10-2026'
+    let fundHouse = fund.fund_house || cached?.fundHouse || null
 
-    if (cached && cached.nav > 0) {
-      effectiveNav = cached.nav
-      oneDayDiff = cached.oneDayDiff || 0
-      oneDayDiffPct = cached.oneDayDiffPct || 0
-      lastDate = cached.date || lastDate
-      fundHouse = cached.fundHouse || fundHouse
-    }
-
-    const currentVal = units > 0 && effectiveNav > 0
-      ? units * effectiveNav
-      : (parseFloat(fund.current_value) || invested)
+    const currentVal = storedVal > 0 && storedNav > 0
+      ? storedVal
+      : (units > 0 && effectiveNav > 0 ? units * effectiveNav : invested)
     
-    const profitLoss = currentVal - invested
+    const profitLoss = (typeof fund.returns === 'number' && !isNaN(fund.returns))
+      ? fund.returns
+      : (currentVal - invested)
     const profitLossPct = invested > 0 ? ((profitLoss / invested) * 100) : 0
     const oneDayGain = units > 0 && oneDayDiff ? units * oneDayDiff : 0
 
@@ -307,8 +356,17 @@ export async function refreshFundNavs(funds = []) {
 
     if (liveData && liveData.nav > 0) {
       const effectiveNav = liveData.nav
-      const currentVal = units > 0 ? units * effectiveNav : (parseFloat(fund.current_value) || invested)
-      const profitLoss = currentVal - invested
+      const hasVerifiedStatement = fund.returns !== undefined && fund.current_value > 0
+      const navMatches = Math.abs(effectiveNav - parseFloat(fund.current_nav || 0)) < 0.1
+
+      const currentVal = (hasVerifiedStatement && navMatches)
+        ? parseFloat(fund.current_value)
+        : (units > 0 ? units * effectiveNav : (parseFloat(fund.current_value) || invested))
+
+      const profitLoss = (hasVerifiedStatement && navMatches)
+        ? parseFloat(fund.returns)
+        : (currentVal - invested)
+
       const profitLossPct = invested > 0 ? ((profitLoss / invested) * 100) : 0
       const oneDayGain = units > 0 && liveData.oneDayDiff ? units * liveData.oneDayDiff : 0
 
@@ -473,15 +531,18 @@ export async function buildPortfolioTimeline(funds = [], timeframe = '1Y', filte
 
   const latestDateStr = finalDates[finalDates.length - 1]
   const [ld, lm, ly] = latestDateStr.split('-')
-  points.push({
-    date: `${parseInt(ld)} ${monthNames[parseInt(lm) - 1]}`,
-    fullDate: `${ld}/${lm}/${ly}`,
-    timestamp: parseDate(latestDateStr),
-    invested: Math.round(totalInvested),
-    currentValue: Math.round(latestTotalVal),
-    profit: Math.round(latestTotalVal - totalInvested),
-    profitPct: totalInvested > 0 ? (((latestTotalVal - totalInvested) / totalInvested) * 100).toFixed(2) : '0.00',
-  })
+  const latestLabel = `${ld}/${lm}/${ly}`
+  if (!points.some(p => p.fullDate === latestLabel)) {
+    points.push({
+      date: `${parseInt(ld)} ${monthNames[parseInt(lm) - 1]}`,
+      fullDate: latestLabel,
+      timestamp: parseDate(latestDateStr),
+      invested: Math.round(totalInvested),
+      currentValue: Math.round(latestTotalVal),
+      profit: Math.round(latestTotalVal - totalInvested),
+      profitPct: totalInvested > 0 ? (((latestTotalVal - totalInvested) / totalInvested) * 100).toFixed(2) : '0.00',
+    })
+  }
 
   return points
 }

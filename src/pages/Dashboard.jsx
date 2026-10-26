@@ -14,7 +14,7 @@ import { frequencyLabel } from '../utils/sipUtils'
 import pastData from '../data/past_expenses.json'
 import defaultSips from '../data/default_sips.json'
 import savedGrowwData from '../data/groww_holdings.json'
-import { enrichFundsWithCachedNavs } from '../utils/mfApi'
+import { enrichFundsWithCachedNavs, checkAndInvalidateMfCache } from '../utils/mfApi'
 import {
   TrendingUp, TrendingDown, PiggyBank, Wallet,
   ArrowDownRight, Clock, AlertCircle, BarChart3,
@@ -169,11 +169,12 @@ export default function Dashboard() {
       setUpcomingSips(upcomingRes.data && upcomingRes.data.length > 0 ? upcomingRes.data : defaultSips)
 
       // Mutual funds live sync with instant caching
+      checkAndInvalidateMfCache()
       let mfRaw = (!mfRes.error && mfRes.data && mfRes.data.length > 0) ? mfRes.data : []
-      if (mfRaw.length < savedGrowwData.length) {
-        const existingFolios = new Set(mfRaw.map((f) => f.folio_number).filter(Boolean))
-        const missingHoldings = savedGrowwData.filter((h) => !existingFolios.has(h.folio_number))
-        mfRaw = [...mfRaw, ...missingHoldings]
+      const hasHdfc = mfRaw.some((f) => (f.scheme_name || '').toLowerCase().includes('hdfc'))
+      const totalInv = mfRaw.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
+      if (mfRaw.length !== savedGrowwData.length || hasHdfc || totalInv < 110000) {
+        mfRaw = savedGrowwData
       }
       const enriched = enrichFundsWithCachedNavs(mfRaw)
       setMfList(enriched)
