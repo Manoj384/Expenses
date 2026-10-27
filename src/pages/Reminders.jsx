@@ -120,10 +120,49 @@ const DEFAULT_REMINDERS = [
   },
 ]
 
+function advanceDateByRecurrence(dateStr, recurrence) {
+  if (!dateStr) return today()
+  const parts = dateStr.split('-').map(Number)
+  if (parts.length !== 3 || parts.some(isNaN)) return today()
+  const [y, m, d] = parts
+  const dt = new Date(y, m - 1, d)
+
+  if (recurrence === 'daily') {
+    dt.setDate(dt.getDate() + 1)
+  } else if (recurrence === 'weekly') {
+    dt.setDate(dt.getDate() + 7)
+  } else if (recurrence === 'monthly') {
+    dt.setMonth(dt.getMonth() + 1)
+  } else if (recurrence === 'yearly') {
+    dt.setFullYear(dt.getFullYear() + 1)
+  }
+
+  const nextY = dt.getFullYear()
+  const nextM = String(dt.getMonth() + 1).padStart(2, '0')
+  const nextD = String(dt.getDate()).padStart(2, '0')
+  return `${nextY}-${nextM}-${nextD}`
+}
+
 export default function Reminders() {
   const { user } = useAuth()
   const storageKey = `ft_reminders_${user?.id || 'guest'}`
   const todayStr = today()
+
+  const [categories, setCategories] = useState([])
+  const [paymentMethods, setPaymentMethods] = useState([])
+  const [postTxModalTarget, setPostTxModalTarget] = useState(null)
+  const [postTxForm, setPostTxForm] = useState({
+    amount: '',
+    date: todayStr,
+    note: '',
+    type: 'expense',
+    categoryId: '',
+    paymentMethodId: '',
+    advanceRecurrence: true,
+  })
+  const [postTxLoading, setPostTxLoading] = useState(false)
+  const [postTxSuccess, setPostTxSuccess] = useState('')
+  const [postTxError, setPostTxError] = useState('')
 
   const [reminders, setReminders] = useState(() => {
     try {
@@ -171,6 +210,21 @@ export default function Reminders() {
       localStorage.setItem(storageKey, JSON.stringify(reminders))
     } catch {}
   }, [reminders, storageKey])
+
+  // Load user categories & payment methods to allow 1-click transaction posting
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from('categories')
+      .select('id, name, type')
+      .eq('user_id', user.id)
+      .then(({ data }) => setCategories(data || []))
+    supabase
+      .from('payment_methods')
+      .select('id, name')
+      .eq('user_id', user.id)
+      .then(({ data }) => setPaymentMethods(data || []))
+  }, [user])
 
   // Listen for global snooze & completed events from AlarmRingingModal
   useEffect(() => {
@@ -370,6 +424,87 @@ export default function Reminders() {
     setDeleteTarget(null)
   }
 
+  const handleOpenPostTxModal = (r) => {
+    setPostTxModalTarget(r)
+    setPostTxError('')
+    const matched =
+      categories.find((c) => {
+        const cName = c.name.toLowerCase()
+        if (r.category === 'bills') return cName.includes('bill') || cName.includes('util')
+        if (r.category === 'rent') return cName.includes('rent') || cName.includes('house')
+        if (r.category === 'internet') return cName.includes('internet') || cName.includes('broadband') || cName.includes('mobile')
+        if (r.category === 'subscription') return cName.includes('sub') || cName.includes('entertain')
+        if (r.category === 'emi') return cName.includes('loan') || cName.includes('emi') || cName.includes('debt')
+        if (r.category === 'sip') return cName.includes('invest') || cName.includes('sip')
+        return cName.includes(r.category.toLowerCase())
+      }) || categories[0]
+
+    setPostTxForm({
+      amount: String(r.amount || ''),
+      date: todayStr,
+      note: r.title ? `Recurring: ${r.title}` : 'Recurring Bill Payment',
+      type: r.category === 'sip' ? 'savings' : 'expense',
+      categoryId: matched?.id || categories[0]?.id || '',
+      paymentMethodId: paymentMethods[0]?.id || '',
+      advanceRecurrence: Boolean(r.recurrence && r.recurrence !== 'none'),
+    })
+  }
+
+  const handleConfirmPostTx = async (e) => {
+    e.preventDefault()
+    if (!user) {
+      setPostTxError('Please sign in to post transactions to your account.')
+      return
+    }
+    const amt = parseFloat(postTxForm.amount)
+    if (!amt || amt <= 0) {
+      setPostTxError('Please enter a valid amount greater than 0.')
+      return
+    }
+
+    setPostTxLoading(true)
+    setPostTxError('')
+
+    try {
+      const payload = {
+        user_id: user.id,
+        type: postTxForm.type,
+        amount: amt,
+        category_id: postTxForm.categoryId || null,
+        payment_method_id: postTxForm.paymentMethodId || null,
+        note: postTxForm.note.trim() || `Recurring: ${postTxModalTarget.title}`,
+        date: postTxForm.date || todayStr,
+      }
+
+      const { error: insErr } = await supabase.from('transactions').insert(payload)
+      if (insErr) throw insErr
+
+      const shouldAdvance = postTxForm.advanceRecurrence && postTxModalTarget.recurrence && postTxModalTarget.recurrence !== 'none'
+      setReminders((prev) =>
+        prev.map((r) => {
+          if (r.id === postTxModalTarget.id) {
+            if (shouldAdvance) {
+              const nextDate = advanceDateByRecurrence(r.date || todayStr, r.recurrence)
+              return { ...r, date: nextDate, completed: false, postedTx: true }
+            } else {
+              return { ...r, completed: true, completedAt: new Date().toISOString(), postedTx: true }
+            }
+          }
+          return r
+        })
+      )
+
+      fireMilestoneConfetti()
+      setPostTxSuccess(`Posted ${formatCurrency(amt)} for "${postTxModalTarget.title}" to transactions!`)
+      setTimeout(() => setPostTxSuccess(''), 4500)
+      setPostTxModalTarget(null)
+    } catch (err) {
+      setPostTxError(err.message || 'Failed to post transaction.')
+    } finally {
+      setPostTxLoading(false)
+    }
+  }
+
   const handleApplyTemplate = (tmpl) => {
     setForm((prev) => ({
       ...prev,
@@ -436,6 +571,21 @@ export default function Reminders() {
 
   return (
     <Layout title="Reminders & Clock Alarms">
+      {postTxSuccess && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs px-4 py-3 rounded-xl mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <span className="font-semibold">{postTxSuccess}</span>
+          </div>
+          <button
+            onClick={() => setPostTxSuccess('')}
+            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 text-xs font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Top Banner & Quick Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
@@ -702,6 +852,7 @@ export default function Reminders() {
                       onToggle={handleToggleCompleted}
                       onEdit={handleOpenEditModal}
                       onDelete={(item) => setDeleteTarget(item)}
+                      onPostTx={handleOpenPostTxModal}
                     />
                   ))}
               </div>
@@ -774,6 +925,7 @@ export default function Reminders() {
                   onToggle={handleToggleCompleted}
                   onEdit={handleOpenEditModal}
                   onDelete={(item) => setDeleteTarget(item)}
+                  onPostTx={handleOpenPostTxModal}
                 />
               ))}
             </div>
@@ -999,6 +1151,170 @@ export default function Reminders() {
         </form>
       </Modal>
 
+      {/* 1-Click Approve & Post Recurring Transaction Modal */}
+      <Modal
+        isOpen={Boolean(postTxModalTarget)}
+        onClose={() => setPostTxModalTarget(null)}
+        title="Approve & Post to Transactions"
+      >
+        {postTxModalTarget && (
+          <form onSubmit={handleConfirmPostTx} className="space-y-4">
+            {postTxError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-500" />
+                <span>{postTxError}</span>
+              </div>
+            )}
+
+            <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-wider">
+                  Recurring Template
+                </p>
+                <h4 className="font-bold text-gray-900 dark:text-white text-sm">
+                  {postTxModalTarget.title}
+                </h4>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400 capitalize">
+                  Recurrence: {postTxModalTarget.recurrence || 'one-time'}
+                </p>
+              </div>
+              <span className="text-base font-extrabold text-blue-700 dark:text-blue-300">
+                {formatCurrency(postTxForm.amount || postTxModalTarget.amount || 0)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={postTxForm.amount}
+                  onChange={(e) => setPostTxForm({ ...postTxForm, amount: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Transaction Date *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={postTxForm.date}
+                  onChange={(e) => setPostTxForm({ ...postTxForm, date: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Type
+                </label>
+                <select
+                  value={postTxForm.type}
+                  onChange={(e) => setPostTxForm({ ...postTxForm, type: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="expense">Expense</option>
+                  <option value="savings">Savings / Investment</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Category
+                </label>
+                <select
+                  value={postTxForm.categoryId}
+                  onChange={(e) => setPostTxForm({ ...postTxForm, categoryId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs focus:ring-2 focus:ring-blue-500"
+                >
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                  {categories.length === 0 && <option value="">Default Expense</option>}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                  Payment Method
+                </label>
+                <select
+                  value={postTxForm.paymentMethodId}
+                  onChange={(e) => setPostTxForm({ ...postTxForm, paymentMethodId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs focus:ring-2 focus:ring-blue-500"
+                >
+                  {paymentMethods.map((pm) => (
+                    <option key={pm.id} value={pm.id}>{pm.name}</option>
+                  ))}
+                  {paymentMethods.length === 0 && <option value="">Default Account</option>}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                Note / Description
+              </label>
+              <input
+                type="text"
+                value={postTxForm.note}
+                onChange={(e) => setPostTxForm({ ...postTxForm, note: e.target.value })}
+                placeholder="e.g. Bescom Electricity Bill"
+                className="w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {postTxModalTarget.recurrence && postTxModalTarget.recurrence !== 'none' && (
+              <div className="p-3 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700 flex items-center justify-between">
+                <div className="pr-3">
+                  <p className="text-xs font-bold text-gray-900 dark:text-white">
+                    Advance to Next Cycle
+                  </p>
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                    Automatically roll this {postTxModalTarget.recurrence} reminder forward to its next scheduled date.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={postTxForm.advanceRecurrence}
+                  onChange={(e) => setPostTxForm({ ...postTxForm, advanceRecurrence: e.target.checked })}
+                  className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-gray-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setPostTxModalTarget(null)}
+                className="btn-secondary text-xs py-2 px-4"
+                disabled={postTxLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={postTxLoading}
+                className="btn-primary text-xs py-2 px-5 font-bold shadow-md shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-500 flex items-center gap-1.5"
+              >
+                <Check className="h-4 w-4" />
+                <span>{postTxLoading ? 'Posting...' : 'Approve & Post'}</span>
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
       {/* Delete Confirm Modal */}
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
@@ -1015,7 +1331,7 @@ export default function Reminders() {
 /**
  * Individual Reminder Card Component with Calendar Sync Buttons
  */
-function ReminderCard({ reminder, onToggle, onEdit, onDelete }) {
+function ReminderCard({ reminder, onToggle, onEdit, onDelete, onPostTx }) {
   const r = reminder
   const cat = REMINDER_CATEGORIES.find((c) => c.id === r.category) || REMINDER_CATEGORIES[0]
   const Icon = cat.icon
@@ -1054,17 +1370,30 @@ function ReminderCard({ reminder, onToggle, onEdit, onDelete }) {
             </div>
           </div>
 
-          <button
-            onClick={() => onToggle(r.id)}
-            className={`p-1.5 rounded-xl border transition-all ${
-              r.completed
-                ? 'bg-emerald-500 text-white border-emerald-600'
-                : 'bg-gray-50 hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 border-gray-200 dark:bg-slate-800'
-            }`}
-            title={r.completed ? 'Mark as Pending' : 'Mark as Completed'}
-          >
-            <Check className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {r.amount > 0 && !r.completed && onPostTx && (
+              <button
+                onClick={() => onPostTx(r)}
+                className="text-[10px] font-bold px-2 py-1 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 transition-colors shadow-xs"
+                title="Review, approve, and post directly to transactions ledger"
+              >
+                <ArrowUpRight className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                <span>Post Txn</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => onToggle(r.id)}
+              className={`p-1.5 rounded-xl border transition-all ${
+                r.completed
+                  ? 'bg-emerald-500 text-white border-emerald-600'
+                  : 'bg-gray-50 hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 border-gray-200 dark:bg-slate-800'
+              }`}
+              title={r.completed ? 'Mark as Pending' : 'Mark as Completed'}
+            >
+              <Check className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Date, Time & Amount Pill */}
@@ -1073,8 +1402,13 @@ function ReminderCard({ reminder, onToggle, onEdit, onDelete }) {
             <Clock className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
             <span className="truncate">{r.time || '09:00'} ({formatDate(r.date)})</span>
           </div>
-          <div className="text-right font-extrabold text-blue-600 dark:text-blue-400 truncate">
-            {r.amount > 0 ? formatCurrency(r.amount) : 'Task / Reminder'}
+          <div className="text-right font-extrabold text-blue-600 dark:text-blue-400 truncate flex items-center justify-end gap-1">
+            {r.postedTx && (
+              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5" title="Transaction posted to ledger">
+                <CheckCircle2 className="h-3 w-3" />
+              </span>
+            )}
+            <span>{r.amount > 0 ? formatCurrency(r.amount) : 'Task / Reminder'}</span>
           </div>
         </div>
 

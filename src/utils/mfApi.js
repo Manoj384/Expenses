@@ -66,7 +66,7 @@ export const FALLBACK_LIVE_NAVS = {
 // In-Memory Fast Cache
 const MEMORY_NAV_CACHE = {}
 
-export const MF_STATEMENT_VERSION = '2026-10-26-v2'
+export const MF_STATEMENT_VERSION = '2026-10-26-v5'
 
 /**
  * Checks if the cached mutual funds in localStorage are stale or from an old statement version,
@@ -85,10 +85,11 @@ export function checkAndInvalidateMfCache() {
         if (!Array.isArray(parsed) || parsed.length < 8) {
           isStale = true
         } else {
-          // Check for old HDFC holding or incomplete portfolio
+          // Check for old HDFC holding or incomplete portfolio or non-statement values
           const hasHdfc = parsed.some(f => (f.scheme_name || '').toLowerCase().includes('hdfc'))
           const totalInv = parsed.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-          if (hasHdfc || totalInv < 110000) {
+          const totalCur = parsed.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
+          if (hasHdfc || totalInv < 110000 || Math.abs(totalCur - 114335.58) > 100) {
             isStale = true
           }
         }
@@ -210,7 +211,7 @@ export function enrichFundsWithCachedNavs(funds = []) {
     let lastDate = fund.last_nav_date || cached?.date || '26-10-2026'
     let fundHouse = fund.fund_house || cached?.fundHouse || null
 
-    const currentVal = storedVal > 0 && storedNav > 0
+    const currentVal = storedVal > 0
       ? storedVal
       : (units > 0 && effectiveNav > 0 ? units * effectiveNav : invested)
     

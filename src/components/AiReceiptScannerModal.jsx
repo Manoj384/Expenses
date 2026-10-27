@@ -19,6 +19,7 @@ import { formatCurrency } from '../utils/formatCurrency'
 export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracted }) {
   const fileInputRef = useRef(null)
   const cameraInputRef = useRef(null)
+  const abortControllerRef = useRef(null)
   const [file, setFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [isScanning, setIsScanning] = useState(false)
@@ -61,14 +62,28 @@ export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracte
   const performScan = async (base64, mimeType) => {
     setIsScanning(true)
     setError('')
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     try {
-      const result = await scanReceiptWithAi(base64, mimeType)
+      const result = await scanReceiptWithAi(base64, mimeType, { signal: controller.signal })
       setScanResult(result)
     } catch (err) {
-      setError(err?.message || 'Failed to scan receipt. Please enter details manually.')
+      if (controller.signal.aborted) {
+        setError('Scanning was cancelled.')
+      } else {
+        setError(err?.message || 'Failed to scan receipt. Please enter details manually.')
+      }
     } finally {
       setIsScanning(false)
     }
+  }
+
+  const handleCancelScan = () => {
+    abortControllerRef.current?.abort()
+    setIsScanning(false)
+    setError('Scanning was cancelled.')
   }
 
   const handleApply = () => {
@@ -86,6 +101,7 @@ export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracte
   }
 
   const handleClose = () => {
+    abortControllerRef.current?.abort()
     setFile(null)
     setPreviewUrl('')
     setScanResult(null)
@@ -193,16 +209,25 @@ export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracte
 
         {/* Scanning State */}
         {isScanning && (
-          <div className="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 flex items-center gap-3">
-            <RefreshCw className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin flex-shrink-0" />
-            <div>
-              <p className="text-xs font-bold text-gray-900 dark:text-white">
-                Reading bill with Vision AI...
-              </p>
-              <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                Detecting total amount, merchant, and line items
-              </p>
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin flex-shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-gray-900 dark:text-white">
+                  Reading bill with Vision AI...
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                  Detecting total amount, merchant, and line items
+                </p>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={handleCancelScan}
+              className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs text-gray-700 dark:text-slate-200 hover:text-rose-600 hover:border-rose-300 font-semibold"
+            >
+              Cancel
+            </button>
           </div>
         )}
 

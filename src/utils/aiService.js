@@ -14,24 +14,52 @@ export const setGeminiApiKey = () => {}
 export const getAiModel = () => 'server-managed'
 export const setAiModel = () => {}
 
-async function callAi(prompt, inlineData = null, systemInstruction = null) {
-  const { data, error } = await supabase.functions.invoke('ai-gateway', {
+const AI_RATE_LIMIT_WINDOW_MS = 60_000
+const MAX_AI_CALLS_PER_WINDOW = 10
+const aiCallTimestamps = []
+
+function checkAndEnforceAiRateLimit() {
+  const now = Date.now()
+  while (aiCallTimestamps.length > 0 && now - aiCallTimestamps[0] > AI_RATE_LIMIT_WINDOW_MS) {
+    aiCallTimestamps.shift()
+  }
+  if (aiCallTimestamps.length >= MAX_AI_CALLS_PER_WINDOW) {
+    const oldest = aiCallTimestamps[0]
+    const cooldownSecs = Math.max(1, Math.ceil((oldest + AI_RATE_LIMIT_WINDOW_MS - now) / 1000))
+    throw new Error(`AI request rate limit reached (${MAX_AI_CALLS_PER_WINDOW}/min). Please wait ${cooldownSecs}s before submitting another request.`)
+  }
+  aiCallTimestamps.push(now)
+}
+
+async function callAi(prompt, inlineData = null, systemInstruction = null, options = {}) {
+  checkAndEnforceAiRateLimit()
+
+  const invokeOptions = {
     body: {
       prompt,
       systemInstruction,
       inlineData: inlineData || undefined,
     },
-  })
+    timeout: options.timeout || 25_000,
+  }
+  if (options.signal) {
+    invokeOptions.signal = options.signal
+  }
+
+  const { data, error } = await supabase.functions.invoke('ai-gateway', invokeOptions)
 
   if (error || !data?.text) {
+    if (options.signal?.aborted) {
+      throw new Error('AI analysis cancelled by user.')
+    }
     throw new Error(error?.message || data?.error || 'AI service is currently unavailable.')
   }
 
   return data.text
 }
 
-async function callGemini(prompt, inlineData = null, systemInstruction = null) {
-  return callAi(prompt, inlineData, systemInstruction)
+async function callGemini(prompt, inlineData = null, systemInstruction = null, options = {}) {
+  return callAi(prompt, inlineData, systemInstruction, options)
 }
 
 /**
@@ -76,7 +104,8 @@ export function safeParseJsonArray(text) {
 /**
  * 1. AI Receipt & Bill Auto-Scanner (Gemini Vision OCR)
  */
-export async function scanReceiptWithGemini(base64Data, mimeType = 'image/jpeg') {
+export async function scanReceiptWithGemini(base64Data, mimeType = 'image/jpeg', options = {}) {
+  const opts = options instanceof AbortSignal ? { signal: options } : (options || {})
   const habitContext = buildHabitContextPrompt()
   const prompt = `You are an expert Indian Receipt & Bill Scanner OCR. Analyze this receipt or bill image and extract the key details accurately.
 Extract:
@@ -100,7 +129,7 @@ Output strictly valid JSON with this exact schema:
 Output strictly raw JSON without markdown backticks or extra commentary.`
 
   try {
-    const rawResponse = await callGemini(prompt, { base64Data, mimeType })
+    const rawResponse = await callGemini(prompt, { base64Data, mimeType }, null, opts)
     const cleanJson = rawResponse.replace(/```json/gi, '').replace(/```/g, '').trim()
     let parsed
     try {
@@ -117,6 +146,7 @@ Output strictly raw JSON without markdown backticks or extra commentary.`
       return parsed
     }
   } catch (err) {
+    if (opts.signal?.aborted) throw err
     console.warn('AI Receipt Scanner error, evaluating fallback:', err?.message || err)
     const fallback = localReceiptHeuristicParser(base64Data)
     if (fallback) return fallback
@@ -131,15 +161,40 @@ export const scanReceiptWithAi = scanReceiptWithGemini
 /**
  * 2. Bank & OneCard Statement Multi-Transaction Detector
  */
-export async function parseStatementWithGemini(fileTextOrBase64, isImage = false, mimeType = 'image/png') {
+export async function parseStatementWithGemini(fileTextOrBase64, isImageOrMimeType = false, mimeTypeOrOptions = 'image/png', maybeOptions = {}) {
   let base64Data = null
   let textContent = ''
+  let mimeType = 'image/png'
+  let options = {}
 
-  if (isImage) {
+  if (typeof isImageOrMimeType === 'boolean') {
+    if (isImageOrMimeType) {
+      base64Data = fileTextOrBase64
+    } else {
+      textContent = fileTextOrBase64
+    }
+    if (typeof mimeTypeOrOptions === 'string') {
+      mimeType = mimeTypeOrOptions
+    } else if (mimeTypeOrOptions && typeof mimeTypeOrOptions === 'object') {
+      options = mimeTypeOrOptions
+    }
+    if (maybeOptions && typeof maybeOptions === 'object') {
+      options = { ...options, ...maybeOptions }
+    }
+  } else if (typeof isImageOrMimeType === 'string') {
+    // Legacy invocation: parseStatementWithGemini(data, mimeType, fileName, options)
+    mimeType = isImageOrMimeType
     base64Data = fileTextOrBase64
+    if (maybeOptions && typeof maybeOptions === 'object') {
+      options = maybeOptions
+    } else if (mimeTypeOrOptions && typeof mimeTypeOrOptions === 'object') {
+      options = mimeTypeOrOptions
+    }
   } else {
     textContent = fileTextOrBase64
   }
+
+  const opts = options instanceof AbortSignal ? { signal: options } : (options || {})
 
   const prompt = `You are a precision Indian Bank Statement & Credit Card Statement transaction parser (HDFC, SBI, ICICI, Axis, Kotak, OneCard, Amex, UPI).
 Extract all debit and credit transactions.
@@ -168,12 +223,13 @@ Output strictly a valid JSON array matching this format:
 Output strictly raw JSON without markdown backticks or commentary.`
 
   try {
-    const rawResponse = await callGemini(prompt, base64Data ? { base64Data, mimeType } : null)
+    const rawResponse = await callGemini(prompt, base64Data ? { base64Data, mimeType } : null, null, opts)
     const list = safeParseJsonArray(rawResponse)
     if (list && list.length > 0) {
       return list
     }
   } catch (err) {
+    if (opts.signal?.aborted) throw err
     console.warn('AI Statement Parser error, evaluating fallback:', err?.message || err)
     const fallback = localStatementHeuristicParser(textContent || '')
     if (fallback && fallback.length > 0) return fallback
@@ -188,7 +244,8 @@ export const parseStatementWithAi = parseStatementWithGemini
 /**
  * 3. "Ask AI" Financial Copilot & Wealth Advisor (Powered by High-Capacity Gemini Engine)
  */
-export async function askFinancialAdvisorAi(userQuestion, financialContext = {}, chatHistory = []) {
+export async function askFinancialAdvisorAi(userQuestion, financialContext = {}, chatHistory = [], options = {}) {
+  const opts = options instanceof AbortSignal ? { signal: options } : (options || {})
   const qLower = (userQuestion || '').toLowerCase().trim()
   const isFinanceQuery = /\b(finance|expense|spend|spending|spent|income|salary|budget|saving|savings|net worth|wealth|portfolio|mutual fund|sip|debt|loan|emi|tax|regime|goal|investment|xirr|groww|onecard|credit card|transaction|bill|due)\b/i.test(qLower)
   const isTimeOrWeather = /\b(time|date|today|clock|weather|climate|temperature|forecast|rain)\b/i.test(qLower)
@@ -226,11 +283,14 @@ Provide actionable, customized numerical insights for Manoj using this telemetry
   }
 
   try {
-    const rawRes = await callGemini(userQuestion, null, systemInstruction)
+    const rawRes = await callGemini(userQuestion, null, systemInstruction, opts)
     if (rawRes && rawRes.trim()) {
       return rawRes.trim()
     }
   } catch (err) {
+    if (opts.signal?.aborted) {
+      return '⚠️ Analysis cancelled by user.'
+    }
     console.warn('AI Copilot call error:', err)
     // Only fall back to local rule engine if user asked an explicit local command (like simple math or time)
     const local = localAdvisorRuleEngine(userQuestion, financialContext, true)

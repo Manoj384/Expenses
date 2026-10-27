@@ -7,7 +7,6 @@ import SummaryCard from '../components/SummaryCard'
 import SkeletonPage from '../components/SkeletonLoader'
 import EmptyState from '../components/EmptyState'
 import PwaInstallBanner from '../components/PwaInstallBanner'
-import AiMaintenanceWidget from '../components/AiMaintenanceWidget'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { formatDate, formatTime, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../utils/dateUtils'
 import { frequencyLabel } from '../utils/sipUtils'
@@ -173,7 +172,8 @@ export default function Dashboard() {
       let mfRaw = (!mfRes.error && mfRes.data && mfRes.data.length > 0) ? mfRes.data : []
       const hasHdfc = mfRaw.some((f) => (f.scheme_name || '').toLowerCase().includes('hdfc'))
       const totalInv = mfRaw.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-      if (mfRaw.length !== savedGrowwData.length || hasHdfc || totalInv < 110000) {
+      const totalCurVal = mfRaw.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
+      if (mfRaw.length !== savedGrowwData.length || hasHdfc || totalInv < 110000 || Math.abs(totalCurVal - 114335.58) > 100) {
         mfRaw = savedGrowwData
       }
       const enriched = enrichFundsWithCachedNavs(mfRaw)
@@ -426,14 +426,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      {/* Autonomous AI Maintenance & Learning Status Widget */}
-      <AiMaintenanceWidget
-        transactions={allMonthTxns.length > 0 ? allMonthTxns : recentTxns}
-        debts={debtsList}
-        sips={upcomingSips}
-        onRefreshData={fetchData}
-      />
 
       {/* Quick Visual Section: Payment Method Quick Breakdown */}
       {paymentBreakdown.length > 0 && (

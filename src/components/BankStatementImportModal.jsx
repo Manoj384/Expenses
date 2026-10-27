@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import Modal from './Modal'
-import * as pdfjsLib from 'pdfjs-dist'
 import { parseBankStatementFile } from '../utils/statementParser'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
@@ -17,9 +16,6 @@ import {
   Sparkles,
   Building2,
 } from 'lucide-react'
-
-// Configure PDF worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024
 const MAX_PDF_PAGES = 100
@@ -41,6 +37,7 @@ function validateStatementFile(file) {
 export default function BankStatementImportModal({ isOpen, onClose, onTransactionsImported }) {
   const { user } = useAuth()
   const fileInputRef = useRef(null)
+  const isCancelledRef = useRef(false)
   const [parsing, setParsing] = useState(false)
   const [parsedRows, setParsedRows] = useState([])
   const [selectedIndices, setSelectedIndices] = useState(new Set())
@@ -56,6 +53,7 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
 
     setFileName(file.name)
     setError(null)
+    isCancelledRef.current = false
     setParsing(true)
     setParsedRows([])
     setSelectedIndices(new Set())
@@ -65,6 +63,8 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
       const rows = extension === 'pdf'
         ? await parsePdfStatement(file)
         : await parseBankStatementFile(await file.arrayBuffer())
+
+      if (isCancelledRef.current) return
 
       if (rows.length === 0) {
         throw new Error('No transactions found in this statement. Please check the file format.')
@@ -81,17 +81,57 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
         setError(`Only the first ${MAX_PARSED_TRANSACTIONS.toLocaleString()} transactions were loaded.`)
       }
 
-      setParsedRows(normalizedRows)
-      setSelectedIndices(new Set(normalizedRows.map((_, i) => i)))
+      // Smart Deduplication Sentinel: Query recent transactions from database
+      let existingKeys = new Set()
+      if (user) {
+        try {
+          const { data: existingTxns } = await supabase
+            .from('transactions')
+            .select('date, amount, type')
+            .eq('user_id', user.id)
+            .limit(3000)
+          if (existingTxns) {
+            existingKeys = new Set(
+              existingTxns.map(t => `${t.date}_${Number(t.amount).toFixed(2)}_${t.type}`)
+            )
+          }
+        } catch (err) {
+          console.warn('[BankImport] Could not fetch transactions for deduplication:', err)
+        }
+      }
+
+      const rowsWithDups = normalizedRows.map(row => ({
+        ...row,
+        isDuplicate: existingKeys.has(`${row.date}_${Number(row.amount).toFixed(2)}_${row.type}`),
+      }))
+
+      setParsedRows(rowsWithDups)
+      // Auto-select only NON-duplicate rows
+      const nonDupIndices = new Set(
+        rowsWithDups.map((r, i) => (!r.isDuplicate ? i : null)).filter(i => i !== null)
+      )
+      setSelectedIndices(nonDupIndices)
     } catch (err) {
-      setError(err.message || 'Failed to parse bank statement.')
+      if (!isCancelledRef.current) {
+        setError(err.message || 'Failed to parse bank statement.')
+      }
     } finally {
       setParsing(false)
     }
   }
 
-  // Parse PDF Statement
+  const handleCancelParsing = () => {
+    isCancelledRef.current = true
+    setParsing(false)
+    setError('Statement parsing was cancelled.')
+  }
+
+  // Parse PDF Statement (pdfjs-dist dynamically loaded only on PDF upload)
   const parsePdfStatement = async (file) => {
+    const pdfjsLib = await import('pdfjs-dist')
+    if (!pdfjsLib.GlobalWorkerOptions?.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+    }
     const arrayBuffer = await file.arrayBuffer()
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
     if (pdf.numPages > MAX_PDF_PAGES) {
@@ -100,6 +140,9 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
     let fullText = ''
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      if (isCancelledRef.current) {
+        throw new Error('Statement parsing cancelled by user.')
+      }
       const page = await pdf.getPage(pageNum)
       const content = await page.getTextContent()
       const pageText = content.items.map(item => item.str).join(' ')
@@ -289,6 +332,13 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
             <span className="font-bold text-indigo-700 dark:text-indigo-300">
               Parsing {fileName}… extracting all debit/credit rows…
             </span>
+            <button
+              type="button"
+              onClick={handleCancelParsing}
+              className="mt-2 btn-secondary text-xs px-3 py-1 text-gray-600 hover:text-rose-600"
+            >
+              Cancel Parsing
+            </button>
           </div>
         )}
 
@@ -302,6 +352,15 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
         {/* Parsed Transactions Preview Table */}
         {parsedRows.length > 0 && !parsing && (
           <div className="space-y-3">
+            {parsedRows.some(r => r.isDuplicate) && (
+              <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-800 dark:text-amber-300 text-[11px] flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>
+                  <strong>Deduplication Guard:</strong> {parsedRows.filter(r => r.isDuplicate).length} potential duplicate transactions were auto-deselected to avoid double entries.
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center justify-between pb-1">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-emerald-500" />
@@ -342,8 +401,15 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
                         <p className="font-medium text-gray-900 dark:text-slate-100 truncate">
                           {row.note}
                         </p>
-                        <p className="text-[10px] text-gray-400">
-                          {row.date} • <span className="text-blue-500">{row.category}</span>
+                        <p className="text-[10px] text-gray-400 flex items-center gap-1.5">
+                          <span>{row.date}</span>
+                          <span>•</span>
+                          <span className="text-blue-500">{row.category}</span>
+                          {row.isDuplicate && (
+                            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700">
+                              Duplicate
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>

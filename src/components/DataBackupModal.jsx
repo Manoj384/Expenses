@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   Shield,
   Sparkles,
+  Trash2,
 } from 'lucide-react'
 
 export default function DataBackupModal({ isOpen, onClose }) {
@@ -23,8 +24,42 @@ export default function DataBackupModal({ isOpen, onClose }) {
   const { success: toastSuccess, error: toastError } = useToast()
   const [exporting, setExporting] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteInputText, setDeleteInputText] = useState('')
+  const [purgingData, setPurgingData] = useState(false)
 
   if (!isOpen) return null
+
+  const handlePurgeAllData = async () => {
+    if (deleteInputText.trim().toUpperCase() !== 'DELETE') {
+      toastError('Please type DELETE to confirm data erasure.')
+      return
+    }
+    if (!user) {
+      toastError('You must be signed in to manage cloud data.')
+      return
+    }
+    setPurgingData(true)
+    try {
+      await Promise.all([
+        supabase.from('transactions').delete().eq('user_id', user.id),
+        supabase.from('mutual_funds').delete().eq('user_id', user.id),
+        supabase.from('debts').delete().eq('user_id', user.id),
+        supabase.from('sips').delete().eq('user_id', user.id),
+        supabase.from('goals').delete().eq('user_id', user.id),
+        supabase.from('budgets').delete().eq('user_id', user.id),
+      ])
+      toastSuccess('All personal financial records have been permanently wiped.')
+      setShowDeleteConfirm(false)
+      setDeleteInputText('')
+      onClose()
+      setTimeout(() => window.location.reload(), 1200)
+    } catch (err) {
+      toastError(err?.message || 'Failed to erase records.')
+    } finally {
+      setPurgingData(false)
+    }
+  }
 
   const handleExportAll = async () => {
     setExporting(true)
@@ -88,63 +123,127 @@ export default function DataBackupModal({ isOpen, onClose }) {
     }
   }
 
+  const chunkArray = (arr, size = 50) => {
+    const chunks = []
+    for (let i = 0; i < arr.length; i += size) {
+      chunks.push(arr.slice(i, i + size))
+    }
+    return chunks
+  }
+
   const handleImportBackup = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    const MAX_BACKUP_SIZE = 15 * 1024 * 1024 // 15MB
+    if (file.size <= 0 || file.size > MAX_BACKUP_SIZE) {
+      toastError('Backup file must be between 1 byte and 15 MB.')
+      return
+    }
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      toastError('Please select a valid JSON backup file (.json).')
+      return
+    }
 
     setImporting(true)
     const reader = new FileReader()
     reader.onload = async (evt) => {
       try {
-        const json = JSON.parse(evt.target?.result || '{}')
-        if (!json.data) throw new Error('Invalid backup file format.')
-
-        if (user) {
-          // 1. Restore transactions
-          if (json.data.transactions?.length > 0) {
-            for (const t of json.data.transactions) {
-              const { id, created_at, ...rest } = t
-              await supabase.from('transactions').upsert({ ...rest, user_id: user.id })
-            }
-          }
-          // 2. Restore mutual funds
-          if (json.data.mutual_funds?.length > 0) {
-            for (const m of json.data.mutual_funds) {
-              const { id, created_at, ...rest } = m
-              await supabase.from('mutual_funds').upsert({ ...rest, user_id: user.id })
-            }
-          }
-          // 3. Restore SIPs
-          if (json.data.sips?.length > 0) {
-            for (const s of json.data.sips) {
-              const { id, created_at, ...rest } = s
-              await supabase.from('sips').upsert({ ...rest, user_id: user.id })
-            }
-          }
-          // 4. Restore Debts
-          if (json.data.debts?.length > 0) {
-            for (const d of json.data.debts) {
-              const { id, created_at, ...rest } = d
-              await supabase.from('debts').upsert({ ...rest, user_id: user.id })
-            }
-          }
-          // 5. Restore Goals
-          if (json.data.goals?.length > 0) {
-            for (const g of json.data.goals) {
-              const { id, created_at, ...rest } = g
-              await supabase.from('goals').upsert({ ...rest, user_id: user.id })
-            }
-          }
-          // 6. Restore Budgets
-          if (json.data.budgets?.length > 0) {
-            for (const b of json.data.budgets) {
-              const { id, created_at, ...rest } = b
-              await supabase.from('budgets').upsert({ ...rest, user_id: user.id })
-            }
-          }
+        const text = evt.target?.result
+        if (!text || typeof text !== 'string') throw new Error('File content is empty.')
+        const json = JSON.parse(text)
+        if (!json || typeof json !== 'object' || !json.data || typeof json.data !== 'object') {
+          throw new Error('Invalid backup file format: missing "data" collection.')
         }
 
-        toastSuccess(`Successfully restored all database collections from backup!`)
+        if (user) {
+          const stats = []
+
+          // 1. Restore transactions
+          if (Array.isArray(json.data.transactions) && json.data.transactions.length > 0) {
+            const txns = json.data.transactions.map(({ created_at, ...t }) => ({
+              ...t,
+              user_id: user.id,
+            }))
+            for (const chunk of chunkArray(txns)) {
+              const { error } = await supabase.from('transactions').upsert(chunk, { onConflict: 'id' })
+              if (error) console.warn('Transaction batch error:', error)
+            }
+            stats.push(`${txns.length} transactions`)
+          }
+
+          // 2. Restore mutual funds
+          if (Array.isArray(json.data.mutual_funds) && json.data.mutual_funds.length > 0) {
+            const mfs = json.data.mutual_funds.map(({ created_at, ...m }) => ({
+              ...m,
+              user_id: user.id,
+            }))
+            for (const chunk of chunkArray(mfs)) {
+              const { error } = await supabase.from('mutual_funds').upsert(chunk, { onConflict: 'id' })
+              if (error) console.warn('Mutual fund batch error:', error)
+            }
+            stats.push(`${mfs.length} funds`)
+          }
+
+          // 3. Restore SIPs
+          if (Array.isArray(json.data.sips) && json.data.sips.length > 0) {
+            const sips = json.data.sips.map(({ created_at, fund_id, ...s }) => ({
+              ...s,
+              user_id: user.id,
+            }))
+            for (const chunk of chunkArray(sips)) {
+              const { error } = await supabase.from('sips').upsert(chunk, { onConflict: 'id' })
+              if (error) console.warn('SIP batch error:', error)
+            }
+            stats.push(`${sips.length} SIPs`)
+          }
+
+          // 4. Restore Debts
+          if (Array.isArray(json.data.debts) && json.data.debts.length > 0) {
+            const debts = json.data.debts.map(({ created_at, ...d }) => ({
+              ...d,
+              user_id: user.id,
+            }))
+            for (const chunk of chunkArray(debts)) {
+              const { error } = await supabase.from('debts').upsert(chunk, { onConflict: 'id' })
+              if (error) console.warn('Debt batch error:', error)
+            }
+            stats.push(`${debts.length} debts`)
+          }
+
+          // 5. Restore Goals
+          if (Array.isArray(json.data.goals) && json.data.goals.length > 0) {
+            const goals = json.data.goals.map(({ created_at, notes, description, ...g }) => ({
+              ...g,
+              user_id: user.id,
+            }))
+            for (const chunk of chunkArray(goals)) {
+              const { error } = await supabase.from('goals').upsert(chunk, { onConflict: 'id' })
+              if (error) console.warn('Goal batch error:', error)
+            }
+            stats.push(`${goals.length} goals`)
+          }
+
+          // 6. Restore Budgets
+          if (Array.isArray(json.data.budgets) && json.data.budgets.length > 0) {
+            const budgets = json.data.budgets.map(({ created_at, ...b }) => ({
+              ...b,
+              user_id: user.id,
+            }))
+            for (const chunk of chunkArray(budgets)) {
+              const { error } = await supabase.from('budgets').upsert(chunk, { onConflict: 'id' })
+              if (error) console.warn('Budget batch error:', error)
+            }
+            stats.push(`${budgets.length} budgets`)
+          }
+
+          const summary = stats.length > 0 ? stats.join(', ') : 'all records'
+          toastSuccess(`Successfully restored ${summary}!`)
+        } else {
+          toastSuccess('Offline backup file validated successfully.')
+        }
+
         onClose()
       } catch (err) {
         toastError(err?.message || 'Failed to parse backup JSON file.')
@@ -200,6 +299,52 @@ export default function DataBackupModal({ isOpen, onClose }) {
               <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
             </label>
           </div>
+        </div>
+
+        {/* Data Retention & Privacy (Delete My Data) */}
+        <div className="p-4 rounded-xl border border-rose-200 bg-rose-50/50 dark:bg-rose-950/20 dark:border-rose-900/40 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 font-bold text-rose-700 dark:text-rose-400">
+                <Trash2 className="h-4 w-4" /> Data Retention & Account Data Wipe
+              </div>
+              <p className="text-gray-500 dark:text-slate-400 text-[11px] mt-1">
+                Permanently purge all your transactions, mutual funds, SIPs, debts, goals, and budgets from the cloud.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+              className="btn btn-xs bg-rose-600 hover:bg-rose-700 text-white rounded-lg px-2.5 py-1 whitespace-nowrap font-bold"
+            >
+              {showDeleteConfirm ? 'Cancel' : 'Delete All Data'}
+            </button>
+          </div>
+
+          {showDeleteConfirm && (
+            <div className="pt-3 border-t border-rose-200 dark:border-rose-900/60 space-y-2">
+              <p className="text-[11px] font-semibold text-rose-800 dark:text-rose-300">
+                ⚠️ This action is irreversible. Type <span className="font-mono font-black text-rose-900 dark:text-rose-200">DELETE</span> below to confirm permanent wipeout:
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={deleteInputText}
+                  onChange={(e) => setDeleteInputText(e.target.value)}
+                  placeholder="Type DELETE"
+                  className="input-field text-xs py-1.5 px-3 max-w-xs uppercase font-mono bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={handlePurgeAllData}
+                  disabled={deleteInputText.trim().toUpperCase() !== 'DELETE' || purgingData}
+                  className="btn btn-xs bg-rose-700 hover:bg-rose-800 disabled:opacity-50 text-white rounded-lg px-3 py-1.5 font-bold whitespace-nowrap"
+                >
+                  {purgingData ? 'Purging...' : 'Confirm Wipeout'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end pt-2">

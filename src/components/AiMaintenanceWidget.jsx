@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
 import {
   ShieldCheck,
   Sparkles,
@@ -23,18 +24,48 @@ export default function AiMaintenanceWidget({
   sips = [],
   onRefreshData,
 }) {
+  const [internalTxns, setInternalTxns] = useState(transactions)
+  const [internalBills, setInternalBills] = useState(bills)
+  const [internalDebts, setInternalDebts] = useState(debts)
+  const [internalSips, setInternalSips] = useState(sips)
+
   const [isRunningSweep, setIsRunningSweep] = useState(false)
   const [showHabitDetails, setShowHabitDetails] = useState(false)
   const [lastSweepTime, setLastSweepTime] = useState(new Date())
   const [habitProfile, setHabitProfile] = useState(() => getStoredHabitProfile())
 
+  useEffect(() => {
+    if (transactions.length > 0) setInternalTxns(transactions)
+    if (bills.length > 0) setInternalBills(bills)
+    if (debts.length > 0) setInternalDebts(debts)
+    if (sips.length > 0) setInternalSips(sips)
+  }, [transactions, bills, debts, sips])
+
+  // Standalone fallback: load data from Supabase if not supplied via props
+  useEffect(() => {
+    if (transactions.length === 0) {
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return
+        supabase.from('transactions').select('*').eq('user_id', user.id).limit(200).then(({ data }) => {
+          if (data && data.length) setInternalTxns(data)
+        })
+        supabase.from('debts').select('*').eq('user_id', user.id).then(({ data }) => {
+          if (data && data.length) setInternalDebts(data)
+        })
+        supabase.from('sips').select('*').eq('user_id', user.id).then(({ data }) => {
+          if (data && data.length) setInternalSips(data)
+        })
+      })
+    }
+  }, [transactions.length])
+
   // Calculate maintenance telemetry
-  const audit = runFullAiAnomalyAudit(transactions || [])
+  const audit = runFullAiAnomalyAudit(internalTxns || [])
   const duplicateCount = audit.duplicates?.length || 0
 
   // Urgent upcoming bills (<7 days)
   const todayDay = new Date().getDate()
-  const upcomingBills = (bills || []).filter((b) => {
+  const upcomingBills = (internalBills || []).filter((b) => {
     const dueDay = Number(b.due_day) || 1
     const diff = dueDay - todayDay
     return (diff >= 0 && diff <= 7) || (dueDay < todayDay && (30 - todayDay + dueDay) <= 7)
@@ -53,17 +84,17 @@ export default function AiMaintenanceWidget({
 
   // Update habit profile when transactions change
   useEffect(() => {
-    if (transactions.length > 0) {
-      const prof = extractUserHabitProfile(transactions, debts, sips)
+    if (internalTxns.length > 0) {
+      const prof = extractUserHabitProfile(internalTxns, internalDebts, internalSips)
       setHabitProfile(prof)
     }
-  }, [transactions, debts, sips])
+  }, [internalTxns, internalDebts, internalSips])
 
   const handleManualSweep = async () => {
     setIsRunningSweep(true)
     try {
       // 1. Refresh habit profile
-      const prof = extractUserHabitProfile(transactions, debts, sips)
+      const prof = extractUserHabitProfile(internalTxns, internalDebts, internalSips)
       setHabitProfile(prof)
 
       // 2. Refresh parent data if callback provided

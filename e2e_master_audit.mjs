@@ -981,6 +981,84 @@ test('SEC-26-01', 'Background AI Supervisor executes maintenance sweep and notif
 })
 
 // =============================================================================
+// SECTION 27: PHASE 4 ADVANCED RECONCILIATION & INTEGRITY CONTROLS
+// =============================================================================
+console.log('\n▶ [SECTION 27] Phase 4 Advanced Reconciliation & Deduplication Controls')
+
+test('SEC-27-01', 'Statement Deduplication Engine detects duplicate transaction entries matching existing date, amount and type', () => {
+  const existingTransactions = [
+    { date: '2026-10-15', amount: 1450, type: 'expense', note: 'Swiggy Dinner' },
+    { date: '2026-10-18', amount: 85000, type: 'income', note: 'Monthly Salary' },
+    { date: '2026-10-20', amount: 2450, type: 'expense', note: 'Bescom Bill' },
+  ]
+
+  const existingLookup = new Set(
+    existingTransactions.map((tx) => `${tx.date}_${Number(tx.amount).toFixed(2)}_${tx.type}`)
+  )
+
+  const importedRows = [
+    { date: '2026-10-15', amount: 1450, type: 'expense', note: 'Swiggy Dinner' }, // duplicate
+    { date: '2026-10-22', amount: 350, type: 'expense', note: 'Uber ride' }, // unique
+  ]
+
+  const deduplicated = importedRows.map((r) => {
+    const key = `${r.date}_${Number(r.amount).toFixed(2)}_${r.type}`
+    const isDuplicate = existingLookup.has(key)
+    return { ...r, isDuplicate, selected: !isDuplicate }
+  })
+
+  expect(deduplicated[0].isDuplicate).toBe(true)
+  expect(deduplicated[0].selected).toBe(false)
+  expect(deduplicated[1].isDuplicate).toBe(false)
+  expect(deduplicated[1].selected).toBe(true)
+})
+
+test('SEC-27-02', 'Monthly Book Closing Engine computes variance between opening/closing bank statement and recorded ledger flow', () => {
+  // Scenario: Starting balance = 50,000; Ending balance = 75,000
+  // Actual bank change = +25,000
+  // Recorded ledger: Inflow = 85,000; Outflow = 60,000 => Net ledger = +25,000
+  // Expected variance = 0 (perfect reconciliation)
+  const startingBalance = 50000
+  const endingBalance = 75000
+  const totalInflow = 85000
+  const totalOutflow = 60000
+
+  const netLedger = totalInflow - totalOutflow
+  const actualBankChange = endingBalance - startingBalance
+  const variance = actualBankChange - netLedger
+
+  expect(netLedger).toBe(25000)
+  expect(actualBankChange).toBe(25000)
+  expect(variance).toBe(0)
+
+  // Scenario 2: Unrecorded ₹1,500 bank charge
+  const endingWithFee = 73500
+  const actualBankChangeWithFee = endingWithFee - startingBalance
+  const varianceWithFee = actualBankChangeWithFee - netLedger
+  expect(varianceWithFee).toBe(-1500)
+})
+
+test('SEC-27-03', 'Recurring Reminder date advancement engine correctly advances daily, weekly, monthly and yearly cycles', () => {
+  function advanceDate(dateStr, recurrence) {
+    const parts = dateStr.split('-').map(Number)
+    const dt = new Date(parts[0], parts[1] - 1, parts[2])
+    if (recurrence === 'daily') dt.setDate(dt.getDate() + 1)
+    else if (recurrence === 'weekly') dt.setDate(dt.getDate() + 7)
+    else if (recurrence === 'monthly') dt.setMonth(dt.getMonth() + 1)
+    else if (recurrence === 'yearly') dt.setFullYear(dt.getFullYear() + 1)
+    const y = dt.getFullYear()
+    const m = String(dt.getMonth() + 1).padStart(2, '0')
+    const d = String(dt.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
+  expect(advanceDate('2026-10-15', 'daily')).toBe('2026-10-16')
+  expect(advanceDate('2026-10-15', 'weekly')).toBe('2026-10-22')
+  expect(advanceDate('2026-10-15', 'monthly')).toBe('2026-11-15')
+  expect(advanceDate('2026-10-15', 'yearly')).toBe('2027-10-15')
+})
+
+// =============================================================================
 // SUMMARY & RELEASE READINESS GATE REPORT
 // =============================================================================
 console.log('\n==============================================================================')

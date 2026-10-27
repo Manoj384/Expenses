@@ -6,6 +6,7 @@ import AiVoiceChatbotModal from '../components/AiVoiceChatbotModal'
 import CreditCardSmartPayerModal from '../components/CreditCardSmartPayerModal'
 import AiAnomalySentinelModal from '../components/AiAnomalySentinelModal'
 import TelegramWhatsAppBotModal from '../components/TelegramWhatsAppBotModal'
+import AiMaintenanceWidget from '../components/AiMaintenanceWidget'
 import {
   SunMedium,
   Mic,
@@ -14,6 +15,7 @@ import {
   Bot,
   Sparkles,
   Zap,
+  Brain,
 } from 'lucide-react'
 
 export default function AiCopilotPage() {
@@ -69,6 +71,13 @@ export default function AiCopilotPage() {
       color: 'text-sky-500',
       description: 'Instant chat logging & portfolio queries via Telegram/WhatsApp',
     },
+    {
+      id: 'maintenance',
+      label: 'Learning Engine',
+      icon: Brain,
+      color: 'text-indigo-400',
+      description: 'Autonomous background supervisor, self-healing audits, and learned user financial habits',
+    },
   ]
 
   const currentTabObj = tabs.find((t) => t.id === activeTab) || tabs[0]
@@ -97,7 +106,7 @@ export default function AiCopilotPage() {
           </div>
 
           {/* Tab Navigation Buttons */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2 border-t border-white/10">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-white/10">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -144,6 +153,12 @@ export default function AiCopilotPage() {
 
           {activeTab === 'bot' && (
             <TelegramWhatsAppBotModal isOpen={true} isEmbedded={true} onClose={() => {}} />
+          )}
+
+          {activeTab === 'maintenance' && (
+            <div className="space-y-4">
+              <AiMaintenanceWidget />
+            </div>
           )}
         </div>
       </div>

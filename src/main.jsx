@@ -15,6 +15,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
             installingWorker.addEventListener('statechange', () => {
               if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
                 console.info('[PWA] New version available; reload to update.')
+                window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: { registration: reg } }))
               }
             })
           }

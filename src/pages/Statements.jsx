@@ -35,6 +35,7 @@ export default function Statements() {
   const { user } = useAuth()
   const { addToast } = useToast()
   const fileInputRef = useRef(null)
+  const abortControllerRef = useRef(null)
 
   // Start with empty — Supabase is the source of truth
   const [statementData, setStatementData] = useState([])
@@ -122,9 +123,27 @@ export default function Statements() {
     persistRows(newRows)
   }
 
+  const handleCancelExtraction = () => {
+    abortControllerRef.current?.abort()
+    setIsProcessing(false)
+    addToast('Statement extraction cancelled.', 'info')
+  }
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const allowedExts = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'csv', 'txt']
+    if (!allowedExts.includes(ext)) {
+      addToast('Please upload a PDF, image (PNG, JPG, WebP), or CSV statement.', 'error')
+      return
+    }
+
+    if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
+      addToast('Statement file size must be between 1 byte and 10 MB.', 'error')
+      return
+    }
 
     setSelectedFileName(file.name)
     setSelectedFileSize((file.size / (1024 * 1024)).toFixed(2) + ' MB')
@@ -135,9 +154,13 @@ export default function Statements() {
       setFilePreview(base64Data)
       setIsProcessing(true)
 
+      abortControllerRef.current?.abort()
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
       try {
         const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg')
-        const results = await parseStatementWithAi(base64Data, mimeType, file.name, statementData)
+        const results = await parseStatementWithAi(base64Data, mimeType, file.name, { signal: controller.signal })
 
         if (Array.isArray(results) && results.length > 0) {
           const timestamp = Date.now()
@@ -176,7 +199,9 @@ export default function Statements() {
           addToast('Could not find transactions in this document. Try a clearer image or PDF.', 'warning')
         }
       } catch (err) {
-        addToast(err?.message || 'Failed to parse statement. Please try again or use a clearer file.', 'error')
+        if (!controller.signal.aborted) {
+          addToast(err?.message || 'Failed to parse statement. Please try again or use a clearer file.', 'error')
+        }
       } finally {
         setIsProcessing(false)
       }
@@ -192,9 +217,13 @@ export default function Statements() {
     }
 
     setIsProcessing(true)
+    abortControllerRef.current?.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
     try {
       const mimeType = selectedFileName.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'
-      const results = await parseStatementWithAi(filePreview, mimeType, selectedFileName, statementData)
+      const results = await parseStatementWithAi(filePreview, mimeType, selectedFileName, { signal: controller.signal })
 
       if (Array.isArray(results) && results.length > 0) {
         const timestamp = Date.now()
@@ -226,7 +255,9 @@ export default function Statements() {
         }
       }
     } catch (err) {
-      addToast(err?.message || 'Failed to continue extraction.', 'error')
+      if (!controller.signal.aborted) {
+        addToast(err?.message || 'Failed to continue extraction.', 'error')
+      }
     } finally {
       setIsProcessing(false)
     }
@@ -456,6 +487,16 @@ export default function Statements() {
                 <p className="text-xs text-gray-500 dark:text-slate-400">
                   Reading {selectedFileName || 'document'} across all pages and parsing full transaction dates
                 </p>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleCancelExtraction()
+                  }}
+                  className="mt-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-700 dark:text-slate-200 hover:text-rose-600 hover:border-rose-300 transition-colors shadow-xs"
+                >
+                  Cancel Extraction
+                </button>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center space-y-3 py-2">

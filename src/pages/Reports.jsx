@@ -13,7 +13,8 @@ import {
 import { lastNMonths, monthLabel } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
 import ShareableMonthlyReportModal from '../components/ShareableMonthlyReportModal'
-import { TrendingUp, TrendingDown, PiggyBank, Tag, Printer, Download, FileSpreadsheet, Share2, Sparkles, Calculator } from 'lucide-react'
+import MonthlyReconciliationModal from '../components/MonthlyReconciliationModal'
+import { TrendingUp, TrendingDown, PiggyBank, Tag, Printer, Download, FileSpreadsheet, Share2, Sparkles, Calculator, Scale } from 'lucide-react'
 
 
 const PERIOD_OPTIONS = [3, 6, 12]
@@ -24,7 +25,9 @@ export default function Reports() {
   const [error, setError] = useState('')
   const [period, setPeriod] = useState(6)
   const [showShareModal, setShowShareModal] = useState(false)
-
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false)
+  const [reconMonths, setReconMonths] = useState([])
+  const [reconData, setReconData] = useState({})
 
   const [barData, setBarData] = useState([])
   const [yoyData, setYoyData] = useState([])
@@ -117,6 +120,13 @@ export default function Reports() {
       }
 
       setBarData(Object.values(monthMap))
+      setReconData(monthMap)
+      setReconMonths(
+        months.map((m) => {
+          const key = `${m.year}-${String(m.month).padStart(2, '0')}`
+          return { key, label: monthLabel(m.year, m.month) }
+        })
+      )
 
       // Year-over-Year (YoY) comparison data
       const yoyArr = months.map((m) => {
@@ -247,6 +257,14 @@ export default function Reports() {
             <span>Executive Report & PDF</span>
           </button>
           <button
+            onClick={() => setShowReconciliationModal(true)}
+            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
+            title="Reconcile books against actual bank statements and seal the month"
+          >
+            <Scale className="h-3.5 w-3.5 text-indigo-600" />
+            <span>Reconcile Books</span>
+          </button>
+          <button
             onClick={handleExportCsv}
             className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5"
             title="Download CSV statement of monthly totals"
@@ -366,6 +384,14 @@ export default function Reports() {
         income={summary.totalIncome / (period || 1)}
         expense={summary.totalExpense / (period || 1)}
         debtsTotal={0}
+      />
+
+      {/* Monthly Reconciliation & Book Closing Modal */}
+      <MonthlyReconciliationModal
+        isOpen={showReconciliationModal}
+        onClose={() => setShowReconciliationModal(false)}
+        months={reconMonths}
+        monthlyData={reconData}
       />
     </Layout>
   )

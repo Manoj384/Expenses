@@ -5,6 +5,59 @@
 
 import { supabase } from '../../../lib/supabaseClient'
 
+export const SHARED_TRIP_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+/**
+ * Save shared trip data to local storage with TTL timestamp
+ */
+export function saveSharedTripCache(shareToken, data) {
+  if (!shareToken || !data) return
+  try {
+    const wrapped = {
+      version: 2,
+      savedAt: Date.now(),
+      expiresAt: Date.now() + SHARED_TRIP_CACHE_TTL_MS,
+      data,
+    }
+    localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(wrapped))
+  } catch {}
+}
+
+/**
+ * Load shared trip data from local cache, respecting TTL
+ */
+export function loadSharedTripCache(shareToken) {
+  if (!shareToken) return null
+  try {
+    const raw = localStorage.getItem(`ft_shared_trip_${shareToken}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && parsed.version === 2 && parsed.data) {
+      if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        localStorage.removeItem(`ft_shared_trip_${shareToken}`)
+        return null
+      }
+      return parsed.data
+    }
+    // Legacy un-versioned raw object fallback
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Clear cached trip data and any pending sync state for privacy/cleanup
+ */
+export function clearSharedTripCache(shareToken) {
+  if (!shareToken) return
+  try {
+    localStorage.removeItem(`ft_shared_trip_${shareToken}`)
+    localStorage.removeItem(`ft_pending_sync_${shareToken}`)
+    localStorage.removeItem(`ft_shared_member_${shareToken}`)
+  } catch {}
+}
+
 /**
  * Parse group description to extract clean description and structured activities
  */
@@ -64,7 +117,7 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
     share_token: shareToken,
     name: group.name,
     description: serializedDesc,
-    icon: group.icon || '🏖️',
+    icon: group.icon || '✈️',
     budget: Number(group.budget || 0),
     members: group.members || [],
     expenses: group.expenses || [],
@@ -78,9 +131,7 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
   }
 
   // 1. Always cache locally for instant offline / fallback access
-  try {
-    localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(hydratedLocal))
-  } catch {}
+  saveSharedTripCache(shareToken, hydratedLocal)
 
   // 2. Upsert through owner-only RLS. Shared-link visitors cannot enumerate groups.
   try {
@@ -92,12 +143,14 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
 
     if (error) throw error
     const meta = parseGroupMetadata(data.description)
-    return {
+    const result = {
       ...data,
       description: meta.description,
       activities: meta.activities,
       shareUrl: getShareUrl(shareToken),
     }
+    saveSharedTripCache(shareToken, result)
+    return result
   } catch (err) {
     console.warn('[sharedTripService] Remote upsert failed; local data is pending sync:', err)
     return { ...hydratedLocal, shareUrl: getShareUrl(shareToken) }
@@ -124,35 +177,64 @@ export async function fetchSharedGroupByToken(shareToken) {
       description: meta.description,
       activities: meta.activities,
     }
-    try {
-      localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(groupWithActs))
-    } catch {}
+    saveSharedTripCache(shareToken, groupWithActs)
     return { group: groupWithActs, error: null }
   } catch (err) {
     console.warn('[sharedTripService] Remote fetch error:', err)
   }
 
   // 2. Fallback to local storage
-  try {
-    const local = localStorage.getItem(`ft_shared_trip_${shareToken}`)
-    if (local) {
-      const parsed = JSON.parse(local)
-      const meta = parseGroupMetadata(parsed.description)
-      return {
-        group: { ...parsed, description: meta.description, activities: parsed.activities || meta.activities },
-        error: null,
-      }
+  const local = loadSharedTripCache(shareToken)
+  if (local) {
+    const meta = parseGroupMetadata(local.description)
+    return {
+      group: { ...local, description: meta.description, activities: local.activities || meta.activities },
+      error: null,
+      isCached: true,
     }
-  } catch {}
+  }
 
   return { group: null, error: 'Shared trip not found or link has expired.' }
+}
+
+/**
+ * Synchronize any pending offline updates with the cloud
+ */
+export async function syncPendingTripData(shareToken) {
+  if (!shareToken) return { synced: true }
+  try {
+    const rawPending = localStorage.getItem(`ft_pending_sync_${shareToken}`)
+    if (!rawPending) return { synced: true }
+    const { updates } = JSON.parse(rawPending)
+    if (!updates) {
+      localStorage.removeItem(`ft_pending_sync_${shareToken}`)
+      return { synced: true }
+    }
+
+    const { data, error } = await supabase.functions.invoke('shared-trip', {
+      body: { action: 'update', shareToken, updates },
+    })
+    if (error || !data?.group) throw new Error(error?.message || data?.error || 'Shared trip sync failed.')
+
+    localStorage.removeItem(`ft_pending_sync_${shareToken}`)
+    const meta = parseGroupMetadata(data.group.description)
+    const remoteGroup = {
+      ...data.group,
+      description: meta.description,
+      activities: meta.activities,
+    }
+    saveSharedTripCache(shareToken, remoteGroup)
+    return { synced: true, group: remoteGroup }
+  } catch (err) {
+    return { synced: false, error: err instanceof Error ? err.message : 'Sync failed' }
+  }
 }
 
 /**
  * Update expenses, members, name, icon, description, activities in a shared trip
  */
 export async function updateSharedTripData(shareToken, { expenses, members, budget, name, description, icon, activities }) {
-  if (!shareToken) return false
+  if (!shareToken) return { ok: false, synced: false, error: 'Missing share token.' }
 
   const updates = {
     updated_at: new Date().toISOString(),
@@ -167,31 +249,25 @@ export async function updateSharedTripData(shareToken, { expenses, members, budg
   if (description !== undefined || activities !== undefined) {
     let currentDesc = description
     let currentActs = activities
-    try {
-      const local = localStorage.getItem(`ft_shared_trip_${shareToken}`)
-      if (local) {
-        const parsed = JSON.parse(local)
-        const meta = parseGroupMetadata(parsed.description)
-        if (currentDesc === undefined) currentDesc = meta.description
-        if (currentActs === undefined) currentActs = parsed.activities || meta.activities
-      }
-    } catch {}
+    const cached = loadSharedTripCache(shareToken)
+    if (cached) {
+      const meta = parseGroupMetadata(cached.description)
+      if (currentDesc === undefined) currentDesc = meta.description
+      if (currentActs === undefined) currentActs = cached.activities || meta.activities
+    }
     updates.description = serializeGroupMetadata(currentDesc, currentActs)
   }
 
-  // 1. Update local storage immediately
-  try {
-    const local = localStorage.getItem(`ft_shared_trip_${shareToken}`)
-    const parsed = local ? JSON.parse(local) : {}
-    const meta = parseGroupMetadata(updates.description || parsed.description)
-    const merged = {
-      ...parsed,
-      ...updates,
-      description: meta.description,
-      activities: activities !== undefined ? activities : (parsed.activities || meta.activities),
-    }
-    localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(merged))
-  } catch {}
+  // 1. Update local cache immediately
+  const cached = loadSharedTripCache(shareToken) || {}
+  const meta = parseGroupMetadata(updates.description || cached.description)
+  const merged = {
+    ...cached,
+    ...updates,
+    description: meta.description,
+    activities: activities !== undefined ? activities : (cached.activities || meta.activities),
+  }
+  saveSharedTripCache(shareToken, merged)
 
   // 2. Update through the token-scoped Edge Function.
   try {
@@ -199,10 +275,29 @@ export async function updateSharedTripData(shareToken, { expenses, members, budg
       body: { action: 'update', shareToken, updates },
     })
     if (error || !data?.group) throw new Error(error?.message || data?.error || 'Shared trip update failed.')
-    return { ok: true, synced: true, group: data.group }
+
+    try {
+      localStorage.removeItem(`ft_pending_sync_${shareToken}`)
+    } catch {}
+
+    const updatedMeta = parseGroupMetadata(data.group.description)
+    const remoteGroup = {
+      ...data.group,
+      description: updatedMeta.description,
+      activities: updatedMeta.activities,
+    }
+    saveSharedTripCache(shareToken, remoteGroup)
+    return { ok: true, synced: true, group: remoteGroup }
   } catch (err) {
     console.warn('[sharedTripService] Remote update failed; changes remain local:', err)
-    return { ok: false, synced: false, error: err instanceof Error ? err.message : 'Shared trip sync failed.' }
+    try {
+      localStorage.setItem(`ft_pending_sync_${shareToken}`, JSON.stringify({
+        shareToken,
+        updates,
+        timestamp: Date.now(),
+      }))
+    } catch {}
+    return { ok: true, synced: false, group: merged, error: err instanceof Error ? err.message : 'Shared trip sync pending.' }
   }
 }
 

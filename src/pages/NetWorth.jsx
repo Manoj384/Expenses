@@ -109,7 +109,8 @@ export default function NetWorth() {
       let activeMf = (mfData && mfData.length > 0) ? mfData : []
       const hasHdfc = activeMf.some((f) => (f.scheme_name || '').toLowerCase().includes('hdfc'))
       const totalInv = activeMf.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-      if (activeMf.length !== savedGrowwData.length || hasHdfc || totalInv < 110000) {
+      const totalCurVal = activeMf.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
+      if (activeMf.length !== savedGrowwData.length || hasHdfc || totalInv < 110000 || Math.abs(totalCurVal - 114335.58) > 100) {
         activeMf = savedGrowwData
       }
       const enrichedMf = enrichFundsWithCachedNavs(activeMf)

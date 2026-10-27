@@ -48,7 +48,10 @@ import {
   updateSharedTripData,
   publishOrSyncSharedGroup,
   serializeGroupMetadata,
+  syncPendingTripData,
+  clearSharedTripCache,
 } from '../features/splitwise/api/sharedTripService'
+import { calculateTripBalances } from '../features/splitwise/utils/splitwiseCalculations'
 import {
   getExpenseCategoryVisuals,
   groupExpensesByMonth,
@@ -83,6 +86,9 @@ export default function SharedTripPage() {
   const [success, setSuccess] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
+  const [syncStatus, setSyncStatus] = useState('synced') // 'synced' | 'syncing' | 'failed'
+  const [hasPendingSync, setHasPendingSync] = useState(false)
+  const [showClearCacheModal, setShowClearCacheModal] = useState(false)
 
   // Selected viewer identity (e.g. "I am Rahul")
   const [activeMemberId, setActiveMemberId] = useState(() => {
@@ -159,6 +165,20 @@ export default function SharedTripPage() {
         setError(fetchErr || 'Shared trip not found.')
       } else {
         setGroup(prev => {
+          if (!prev) return loaded
+          // If local pending sync exists, safely merge remote changes to prevent overwriting
+          const pending = localStorage.getItem(`ft_pending_sync_${shareToken}`)
+          if (pending) {
+            setHasPendingSync(true)
+            const localExpIds = new Set((prev.expenses || []).map(e => e.id))
+            const newRemoteExpenses = (loaded.expenses || []).filter(e => !localExpIds.has(e.id))
+            return {
+              ...loaded,
+              ...prev,
+              expenses: [...newRemoteExpenses, ...(prev.expenses || [])],
+              activities: prev.activities?.length ? prev.activities : loaded.activities,
+            }
+          }
           if (prev?.expenses && loaded.expenses && loaded.expenses.length < prev.expenses.length) {
             return { ...loaded, expenses: prev.expenses }
           }
@@ -176,6 +196,44 @@ export default function SharedTripPage() {
   useEffect(() => {
     loadGroupData()
   }, [loadGroupData])
+
+  // Track pending offline changes and attach online sync listener
+  useEffect(() => {
+    if (!shareToken) return
+    const checkPending = () => {
+      try {
+        const pending = localStorage.getItem(`ft_pending_sync_${shareToken}`)
+        setHasPendingSync(Boolean(pending))
+      } catch {}
+    }
+    checkPending()
+    window.addEventListener('online', checkPending)
+    return () => window.removeEventListener('online', checkPending)
+  }, [shareToken])
+
+  const handleRetrySync = async () => {
+    setSyncStatus('syncing')
+    setError('')
+    const res = await syncPendingTripData(shareToken)
+    if (res.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+      if (res.group) setGroup(res.group)
+      flash('Cloud sync completed successfully!')
+    } else {
+      setSyncStatus('failed')
+      setError('Sync attempt failed: ' + (res.error || 'Server unreachable. Will retry automatically.'))
+    }
+  }
+
+  const handleClearCache = () => {
+    clearSharedTripCache(shareToken)
+    setHasPendingSync(false)
+    setSyncStatus('synced')
+    setShowClearCacheModal(false)
+    flash('Offline trip cache cleared for this device.')
+    loadGroupData(false)
+  }
 
   // Shared links use the token-scoped Edge Function rather than direct table
   // subscriptions. Polling keeps collaborative views fresh without exposing rows.
@@ -243,88 +301,10 @@ export default function SharedTripPage() {
     return synthesized
   }, [group?.activities, expenses, members])
 
-  // --- Financial Balances & Settlements Calculation Engine ---
+  // --- Financial Balances & Settlements Calculation Engine (Modular) ---
   const balanceDetails = useMemo(() => {
     if (!group) return { netBalances: {}, simplifiedDebts: [], totalSpend: 0, youNet: 0, youOwe: 0, youAreOwed: 0 }
-
-    const netBalances = {}
-    members.forEach(m => { netBalances[m.id] = 0 })
-
-    let totalSpend = 0
-
-    expenses.forEach(exp => {
-      const amt = Number(exp.amount) || 0
-      totalSpend += amt
-
-      // Credit payer(s)
-      if (exp.payer_mode === 'multiple' && exp.paid_by) {
-        Object.entries(exp.paid_by).forEach(([pId, pAmt]) => {
-          netBalances[pId] = (netBalances[pId] || 0) + Number(pAmt || 0)
-        })
-      } else if (exp.paid_by_id) {
-        netBalances[exp.paid_by_id] = (netBalances[exp.paid_by_id] || 0) + amt
-      }
-
-      // Debit participants
-      if (exp.shares) {
-        Object.entries(exp.shares).forEach(([mId, share]) => {
-          netBalances[mId] = (netBalances[mId] || 0) - Number(share || 0)
-        })
-      }
-    })
-
-    // Compute Simplified Settlement Matrix
-    const creditors = []
-    const debtors = []
-
-    Object.entries(netBalances).forEach(([mId, bal]) => {
-      const rounded = Math.round(bal * 100) / 100
-      const member = members.find(m => m.id === mId) || { id: mId, name: 'Unknown' }
-      if (rounded > 0.05) creditors.push({ member, amount: rounded })
-      else if (rounded < -0.05) debtors.push({ member, amount: -rounded })
-    })
-
-    creditors.sort((a, b) => b.amount - a.amount)
-    debtors.sort((a, b) => b.amount - a.amount)
-
-    const simplifiedDebts = []
-    let cIdx = 0
-    let dIdx = 0
-
-    while (cIdx < creditors.length && dIdx < debtors.length) {
-      const cred = creditors[cIdx]
-      const deb = debtors[dIdx]
-      const settleAmt = Math.min(cred.amount, deb.amount)
-
-      if (settleAmt > 0.05) {
-        simplifiedDebts.push({
-          from: deb.member,
-          to: cred.member,
-          amount: Math.round(settleAmt * 100) / 100,
-        })
-      }
-
-      cred.amount -= settleAmt
-      deb.amount -= settleAmt
-
-      if (cred.amount <= 0.05) cIdx++
-      if (deb.amount <= 0.05) dIdx++
-    }
-
-    // Active viewer perspective
-    let youNet = 0
-    let youOwe = 0
-    let youAreOwed = 0
-
-    if (activeMemberId !== 'all') {
-      youNet = netBalances[activeMemberId] || 0
-      simplifiedDebts.forEach(d => {
-        if (d.from.id === activeMemberId) youOwe += d.amount
-        if (d.to.id === activeMemberId) youAreOwed += d.amount
-      })
-    }
-
-    return { netBalances, simplifiedDebts, totalSpend, youNet, youOwe, youAreOwed }
+    return calculateTripBalances(members, expenses, activeMemberId)
   }, [group, members, expenses, activeMemberId])
 
   // Dynamic Split Allocation Computations inside Expense Form
@@ -536,7 +516,15 @@ export default function SharedTripPage() {
     setShowExpenseModal(false)
     setEditExpenseTarget(null)
 
-    await updateSharedTripData(shareToken, { expenses: updatedExpenses, activities: updatedActs })
+    setSyncStatus('syncing')
+    const syncRes = await updateSharedTripData(shareToken, { expenses: updatedExpenses, activities: updatedActs })
+    if (syncRes?.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+    } else {
+      setSyncStatus('failed')
+      setHasPendingSync(true)
+    }
   }
 
   const handleDeleteExpense = async () => {
@@ -550,7 +538,15 @@ export default function SharedTripPage() {
     setDeleteExpenseTarget(null)
     flash('Expense removed.')
 
-    await updateSharedTripData(shareToken, { expenses: updated, activities: updatedActs })
+    setSyncStatus('syncing')
+    const syncRes = await updateSharedTripData(shareToken, { expenses: updated, activities: updatedActs })
+    if (syncRes?.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+    } else {
+      setSyncStatus('failed')
+      setHasPendingSync(true)
+    }
   }
 
   // --- Handlers: Settle Up ---
@@ -588,7 +584,15 @@ export default function SharedTripPage() {
     setSettleForm({ from_id: '', to_id: '', amount: '', notes: '' })
     flash(`Recorded settlement payment of ${formatCurrency(amt)}!`)
 
-    await updateSharedTripData(shareToken, { expenses: updated, activities: updatedActs })
+    setSyncStatus('syncing')
+    const syncRes = await updateSharedTripData(shareToken, { expenses: updated, activities: updatedActs })
+    if (syncRes?.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+    } else {
+      setSyncStatus('failed')
+      setHasPendingSync(true)
+    }
   }
 
   // --- Handler: Edit Trip Name, Icon & Description ---
@@ -627,12 +631,20 @@ export default function SharedTripPage() {
     setShowEditTripModal(false)
     flash(`Trip updated to "${newName}"!`)
 
-    await updateSharedTripData(shareToken, {
+    setSyncStatus('syncing')
+    const syncRes = await updateSharedTripData(shareToken, {
       name: newName,
       icon: newIcon,
       description: newDesc,
       activities: updatedActs,
     })
+    if (syncRes?.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+    } else {
+      setSyncStatus('failed')
+      setHasPendingSync(true)
+    }
   }
 
   // --- Handler: Add / Join as new member to this trip ---
@@ -659,7 +671,15 @@ export default function SharedTripPage() {
     handleSelectMember(newMember.id)
     flash(`Added "${newMember.name}" to trip members!`)
 
-    await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
+    setSyncStatus('syncing')
+    const syncRes = await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
+    if (syncRes?.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+    } else {
+      setSyncStatus('failed')
+      setHasPendingSync(true)
+    }
   }
 
   // --- Handler: Edit Member Name & Phone ---
@@ -689,7 +709,15 @@ export default function SharedTripPage() {
     setEditingMember(null)
     flash(`Member name updated to "${trimmedName}"!`)
 
-    await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
+    setSyncStatus('syncing')
+    const syncRes = await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
+    if (syncRes?.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+    } else {
+      setSyncStatus('failed')
+      setHasPendingSync(true)
+    }
   }
 
   // --- Handler: Delete Empty Member ---
@@ -713,16 +741,33 @@ export default function SharedTripPage() {
       handleSelectMember('all')
     }
     flash('Member removed.')
-    await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
+
+    setSyncStatus('syncing')
+    const syncRes = await updateSharedTripData(shareToken, { members: updatedMembers, activities: updatedActs })
+    if (syncRes?.synced) {
+      setSyncStatus('synced')
+      setHasPendingSync(false)
+    } else {
+      setSyncStatus('failed')
+      setHasPendingSync(true)
+    }
   }
 
-  // Handle Bill Receipt File Upload
+  // Handle Bill Receipt File Upload with validation
   const handleBillFileUpload = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (file.size > 8 * 1024 * 1024) {
-      setError('Bill file size must be less than 8MB.')
+    if (file.size <= 0 || file.size > 8 * 1024 * 1024) {
+      setError('Bill file size must be between 1 byte and 8MB.')
+      return
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'pdf']
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'application/pdf']
+    if (!allowedExts.includes(ext) || (file.type && !allowedMimes.includes(file.type.toLowerCase()))) {
+      setError('Please select a valid image (JPEG, PNG, WebP) or PDF receipt.')
       return
     }
 
@@ -852,8 +897,14 @@ export default function SharedTripPage() {
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  Live Trip Sync
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                  hasPendingSync
+                    ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                    : syncStatus === 'syncing'
+                    ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                    : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                }`}>
+                  {hasPendingSync ? 'Sync Pending' : syncStatus === 'syncing' ? 'Syncing...' : 'Live Trip Sync'}
                 </span>
               </div>
               <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate max-w-xs sm:max-w-md">
@@ -878,12 +929,36 @@ export default function SharedTripPage() {
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
             </button>
+            <button
+              onClick={() => setShowClearCacheModal(true)}
+              className="p-2 text-gray-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              title="Clear offline cache for this trip"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+        {/* Pending Sync Sticky Bar */}
+        {hasPendingSync && (
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 animate-pulse" />
+              <span><strong>Offline / Cloud sync pending:</strong> Changes are saved locally on this browser. Click to sync to cloud.</span>
+            </div>
+            <button
+              onClick={handleRetrySync}
+              disabled={syncStatus === 'syncing'}
+              className="btn btn-xs bg-amber-600 hover:bg-amber-700 text-white rounded-xl px-3 py-1.5 flex items-center gap-1.5 font-bold shadow-xs transition-colors"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
+              {syncStatus === 'syncing' ? 'Syncing...' : 'Retry Cloud Sync'}
+            </button>
+          </div>
+        )}
         {/* Alerts */}
         {success && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs">
@@ -2095,6 +2170,17 @@ export default function SharedTripPage() {
         danger
         onConfirm={handleDeleteExpense}
         onCancel={() => setDeleteExpenseTarget(null)}
+      />
+
+      {/* 10. CLEAR CACHE CONFIRM DIALOG */}
+      <ConfirmDialog
+        isOpen={showClearCacheModal}
+        title="Clear Local Trip Cache"
+        message="Are you sure you want to clear the locally cached trip ledger and pending offline sync changes on this device? (Cloud data remains intact)"
+        confirmLabel="Clear Cache"
+        danger
+        onConfirm={handleClearCache}
+        onCancel={() => setShowClearCacheModal(false)}
       />
     </div>
   )

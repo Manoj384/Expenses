@@ -5,6 +5,7 @@ import AiVoiceChatbotModal from './AiVoiceChatbotModal'
 import CreditCardSmartPayerModal from './CreditCardSmartPayerModal'
 import AiAnomalySentinelModal from './AiAnomalySentinelModal'
 import TelegramWhatsAppBotModal from './TelegramWhatsAppBotModal'
+import AiMaintenanceWidget from './AiMaintenanceWidget'
 import {
   Sparkles,
   SunMedium,
@@ -13,6 +14,7 @@ import {
   ShieldAlert,
   Bot,
   Zap,
+  Brain,
 } from 'lucide-react'
 
 export default function AiFinancialCopilotModal({
@@ -37,6 +39,7 @@ export default function AiFinancialCopilotModal({
     { id: 'cards',    label: 'Card Float & Perks', icon: CreditCard, color: 'text-amber-500' },
     { id: 'sentinel', label: 'Anomaly Sentinel',  icon: ShieldAlert, color: 'text-rose-500' },
     { id: 'bot',      label: 'Telegram & WA Bot', icon: Bot,         color: 'text-sky-500' },
+    { id: 'maintenance', label: 'Learning Engine', icon: Brain,       color: 'text-indigo-400' },
   ]
 
   return (
@@ -96,6 +99,12 @@ export default function AiFinancialCopilotModal({
           {activeTab === 'bot' && (
             <div className="space-y-3">
               <BotSyncContent onClose={onClose} />
+            </div>
+          )}
+
+          {activeTab === 'maintenance' && (
+            <div className="space-y-3">
+              <AiMaintenanceWidget />
             </div>
           )}
         </div>
