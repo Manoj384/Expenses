@@ -31,6 +31,20 @@ export default function AiReceiptScannerModal({ isOpen, onClose, onApplyExtracte
     const selected = e.target.files?.[0]
     if (!selected) return
 
+    const MAX_RECEIPT_SIZE = 8 * 1024 * 1024 // 8 MB
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'application/pdf']
+
+    if (selected.size > MAX_RECEIPT_SIZE) {
+      setError('Receipt files must be 8 MB or smaller.')
+      return
+    }
+
+    const fileType = (selected.type || '').toLowerCase()
+    if (fileType && !ALLOWED_TYPES.includes(fileType)) {
+      setError('Please select a valid image (JPEG, PNG, WEBP) or PDF receipt.')
+      return
+    }
+
     setError('')
     setScanResult(null)
     setFile(selected)

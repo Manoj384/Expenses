@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -49,7 +49,7 @@ import { useAdmin } from '../context/AdminContext'
 import { useTheme } from '../context/ThemeContext'
 import { useDesktopMode } from '../context/DesktopModeContext'
 import { useToast } from '../context/ToastContext'
-import AdminLockModal from './AdminLockModal'
+const AdminLockModal = lazy(() => import('./AdminLockModal'))
 
 const NAV_SECTIONS = [
   {
@@ -461,10 +461,12 @@ export default function Sidebar({
         </div>
       )}
 
-      <AdminLockModal
-        isOpen={showAdminModal}
-        onClose={() => setShowAdminModal(false)}
-      />
+      <Suspense fallback={null}>
+        <AdminLockModal
+          isOpen={showAdminModal}
+          onClose={() => setShowAdminModal(false)}
+        />
+      </Suspense>
     </>
   )
 }

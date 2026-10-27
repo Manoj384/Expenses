@@ -95,12 +95,13 @@ CREATE POLICY "Public Read emc_standards" ON emc_standards FOR SELECT USING (tru
 CREATE POLICY "Public Read emc_test_setups" ON emc_test_setups FOR SELECT USING (true);
 CREATE POLICY "Public Read emc_limit_curves" ON emc_limit_curves FOR SELECT USING (true);
 
--- Authenticated / Public CRUD Policies for Documents & Test Runs
-CREATE POLICY "Public Read emc_documents" ON emc_documents FOR SELECT USING (true);
-CREATE POLICY "Public Insert emc_documents" ON emc_documents FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Update emc_documents" ON emc_documents FOR UPDATE USING (true);
+-- User-Owned CRUD Policies for Documents & Test Runs (Scoped strictly to auth.uid() = user_id)
+CREATE POLICY "Owner read emc_documents" ON emc_documents FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Owner insert emc_documents" ON emc_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Owner update emc_documents" ON emc_documents FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Owner delete emc_documents" ON emc_documents FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY "Public Read emc_test_runs" ON emc_test_runs FOR SELECT USING (true);
-CREATE POLICY "Public Insert emc_test_runs" ON emc_test_runs FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Update emc_test_runs" ON emc_test_runs FOR UPDATE USING (true);
-CREATE POLICY "Public Delete emc_test_runs" ON emc_test_runs FOR DELETE USING (true);
+CREATE POLICY "Owner read emc_test_runs" ON emc_test_runs FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Owner insert emc_test_runs" ON emc_test_runs FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Owner update emc_test_runs" ON emc_test_runs FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Owner delete emc_test_runs" ON emc_test_runs FOR DELETE USING (auth.uid() = user_id);

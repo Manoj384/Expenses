@@ -684,6 +684,10 @@ export default function MutualFunds() {
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
+      setError('Portfolio imports must be between 1 byte and 10 MB.')
+      return
+    }
 
     try {
       const fileName = file.name.toLowerCase()

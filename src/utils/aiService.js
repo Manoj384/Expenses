@@ -1,92 +1,33 @@
 /**
  * AI Service Engine
- * Powers:
- * 1. AI Receipt & Bill Auto-Scanner (Gemini Vision OCR)
- * 2. Bank & OneCard Statement Multi-Transaction Detector
- * 3. "Ask AI" Financial Advisor & Wealth Copilot
- * 
- * Works 100% Free with Google Gemini API (No subscription required).
- * Also features local smart fallback when no API key is provided.
+ * Powers receipt scanning, statement extraction, and financial advice.
+ * Provider credentials are kept exclusively in the authenticated ai-gateway
+ * Supabase Edge Function and are never available to browser code.
  */
 
 import { supabase } from '../lib/supabaseClient'
 import { buildHabitContextPrompt } from './habitMemory.js'
 
-// AI provider credentials are server-only Supabase Edge Function secrets.
-// Kept as compatibility helpers while legacy UI settings are removed.
+// Compatibility helpers for legacy UI settings. API credentials are server-managed.
 export const getGeminiApiKey = () => ''
 export const setGeminiApiKey = () => {}
 export const getAiModel = () => 'server-managed'
 export const setAiModel = () => {}
 
-const CANDIDATE_MODELS = ['gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest']
-
-async function callGeminiDirect(prompt, inlineData = null, systemInstruction = null, apiKey) {
-  const parts = [{ text: prompt }]
-  if (inlineData?.base64Data) {
-    const match = inlineData.base64Data.match(/^data:([^;]+);base64,(.*)$/)
-    parts.unshift({
-      inline_data: {
-        mime_type: match?.[1] || inlineData.mimeType || 'image/jpeg',
-        data: match?.[2] || inlineData.base64Data,
-      },
-    })
-  }
-
-  for (const model of CANDIDATE_MODELS) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts }],
-          ...(systemInstruction ? { system_instruction: { parts: [{ text: systemInstruction }] } } : {}),
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 1024,
-          },
-        }),
-      })
-
-      if (!res.ok) continue
-      const body = await res.json()
-      const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('').trim()
-      if (text) return text
-    } catch {
-      // try next model
-    }
-  }
-
-  throw new Error('All available Gemini AI models are currently busy. Please try again.')
-}
-
-/**
- * Call AI Provider (Google Gemini with Server Gateway & Local Cascading Fallback)
- */
 async function callAi(prompt, inlineData = null, systemInstruction = null) {
-  // 1. Try secure Edge Function first
-  try {
-    const { data, error } = await supabase.functions.invoke('ai-gateway', {
-      body: {
-        prompt,
-        systemInstruction,
-        inlineData: inlineData || undefined,
-      },
-    })
-    if (!error && data?.text) {
-      return data.text
-    }
-  } catch (edgeErr) {
-    console.warn('Edge function ai-gateway unavailable, falling back to direct provider:', edgeErr?.message)
+  const { data, error } = await supabase.functions.invoke('ai-gateway', {
+    body: {
+      prompt,
+      systemInstruction,
+      inlineData: inlineData || undefined,
+    },
+  })
+
+  if (error || !data?.text) {
+    throw new Error(error?.message || data?.error || 'AI service is currently unavailable.')
   }
 
-  // 2. Direct fallback using environment key (e.g. for localhost / dev environments)
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY
-  if (apiKey) {
-    return await callGeminiDirect(prompt, inlineData, systemInstruction, apiKey)
-  }
-
-  throw new Error('AI service is currently unavailable.')
+  return data.text
 }
 
 async function callGemini(prompt, inlineData = null, systemInstruction = null) {

@@ -209,12 +209,11 @@ export default function Splitwise() {
   // --- Supabase Cloud Sync for Groups & Friends ---
   const loadSupabaseGroups = useCallback(async () => {
     try {
-      let query = supabase.from('shared_splitwise_groups').select('*')
-      if (user?.id) {
-        query = query.or(`owner_id.eq.${user.id},owner_id.is.null`)
-      }
-
-      const { data, error: fetchErr } = await query
+      if (!user?.id) return
+      const { data, error: fetchErr } = await supabase
+        .from('shared_splitwise_groups')
+        .select('*')
+        .eq('owner_id', user.id)
       if (!fetchErr && data && data.length > 0) {
         setGroups(prevLocal => {
           const map = new Map()
@@ -303,38 +302,10 @@ export default function Splitwise() {
     } catch {}
   }, [user?.id])
 
-  // Real-time synchronization with Supabase shared_splitwise_groups
+  // Owner-only RLS protects these records. Refresh when the authenticated user changes.
   useEffect(() => {
     loadSupabaseGroups()
-
-    const channel = supabase
-      .channel('realtime-splitwise-groups-sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shared_splitwise_groups' },
-        (payload) => {
-          if (payload.new) {
-            setGroups(prev => {
-              const exists = prev.some(g => g.id === payload.new.id)
-              const updated = exists
-                ? prev.map(g => g.id === payload.new.id ? payload.new : g)
-                : [payload.new, ...prev]
-              try {
-                localStorage.setItem(storageGroupsKey, JSON.stringify(updated))
-              } catch {}
-              return updated
-            })
-          } else if (payload.eventType === 'DELETE' && payload.old) {
-            setGroups(prev => prev.filter(g => g.id !== payload.old.id))
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [loadSupabaseGroups, storageGroupsKey])
+  }, [loadSupabaseGroups])
 
   // --- Navigation & View Mode State ---
   // view: 'dashboard' | 'recent_activity' | 'all_expenses' | 'group' | 'friend'

@@ -47,10 +47,8 @@ import {
   fetchSharedGroupByToken,
   updateSharedTripData,
   publishOrSyncSharedGroup,
-  parseGroupMetadata,
   serializeGroupMetadata,
 } from '../features/splitwise/api/sharedTripService'
-import { supabase } from '../lib/supabaseClient'
 import {
   getExpenseCategoryVisuals,
   groupExpensesByMonth,
@@ -179,36 +177,14 @@ export default function SharedTripPage() {
     loadGroupData()
   }, [loadGroupData])
 
-  // Realtime subscription + background poll to sync multi-user edits
+  // Shared links use the token-scoped Edge Function rather than direct table
+  // subscriptions. Polling keeps collaborative views fresh without exposing rows.
   useEffect(() => {
     if (!shareToken) return
-
-    const channel = supabase
-      .channel(`realtime-shared-${shareToken}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shared_splitwise_groups', filter: `share_token=eq.${shareToken}` },
-        (payload) => {
-          if (payload.new && Date.now() - lastLocalEditRef.current >= 4000) {
-            const meta = parseGroupMetadata(payload.new.description)
-            setGroup({
-              ...payload.new,
-              description: meta.description,
-              activities: meta.activities,
-            })
-          }
-        }
-      )
-      .subscribe()
-
     const interval = setInterval(() => {
       loadGroupData(true)
-    }, 6000)
-
-    return () => {
-      supabase.removeChannel(channel)
-      clearInterval(interval)
-    }
+    }, 10_000)
+    return () => clearInterval(interval)
   }, [shareToken, loadGroupData])
 
   // Save selected member identity

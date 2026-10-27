@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import Modal from './Modal'
 import * as pdfjsLib from 'pdfjs-dist'
-import * as XLSX from 'xlsx'
+import { parseBankStatementFile } from '../utils/statementParser'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import confetti from 'canvas-confetti'
@@ -20,6 +20,23 @@ import {
 
 // Configure PDF worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+
+const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024
+const MAX_PDF_PAGES = 100
+const MAX_PARSED_TRANSACTIONS = 2_000
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'xlsx', 'xls', 'csv'])
+
+function validateStatementFile(file) {
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  if (!extension || !ALLOWED_EXTENSIONS.has(extension)) {
+    throw new Error('Please upload a PDF, Excel (.xlsx, .xls), or CSV statement.')
+  }
+  if (file.size <= 0) throw new Error('The selected file is empty.')
+  if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+    throw new Error('Statements must be 10 MB or smaller.')
+  }
+  return extension
+}
 
 export default function BankStatementImportModal({ isOpen, onClose, onTransactionsImported }) {
   const { user } = useAuth()
@@ -44,23 +61,28 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
     setSelectedIndices(new Set())
 
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase()
-      let rows = []
-
-      if (ext === 'pdf') {
-        rows = await parsePdfStatement(file)
-      } else if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
-        rows = await parseExcelStatement(file)
-      } else {
-        throw new Error('Please upload a valid PDF, Excel (.xlsx, .xls) or CSV statement.')
-      }
+      const extension = validateStatementFile(file)
+      const rows = extension === 'pdf'
+        ? await parsePdfStatement(file)
+        : await parseBankStatementFile(await file.arrayBuffer())
 
       if (rows.length === 0) {
         throw new Error('No transactions found in this statement. Please check the file format.')
       }
 
-      setParsedRows(rows)
-      setSelectedIndices(new Set(rows.map((_, i) => i)))
+      const normalizedRows = rows.slice(0, MAX_PARSED_TRANSACTIONS).map((row) => ({
+        date: row.date,
+        amount: row.amount,
+        type: row.type,
+        note: row.note || row.description || 'Bank Transaction',
+        category: row.category || row.suggested_category || 'Other',
+      }))
+      if (rows.length > MAX_PARSED_TRANSACTIONS) {
+        setError(`Only the first ${MAX_PARSED_TRANSACTIONS.toLocaleString()} transactions were loaded.`)
+      }
+
+      setParsedRows(normalizedRows)
+      setSelectedIndices(new Set(normalizedRows.map((_, i) => i)))
     } catch (err) {
       setError(err.message || 'Failed to parse bank statement.')
     } finally {
@@ -72,6 +94,9 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
   const parsePdfStatement = async (file) => {
     const arrayBuffer = await file.arrayBuffer()
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    if (pdf.numPages > MAX_PDF_PAGES) {
+      throw new Error(`PDF statements are limited to ${MAX_PDF_PAGES} pages.`)
+    }
     let fullText = ''
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
@@ -82,25 +107,6 @@ export default function BankStatementImportModal({ isOpen, onClose, onTransactio
     }
 
     return extractTransactionsFromText(fullText)
-  }
-
-  // Parse Excel / CSV Statement
-  const parseExcelStatement = async (file) => {
-    const buffer = await file.arrayBuffer()
-    const workbook = XLSX.read(buffer, { type: 'array' })
-    const firstSheetName = workbook.SheetNames[0]
-    const worksheet = workbook.Sheets[firstSheetName]
-    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
-
-    const rows = []
-    for (const r of json) {
-      if (!r || r.length < 3) continue
-      const rowStr = r.join(' ')
-      const tx = parseTransactionLine(rowStr)
-      if (tx) rows.push(tx)
-    }
-
-    return rows
   }
 
   // Extract from raw PDF text using regex pattern matching

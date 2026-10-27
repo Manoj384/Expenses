@@ -1,14 +1,19 @@
+const MAX_SPREADSHEET_BYTES = 10 * 1024 * 1024
+const MAX_SPREADSHEET_ROWS = 10_000
+
 /**
- * Parse Groww Excel (.xlsx / .xls) file binary buffer or ArrayBuffer
+ * Parse a Groww Excel (.xlsx / .xls) file with bounded input size and rows.
+ * Spreadsheet parsing is retained for compatibility; only trusted broker exports
+ * should be imported until the vulnerable xlsx dependency can be replaced.
  */
 export async function parseGrowwExcel(arrayBuffer) {
-  if (!arrayBuffer) return []
+  if (!arrayBuffer || arrayBuffer.byteLength > MAX_SPREADSHEET_BYTES) return []
   try {
     const XLSX = await import('xlsx')
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', dense: true })
     const sheetName = workbook.SheetNames.find(s => s.toLowerCase().includes('holding')) || workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }).slice(0, MAX_SPREADSHEET_ROWS)
 
     const holdings = []
     let headerFound = false

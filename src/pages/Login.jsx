@@ -1,13 +1,17 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Wallet } from 'lucide-react'
+import { supabase } from '../lib/supabaseClient'
+import { Wallet, Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
   const { user, login, loading } = useAuth()
   const [form, setForm]         = useState({ email: '', password: '' })
   const [error, setError]       = useState('')
+  const [info, setInfo]         = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [resettingPassword, setResettingPassword] = useState(false)
 
   // Already logged in
   if (!loading && user) return <Navigate to="/" replace />
@@ -15,19 +19,49 @@ export default function Login() {
   const handleChange = (e) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
     setError('')
+    setInfo('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setInfo('')
     if (!form.email || !form.password) { setError('Email and password are required.'); return }
     setSubmitting(true)
     try {
       await login({ email: form.email, password: form.password })
-    } catch {
-      setError('Invalid email or password.')
+    } catch (err) {
+      const msg = err?.message || ''
+      if (msg.toLowerCase().includes('rate limit')) {
+        setError('Too many login attempts. Please wait a moment and try again.')
+      } else if (msg.toLowerCase().includes('email not confirmed')) {
+        setError('Please check your inbox to confirm your email before logging in.')
+      } else {
+        setError('Invalid email or password.')
+      }
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleForgotPassword = async () => {
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setError('Please enter your valid email address first to reset your password.')
+      return
+    }
+    setResettingPassword(true)
+    setError('')
+    setInfo('')
+    try {
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(form.email, {
+        redirectTo: `${window.location.origin}/login`,
+      })
+      if (resetErr) throw resetErr
+      setInfo('Password reset link sent! Please check your email inbox.')
+    } catch (err) {
+      setError(err?.message || 'Unable to send password reset email. Please try again.')
+    } finally {
+      setResettingPassword(false)
     }
   }
 
@@ -49,6 +83,11 @@ export default function Login() {
               {error}
             </div>
           )}
+          {info && (
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-4 py-3 rounded-lg mb-4" role="status">
+              {info}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
@@ -67,18 +106,38 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                className="input-field"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-              />
+              <div className="flex items-center justify-between mb-1">
+                <label className="label mb-0" htmlFor="password">Password</label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={resettingPassword}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  {resettingPassword ? 'Sending link...' : 'Forgot password?'}
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className="input-field pr-10"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <button

@@ -1,3 +1,6 @@
+const MAX_SPREADSHEET_BYTES = 10 * 1024 * 1024
+const MAX_SPREADSHEET_ROWS = 10_000
+
 // Auto-categorization merchant keyword mapping
 const CATEGORY_MAP = [
   { match: ['swiggy', 'zomato', 'mcdonald', 'kfc', 'domino', 'starbucks', 'cafe', 'restaurant', 'food', 'hotel', 'eats', 'blinkit', 'zepto', 'instamart'], category: 'Food & Dining' },
@@ -24,13 +27,13 @@ export function guessCategory(description = '', amount = 0) {
  * Parse Bank/Card Excel or CSV Buffer
  */
 export async function parseBankStatementFile(arrayBuffer) {
-  if (!arrayBuffer) return []
+  if (!arrayBuffer || arrayBuffer.byteLength > MAX_SPREADSHEET_BYTES) return []
   try {
     const XLSX = await import('xlsx')
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', dense: true })
     const sheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[sheetName]
-    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false }).slice(0, MAX_SPREADSHEET_ROWS)
 
     const transactions = []
     let headerIdx = -1

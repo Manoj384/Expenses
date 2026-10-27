@@ -7,10 +7,8 @@ export default function SplitwisePrintableSummaryModal({ isOpen, onClose, group 
   const [activeTab, setActiveTab] = useState('matrix') // 'matrix' | 'members'
   const [selectedMemberId, setSelectedMemberId] = useState('all')
 
-  if (!group) return null
-
-  const members = group.members || []
-  const rawExpenses = group.expenses || []
+  const members = group?.members || []
+  const rawExpenses = group?.expenses || []
 
   // Ensure chronological order (oldest to newest for statement matrix)
   const sortedExpenses = useMemo(() => {
@@ -136,6 +134,8 @@ export default function SplitwisePrintableSummaryModal({ isOpen, onClose, group 
     a.click()
     URL.revokeObjectURL(url)
   }
+
+  if (!isOpen || !group) return null
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="" size="4xl">

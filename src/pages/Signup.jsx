@@ -1,21 +1,33 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Wallet } from 'lucide-react'
+import { Wallet, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 
 export default function Signup() {
   const { user, signup, loading } = useAuth()
-  const [form, setForm] = useState({ email: '', password: '', confirm: '' })
+  const [form, setForm]         = useState({ email: '', password: '', confirm: '' })
   const [error, setError]       = useState('')
   const [success, setSuccess]   = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const passwordStrength = useMemo(() => {
+    const p = form.password
+    if (!p) return { score: 0, label: '', color: '' }
+    let score = 0
+    if (p.length >= 6) score += 1
+    if (p.length >= 8) score += 1
+    if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score += 1
+    if (/[0-9]/.test(p)) score += 1
+    if (/[^A-Za-z0-9]/.test(p)) score += 1
+
+    if (score <= 2) return { score, label: 'Weak', color: 'bg-rose-500 text-rose-600' }
+    if (score <= 4) return { score, label: 'Moderate', color: 'bg-amber-500 text-amber-600' }
+    return { score, label: 'Strong', color: 'bg-emerald-500 text-emerald-600' }
+  }, [form.password])
 
   if (!loading && user) return <Navigate to="/" replace />
-
-  const handleChange = (e) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
-    setError('')
-  }
 
   const validate = () => {
     if (!form.email) return 'Email is required.'
@@ -38,8 +50,15 @@ export default function Signup() {
       await signup({ email: form.email, password: form.password })
       setSuccess('Account created! Please check your email to confirm your account, then sign in.')
       setForm({ email: '', password: '', confirm: '' })
-    } catch {
-      setError('Unable to create account. Please check your email and password.')
+    } catch (err) {
+      const msg = err?.message || ''
+      if (msg.toLowerCase().includes('already registered')) {
+        setError('This email is already registered. Please sign in or use forgot password.')
+      } else if (msg.toLowerCase().includes('rate limit')) {
+        setError('Too many sign-up attempts. Please wait a few minutes.')
+      } else {
+        setError(msg || 'Unable to create account. Please check your email and password.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -64,8 +83,9 @@ export default function Signup() {
             </div>
           )}
           {success && (
-            <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg mb-4" role="status">
-              {success}
+            <div className="bg-green-50 border border-green-200 text-green-700 text-sm px-4 py-3 rounded-lg mb-4 flex items-center gap-2" role="status">
+              <ShieldCheck className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+              <span>{success}</span>
             </div>
           )}
 
@@ -87,32 +107,68 @@ export default function Signup() {
 
             <div>
               <label className="label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                className="input-field"
-                value={form.password}
-                onChange={handleChange}
-                placeholder="Min. 6 characters"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  className="input-field pr-10"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="Min. 6 characters"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+
+              {/* Password strength indicator */}
+              {form.password && (
+                <div className="mt-1.5 space-y-1">
+                  <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden flex">
+                    <div
+                      className={`h-full transition-all duration-300 ${passwordStrength.color.split(' ')[0]}`}
+                      style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-gray-400">
+                    <span>Password Strength</span>
+                    <span className={`font-semibold ${passwordStrength.color.split(' ')[1]}`}>{passwordStrength.label}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
               <label className="label" htmlFor="confirm">Confirm Password</label>
-              <input
-                id="confirm"
-                name="confirm"
-                type="password"
-                autoComplete="new-password"
-                className="input-field"
-                value={form.confirm}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="confirm"
+                  name="confirm"
+                  type={showConfirm ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  className="input-field pr-10"
+                  value={form.confirm}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
 
             <button

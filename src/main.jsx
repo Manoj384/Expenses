@@ -6,7 +6,23 @@ import App from './App.jsx'
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        reg.addEventListener('updatefound', () => {
+          const installingWorker = reg.installing
+          if (installingWorker) {
+            installingWorker.addEventListener('statechange', () => {
+              if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                console.info('[PWA] New version available; reload to update.')
+              }
+            })
+          }
+        })
+      })
+      .catch((err) => {
+        console.warn('[PWA] Service worker registration failed:', err)
+      })
   })
 }
 

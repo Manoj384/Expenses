@@ -17,6 +17,12 @@ function isUuid(id) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
 }
 
+async function getCurrentUserId() {
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user?.id) throw new Error('You must be signed in to access private EMC records.')
+  return user.id
+}
+
 export const emcDatabaseService = {
   /**
    * Fetch All EMC Standards (from Supabase with Local Cache Fallback)
@@ -96,9 +102,11 @@ export const emcDatabaseService = {
    */
   async getDocuments() {
     try {
+      const userId = await getCurrentUserId()
       const { data, error } = await supabase
         .from('emc_documents')
         .select('*')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
       if (!error && data && data.length > 0) {
@@ -117,8 +125,10 @@ export const emcDatabaseService = {
    * Ingest and Save Extracted PDF Document metadata
    */
   async saveDocument(doc) {
+    const userId = await getCurrentUserId()
     const docToSave = {
       ...doc,
+      user_id: userId,
       created_at: doc.created_at || new Date().toISOString(),
     }
 
@@ -150,9 +160,11 @@ export const emcDatabaseService = {
    */
   async getTestRuns() {
     try {
+      const userId = await getCurrentUserId()
       const { data, error } = await supabase
         .from('emc_test_runs')
         .select('*')
+        .eq('user_id', userId)
         .order('test_date', { ascending: false })
 
       if (!error && data && data.length > 0) {
@@ -171,8 +183,10 @@ export const emcDatabaseService = {
    * Save a Lab Test Measurement Run
    */
   async saveTestRun(run) {
+    const userId = await getCurrentUserId()
     const runToSave = {
       ...run,
+      user_id: userId,
       id: run.id && isUuid(run.id) ? run.id : undefined,
       test_date: run.test_date || new Date().toISOString().split('T')[0],
     }

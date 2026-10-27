@@ -31,7 +31,7 @@ export default class ErrorBoundary extends React.Component {
             <p className="text-sm text-gray-600 mb-6">
               Your financial data is completely safe in your cloud database. Please reload the application.
             </p>
-            {this.state.error?.message && (
+            {import.meta.env.DEV && this.state.error?.message && (
               <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg text-left font-mono mb-6 overflow-x-auto">
                 {this.state.error.message}
               </div>

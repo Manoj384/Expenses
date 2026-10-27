@@ -11,6 +11,8 @@ const allowedOrigins = new Set([
 
 const MAX_PROMPT_LENGTH = 20_000
 const MAX_INLINE_DATA_LENGTH = 7_000_000
+const MAX_REQUEST_BODY_BYTES = 10 * 1024 * 1024 // 10MB
+const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
 const CANDIDATE_MODELS = ['gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest']
 
 function corsHeaders(origin: string | null) {
@@ -29,6 +31,12 @@ serve(async (request) => {
   if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'Method not allowed.' }), { status: 405, headers })
   if (!supabaseUrl || !supabaseAnonKey || !geminiApiKey) {
     return new Response(JSON.stringify({ error: 'AI gateway is not configured.' }), { status: 503, headers })
+  }
+
+  // Pre-parse request body size validation
+  const contentLength = Number(request.headers.get('content-length') || '0')
+  if (contentLength > MAX_REQUEST_BODY_BYTES) {
+    return new Response(JSON.stringify({ error: 'Request body exceeds maximum allowed size (10 MB).' }), { status: 413, headers })
   }
 
   const authorization = request.headers.get('Authorization')
@@ -56,9 +64,14 @@ serve(async (request) => {
         return new Response(JSON.stringify({ error: 'Attachment is too large for AI processing.' }), { status: 413, headers })
       }
       const match = inlineData.base64Data.match(/^data:([^;]+);base64,(.*)$/)
+      const mime = match?.[1] || inlineData.mimeType || 'image/jpeg'
+      if (!ALLOWED_MIME_TYPES.has(mime.toLowerCase())) {
+        return new Response(JSON.stringify({ error: 'Unsupported attachment type. Allowed: JPEG, PNG, WEBP, PDF.' }), { status: 400, headers })
+      }
+
       parts.unshift({
         inline_data: {
-          mime_type: match?.[1] || inlineData.mimeType || 'image/jpeg',
+          mime_type: mime,
           data: match?.[2] || inlineData.base64Data,
         },
       })
@@ -66,12 +79,16 @@ serve(async (request) => {
 
     let lastError = null
     for (const model of CANDIDATE_MODELS) {
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => abortController.abort(), 20_000)
+
       try {
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: abortController.signal,
             body: JSON.stringify({
               contents: [{ role: 'user', parts }],
               ...(typeof systemInstruction === 'string' && systemInstruction.length <= MAX_PROMPT_LENGTH
@@ -84,6 +101,7 @@ serve(async (request) => {
             }),
           },
         )
+        clearTimeout(timeoutId)
 
         if (!response.ok) {
           const body = await response.json().catch(() => ({}))
@@ -98,11 +116,12 @@ serve(async (request) => {
           return new Response(JSON.stringify({ text }), { status: 200, headers })
         }
       } catch (err) {
+        clearTimeout(timeoutId)
         lastError = err instanceof Error ? err.message : 'Fetch failed'
       }
     }
 
-    return new Response(JSON.stringify({ error: lastError || 'The AI provider could not complete this request.' }), { status: 502, headers })
+    return new Response(JSON.stringify({ error: 'The AI provider could not complete this request.' }), { status: 502, headers })
   } catch (error) {
     console.error('AI gateway error', error instanceof Error ? error.message : 'Unknown error')
     return new Response(JSON.stringify({ error: 'Unable to process the AI request.' }), { status: 500, headers })

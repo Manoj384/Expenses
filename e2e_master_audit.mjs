@@ -348,6 +348,32 @@ test('SEC-06-02', '.gitignore properly ignores .env, .env.local, and build artif
   }
 })
 
+test('SEC-06-03', 'Browser AI client never contains a VITE provider-key fallback', () => {
+  const aiService = fs.readFileSync(path.join(__dirname, 'src', 'utils', 'aiService.js'), 'utf8')
+  const renderConfig = fs.readFileSync(path.join(__dirname, 'render.yaml'), 'utf8')
+  expect(aiService).toNotContain('VITE_GEMINI_API_KEY')
+  expect(aiService).toNotContain('generativelanguage.googleapis.com')
+  expect(renderConfig).toNotContain('key: VITE_GEMINI_API_KEY')
+})
+
+test('SEC-06-04', 'Shared trip rows are owner-only and link access uses an Edge Function', () => {
+  const migration = fs.readFileSync(path.join(__dirname, 'supabase', 'migrations', '011_phase1_security_hardening.sql'), 'utf8')
+  const service = fs.readFileSync(path.join(__dirname, 'src', 'features', 'splitwise', 'api', 'sharedTripService.js'), 'utf8')
+  const edgeFunction = fs.readFileSync(path.join(__dirname, 'supabase', 'functions', 'shared-trip', 'index.ts'), 'utf8')
+  expect(migration).toContain('USING (auth.uid() = owner_id)')
+  expect(migration).toNotContain('USING (true)')
+  expect(service).toContain("functions.invoke('shared-trip'")
+  expect(edgeFunction).toContain('SUPABASE_SERVICE_ROLE_KEY')
+})
+
+test('SEC-06-05', 'EMC documents and test runs use authenticated owner RLS policies', () => {
+  const migration = fs.readFileSync(path.join(__dirname, 'supabase', 'migrations', '011_phase1_security_hardening.sql'), 'utf8')
+  expect(migration).toContain('CREATE POLICY "emc_documents_owner_all"')
+  expect(migration).toContain('CREATE POLICY "emc_test_runs_owner_all"')
+  expect(migration).toContain('USING (auth.uid() = user_id)')
+})
+
+
 // =============================================================================
 // SECTION 7: FINANCIAL MATH PRECISION & DATASET INTEGRITY
 // =============================================================================

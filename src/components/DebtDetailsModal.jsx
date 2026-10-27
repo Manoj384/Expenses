@@ -39,14 +39,20 @@ export default function DebtDetailsModal({
   onDeleteDebt,
   onReopenDebt,
 }) {
-  if (!isOpen || !debt) return null
-
   const [editingRepId, setEditingRepId] = useState(null)
   const [editForm, setEditForm] = useState({ amount: '', notes: '', date: '' })
   const [deleteConfirmRepId, setDeleteConfirmRepId] = useState(null)
   const [confirmDeleteDebt, setConfirmDeleteDebt] = useState(false)
   const [reopenPromptOpen, setReopenPromptOpen] = useState(false)
-  const [reopenAmount, setReopenAmount] = useState(String(debt.principal || ''))
+  const [reopenAmount, setReopenAmount] = useState('')
+
+  useEffect(() => {
+    if (debt?.principal) {
+      setReopenAmount(String(debt.principal))
+    }
+  }, [debt?.principal])
+
+  if (!isOpen || !debt) return null
 
   const isCleared = debt.status === 'cleared' || Number(debt.outstanding) <= 0
   const isLent = debt.debt_type === 'lent'

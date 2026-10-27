@@ -13,11 +13,16 @@ supabase secrets set TELEGRAM_ALLOWED_CHAT_ID="your-telegram-chat-id"
 supabase secrets set TELEGRAM_FINANCE_USER_ID="the-auth-users-uuid-to-link"
 ```
 
-Deploy the protected AI gateway:
+Deploy the protected AI gateway and token-scoped shared-trip service:
 
 ```bash
 supabase functions deploy ai-gateway
+# Shared links are intentionally capability-based, so this endpoint accepts
+# unauthenticated visitors but authorizes only an exact high-entropy share token.
+supabase functions deploy shared-trip --no-verify-jwt
 ```
+
+Then apply every migration, including `supabase/migrations/011_phase1_security_hardening.sql`, through your normal Supabase migration workflow. Do not deploy the frontend before the migration and shared-trip function are live.
 
 Deploy Telegram only after all four Telegram secrets above are present. Configure Telegram with the same secret token:
 

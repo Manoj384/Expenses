@@ -100,23 +100,51 @@ export default function DataBackupModal({ isOpen, onClose }) {
         if (!json.data) throw new Error('Invalid backup file format.')
 
         if (user) {
-          // Restore transactions if present
+          // 1. Restore transactions
           if (json.data.transactions?.length > 0) {
             for (const t of json.data.transactions) {
               const { id, created_at, ...rest } = t
               await supabase.from('transactions').upsert({ ...rest, user_id: user.id })
             }
           }
-          // Restore mutual funds
+          // 2. Restore mutual funds
           if (json.data.mutual_funds?.length > 0) {
             for (const m of json.data.mutual_funds) {
               const { id, created_at, ...rest } = m
               await supabase.from('mutual_funds').upsert({ ...rest, user_id: user.id })
             }
           }
+          // 3. Restore SIPs
+          if (json.data.sips?.length > 0) {
+            for (const s of json.data.sips) {
+              const { id, created_at, ...rest } = s
+              await supabase.from('sips').upsert({ ...rest, user_id: user.id })
+            }
+          }
+          // 4. Restore Debts
+          if (json.data.debts?.length > 0) {
+            for (const d of json.data.debts) {
+              const { id, created_at, ...rest } = d
+              await supabase.from('debts').upsert({ ...rest, user_id: user.id })
+            }
+          }
+          // 5. Restore Goals
+          if (json.data.goals?.length > 0) {
+            for (const g of json.data.goals) {
+              const { id, created_at, ...rest } = g
+              await supabase.from('goals').upsert({ ...rest, user_id: user.id })
+            }
+          }
+          // 6. Restore Budgets
+          if (json.data.budgets?.length > 0) {
+            for (const b of json.data.budgets) {
+              const { id, created_at, ...rest } = b
+              await supabase.from('budgets').upsert({ ...rest, user_id: user.id })
+            }
+          }
         }
 
-        toastSuccess(`Successfully restored database from backup!`)
+        toastSuccess(`Successfully restored all database collections from backup!`)
         onClose()
       } catch (err) {
         toastError(err?.message || 'Failed to parse backup JSON file.')
@@ -134,7 +162,7 @@ export default function DataBackupModal({ isOpen, onClose }) {
           <Database className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
           <div>
             <strong className="block font-semibold mb-0.5">100% Data Safety & Portability</strong>
-            Download an encrypted, self-contained JSON file containing your complete financial history, past expenses, Groww mutual funds, SIPs, debts, and goals.
+            Download a portable, self-contained JSON file containing your complete financial history, past expenses, Groww mutual funds, SIPs, debts, and goals.
           </div>
         </div>
 

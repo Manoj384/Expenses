@@ -26,27 +26,28 @@ GRANT ALL ON TABLE shared_splitwise_groups TO anon, authenticated, service_role;
 -- Enable Row Level Security
 ALTER TABLE shared_splitwise_groups ENABLE ROW LEVEL SECURITY;
 
--- 1. Anyone with the share token can read the shared group (unauthenticated or authenticated)
+-- 1. Direct table access is restricted to authenticated owners.
+-- Public link visitors access individual trips by token via the 'shared-trip' Edge Function.
 DROP POLICY IF EXISTS "Public read shared group by token" ON shared_splitwise_groups;
-CREATE POLICY "Public read shared group by token" ON shared_splitwise_groups
+CREATE POLICY "Owner read shared group" ON shared_splitwise_groups
   FOR SELECT
-  USING (true);
+  USING (auth.uid() = owner_id);
 
--- 2. Anyone with the link can insert or update expenses & members in the shared group
+-- 2. Authenticated owners can update their groups
 DROP POLICY IF EXISTS "Public update shared group expenses" ON shared_splitwise_groups;
-CREATE POLICY "Public update shared group expenses" ON shared_splitwise_groups
+CREATE POLICY "Owner update shared group" ON shared_splitwise_groups
   FOR UPDATE
-  USING (true)
-  WITH CHECK (true);
+  USING (auth.uid() = owner_id)
+  WITH CHECK (auth.uid() = owner_id);
 
--- 3. Authenticated owners or creators can insert new shared groups
+-- 3. Authenticated owners can create new shared groups
 DROP POLICY IF EXISTS "Allow insert shared groups" ON shared_splitwise_groups;
-CREATE POLICY "Allow insert shared groups" ON shared_splitwise_groups
+CREATE POLICY "Owner insert shared group" ON shared_splitwise_groups
   FOR INSERT
-  WITH CHECK (true);
+  WITH CHECK (auth.uid() = owner_id);
 
 -- 4. Delete permitted by owner
 DROP POLICY IF EXISTS "Owner delete shared group" ON shared_splitwise_groups;
 CREATE POLICY "Owner delete shared group" ON shared_splitwise_groups
   FOR DELETE
-  USING (auth.uid() = owner_id OR owner_id IS NULL);
+  USING (auth.uid() = owner_id);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -9,7 +9,7 @@ import Modal from '../components/Modal'
 import { SkeletonTable } from '../components/SkeletonLoader'
 import CategoryManager from '../components/CategoryManager'
 import PaymentMethodManager from '../components/PaymentMethodManager'
-import AdminLockModal from '../components/AdminLockModal'
+const AdminLockModal = lazy(() => import('../components/AdminLockModal'))
 import StatementImportModal from '../components/StatementImportModal'
 import SmsUpiParserModal from '../components/SmsUpiParserModal'
 import MerchantAnalyticsModal from '../components/MerchantAnalyticsModal'
@@ -423,10 +423,12 @@ export default function Transactions() {
       </Modal>
 
       {/* Admin Lock Modal */}
-      <AdminLockModal
-        isOpen={showAdminLock}
-        onClose={() => setShowAdminLock(false)}
-      />
+      <Suspense fallback={null}>
+        <AdminLockModal
+          isOpen={showAdminLock}
+          onClose={() => setShowAdminLock(false)}
+        />
+      </Suspense>
 
       {/* Smart Statement & SMS Import Modal */}
       <StatementImportModal

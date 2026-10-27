@@ -34,15 +34,16 @@ export function serializeGroupMetadata(descText = '', activities = []) {
 }
 
 /**
- * Generate a friendly alphanumeric share token
+ * Generate an unguessable share token for an authenticated owner's trip.
+ * The token is not a substitute for RLS: direct table access remains owner-only.
  */
 export function generateShareToken() {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
-  let token = 'trip_'
-  for (let i = 0; i < 9; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length))
+  const bytes = new Uint8Array(24)
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error('Secure random number generation is unavailable in this browser.')
   }
-  return token
+  globalThis.crypto.getRandomValues(bytes)
+  return `trip_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
 }
 
 /**
@@ -50,6 +51,7 @@ export function generateShareToken() {
  */
 export async function publishOrSyncSharedGroup(group, userId = null) {
   if (!group) throw new Error('Group is required.')
+  if (!userId) throw new Error('You must be signed in to publish a shared trip.')
 
   const shareToken = group.share_token || generateShareToken()
   const { description: cleanDesc, activities: parsedActs } = parseGroupMetadata(group.description)
@@ -80,43 +82,26 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
     localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(hydratedLocal))
   } catch {}
 
-  // 2. Upsert to Supabase shared_splitwise_groups
+  // 2. Upsert through owner-only RLS. Shared-link visitors cannot enumerate groups.
   try {
-    let { data, error } = await supabase
+    const { data, error } = await supabase
       .from('shared_splitwise_groups')
-      .upsert(payload, { onConflict: 'share_token' })
+      .upsert(payload, { onConflict: 'id' })
       .select('*')
-      .maybeSingle()
+      .single()
 
-    // Fallback if schema uses primary key id for conflict resolution
-    if (error) {
-      const fallback = await supabase
-        .from('shared_splitwise_groups')
-        .upsert(payload, { onConflict: 'id' })
-        .select('*')
-        .maybeSingle()
-      if (!fallback.error && fallback.data) {
-        data = fallback.data
-        error = null
-      }
-    }
-
-    if (error) {
-      console.warn('[sharedTripService] Remote upsert failed (using local sync fallback):', error.message)
-    } else if (data) {
-      const meta = parseGroupMetadata(data.description)
-      return {
-        ...data,
-        description: meta.description,
-        activities: meta.activities,
-        shareUrl: getShareUrl(shareToken),
-      }
+    if (error) throw error
+    const meta = parseGroupMetadata(data.description)
+    return {
+      ...data,
+      description: meta.description,
+      activities: meta.activities,
+      shareUrl: getShareUrl(shareToken),
     }
   } catch (err) {
-    console.warn('[sharedTripService] Network/database sync fallback:', err)
+    console.warn('[sharedTripService] Remote upsert failed; local data is pending sync:', err)
+    return { ...hydratedLocal, shareUrl: getShareUrl(shareToken) }
   }
-
-  return { ...hydratedLocal, shareUrl: getShareUrl(shareToken) }
 }
 
 /**
@@ -125,26 +110,24 @@ export async function publishOrSyncSharedGroup(group, userId = null) {
 export async function fetchSharedGroupByToken(shareToken) {
   if (!shareToken) return { group: null, error: 'Invalid share link.' }
 
-  // 1. Attempt remote database fetch
+  // 1. Shared links are resolved by the token-scoped Edge Function. This avoids
+  // exposing the underlying groups table to anonymous clients.
   try {
-    const { data, error } = await supabase
-      .from('shared_splitwise_groups')
-      .select('*')
-      .eq('share_token', shareToken)
-      .maybeSingle()
+    const { data, error } = await supabase.functions.invoke('shared-trip', {
+      body: { action: 'get', shareToken },
+    })
+    if (error || !data?.group) throw new Error(error?.message || data?.error || 'Shared trip not found.')
 
-    if (!error && data) {
-      const meta = parseGroupMetadata(data.description)
-      const groupWithActs = {
-        ...data,
-        description: meta.description,
-        activities: meta.activities,
-      }
-      try {
-        localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(groupWithActs))
-      } catch {}
-      return { group: groupWithActs, error: null }
+    const meta = parseGroupMetadata(data.group.description)
+    const groupWithActs = {
+      ...data.group,
+      description: meta.description,
+      activities: meta.activities,
     }
+    try {
+      localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(groupWithActs))
+    } catch {}
+    return { group: groupWithActs, error: null }
   } catch (err) {
     console.warn('[sharedTripService] Remote fetch error:', err)
   }
@@ -210,21 +193,17 @@ export async function updateSharedTripData(shareToken, { expenses, members, budg
     localStorage.setItem(`ft_shared_trip_${shareToken}`, JSON.stringify(merged))
   } catch {}
 
-  // 2. Update remote database
+  // 2. Update through the token-scoped Edge Function.
   try {
-    const { error } = await supabase
-      .from('shared_splitwise_groups')
-      .update(updates)
-      .eq('share_token', shareToken)
-
-    if (error) {
-      console.warn('[sharedTripService] Remote update failed:', error.message)
-    }
+    const { data, error } = await supabase.functions.invoke('shared-trip', {
+      body: { action: 'update', shareToken, updates },
+    })
+    if (error || !data?.group) throw new Error(error?.message || data?.error || 'Shared trip update failed.')
+    return { ok: true, synced: true, group: data.group }
   } catch (err) {
-    console.warn('[sharedTripService] Remote update network error:', err)
+    console.warn('[sharedTripService] Remote update failed; changes remain local:', err)
+    return { ok: false, synced: false, error: err instanceof Error ? err.message : 'Shared trip sync failed.' }
   }
-
-  return true
 }
 
 /**
