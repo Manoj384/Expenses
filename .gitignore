@@ -31,3 +31,7 @@ dist/
 *.pdf
 public/pdfs/
 
+# Playwright Test Reports & Artifacts
+playwright-report/
+test-results/
+

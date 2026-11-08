@@ -82,16 +82,8 @@ export function checkAndInvalidateMfCache() {
     if (!isStale && rawCache) {
       try {
         const parsed = JSON.parse(rawCache)
-        if (!Array.isArray(parsed) || parsed.length < 8) {
+        if (!Array.isArray(parsed)) {
           isStale = true
-        } else {
-          // Check for old HDFC holding or incomplete portfolio or non-statement values
-          const hasHdfc = parsed.some(f => (f.scheme_name || '').toLowerCase().includes('hdfc'))
-          const totalInv = parsed.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-          const totalCur = parsed.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
-          if (hasHdfc || totalInv < 110000 || Math.abs(totalCur - 114335.58) > 100) {
-            isStale = true
-          }
         }
       } catch {
         isStale = true

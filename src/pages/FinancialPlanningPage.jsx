@@ -5,9 +5,13 @@ import CashflowForecastModal from '../components/CashflowForecastModal'
 import IncomeTaxPlannerModal from '../components/IncomeTaxPlannerModal'
 import FireSimulatorModal from '../components/FireSimulatorModal'
 import FinancialHealthScoreModal from '../components/FinancialHealthScoreModal'
-import SubscriptionLeakModal from '../components/SubscriptionLeakModal'
 import CashFlowCalendarModal from '../components/CashFlowCalendarModal'
 import SpendingStreakModal from '../components/SpendingStreakModal'
+import TaxHarvestingModal from '../components/TaxHarvestingModal'
+import ItemizedBillSplitterModal from '../components/ItemizedBillSplitterModal'
+import SubscriptionGhostHunterModal from '../components/SubscriptionGhostHunterModal'
+import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../context/AuthContext'
 import {
   CalendarDays,
   Calculator,
@@ -17,19 +21,39 @@ import {
   Calendar,
   Sparkles,
   Zap,
+  Receipt,
+  Percent,
 } from 'lucide-react'
 
 export default function FinancialPlanningPage() {
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialTab = searchParams.get('tab') || 'forecast'
   const [activeTab, setActiveTab] = useState(initialTab)
+  const [mutualFunds, setMutualFunds] = useState([])
+  const [transactions, setTransactions] = useState([])
+
+  useEffect(() => {
+    if (!user) return
+    const loadData = async () => {
+      try {
+        const [{ data: funds }, { data: txns }] = await Promise.all([
+          supabase.from('mutual_funds').select('*').eq('user_id', user.id),
+          supabase.from('transactions').select('*').eq('user_id', user.id).limit(200),
+        ])
+        if (funds) setMutualFunds(funds)
+        if (txns) setTransactions(txns)
+      } catch {}
+    }
+    loadData()
+  }, [user])
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab')
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl)
     }
-  }, [searchParams])
+  }, [searchParams, activeTab])
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId)
@@ -43,6 +67,27 @@ export default function FinancialPlanningPage() {
       icon: CalendarDays,
       color: 'text-blue-500',
       description: 'Predictive bank balance and cash flow runway forecasting (30, 60, 90 days)',
+    },
+    {
+      id: 'tax-harvest',
+      label: 'Tax-Gain Harvesting',
+      icon: Percent,
+      color: 'text-emerald-500',
+      description: 'Sec 112A ₹1.25 Lakh annual tax-free capital gains harvesting & tax-loss offset optimizer',
+    },
+    {
+      id: 'splitter',
+      label: 'Camera Bill-Splitter',
+      icon: Receipt,
+      color: 'text-teal-500',
+      description: 'Itemized bill OCR reader, friend-to-dish allocation & instant WhatsApp UPI payment links',
+    },
+    {
+      id: 'ghost',
+      label: 'Subscription Sentinel',
+      icon: Skull,
+      color: 'text-rose-500',
+      description: 'Detects stealth price hikes (>10%), zombie recurring charges & provides 1-click cancellation deep links',
     },
     {
       id: 'tax',
@@ -64,13 +109,6 @@ export default function FinancialPlanningPage() {
       icon: Award,
       color: 'text-emerald-500',
       description: '100-point wealth fitness diagnostic across savings, buffer, debt ratio & SIPs',
-    },
-    {
-      id: 'zombie',
-      label: 'Zombie Subscriptions',
-      icon: Skull,
-      color: 'text-purple-500',
-      description: 'Audit unused recurring digital memberships & calculate 10-year opportunity cost',
     },
     {
       id: 'calendar',
@@ -114,7 +152,7 @@ export default function FinancialPlanningPage() {
           </div>
 
           {/* Tab Navigation Buttons */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2 pt-2 border-t border-white/10">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 pt-2 border-t border-white/10">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -142,6 +180,18 @@ export default function FinancialPlanningPage() {
             <CashflowForecastModal isOpen={true} isEmbedded={true} onClose={() => {}} />
           )}
 
+          {activeTab === 'tax-harvest' && (
+            <TaxHarvestingModal isOpen={true} isEmbedded={true} mutualFunds={mutualFunds} onClose={() => {}} />
+          )}
+
+          {activeTab === 'splitter' && (
+            <ItemizedBillSplitterModal isOpen={true} isEmbedded={true} onClose={() => {}} />
+          )}
+
+          {activeTab === 'ghost' && (
+            <SubscriptionGhostHunterModal isOpen={true} isEmbedded={true} transactions={transactions} onClose={() => {}} />
+          )}
+
           {activeTab === 'tax' && (
             <IncomeTaxPlannerModal isOpen={true} isEmbedded={true} onClose={() => {}} />
           )}
@@ -152,10 +202,6 @@ export default function FinancialPlanningPage() {
 
           {activeTab === 'health' && (
             <FinancialHealthScoreModal isOpen={true} isEmbedded={true} onClose={() => {}} />
-          )}
-
-          {activeTab === 'zombie' && (
-            <SubscriptionLeakModal isOpen={true} isEmbedded={true} onClose={() => {}} />
           )}
 
           {activeTab === 'calendar' && (

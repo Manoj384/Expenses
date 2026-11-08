@@ -113,6 +113,7 @@ export default function FireSimulatorModal({
 
   // 3. Monte Carlo Longevity Simulation (500 iterations over 35 years)
   const monteCarlo = useMemo(() => {
+    void simSeed
     const trials = 400
     const yearsOfRetirement = 35
     const annualWithdrawal = standardFireTarget * safeWithdrawal

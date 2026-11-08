@@ -3,7 +3,7 @@
  * Centralized Domain Repository for Debts, Borrowings & Loans
  */
 
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient.js'
 
 export const debtRepository = {
   /**

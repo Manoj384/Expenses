@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Fingerprint,
   Lock,
@@ -23,18 +23,7 @@ export default function BiometricAppLockOverlay({ isLocked, onUnlock }) {
   const [hasBiometrics, setHasBiometrics] = useState(false)
   const [showPinInput, setShowPinInput] = useState(false)
 
-  useEffect(() => {
-    isBiometricsAvailable().then(avail => setHasBiometrics(avail))
-  }, [])
-
-  // Prompt biometrics on lock activation
-  useEffect(() => {
-    if (isLocked && isBiometricsEnabled()) {
-      handleBiometricUnlock()
-    }
-  }, [isLocked])
-
-  const handleBiometricUnlock = async () => {
+  const handleBiometricUnlock = useCallback(async () => {
     setError('')
     setIsVerifying(true)
     try {
@@ -50,7 +39,18 @@ export default function BiometricAppLockOverlay({ isLocked, onUnlock }) {
     } finally {
       setIsVerifying(false)
     }
-  }
+  }, [onUnlock])
+
+  useEffect(() => {
+    isBiometricsAvailable().then(avail => setHasBiometrics(avail))
+  }, [])
+
+  // Prompt biometrics on lock activation
+  useEffect(() => {
+    if (isLocked && isBiometricsEnabled()) {
+      handleBiometricUnlock()
+    }
+  }, [isLocked, handleBiometricUnlock])
 
   const handlePinUnlock = (e) => {
     e.preventDefault()

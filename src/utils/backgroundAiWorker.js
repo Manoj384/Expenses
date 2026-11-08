@@ -5,8 +5,8 @@
  */
 
 import { runFullAiAnomalyAudit } from './anomalyDetector.js'
-import { playWakeChime, playSuccessChime } from './wakeWordDetector.js'
 import { extractUserHabitProfile } from './habitMemory.js'
+import { auditTransactionsBatch } from './backgroundAiReviewer.js'
 
 class BackgroundAiWorker {
   constructor() {
@@ -58,6 +58,7 @@ class BackgroundAiWorker {
       // 1. Sweep for Duplicate Transactions & Anomalies
       const txns = context.transactions || []
       if (txns.length > 0) {
+        auditTransactionsBatch(txns)
         const audit = runFullAiAnomalyAudit(txns)
         if (audit.duplicates.length > 0) {
           results.actionsTaken.push(`Flagged ${audit.duplicates.length} duplicate swipes for review`)

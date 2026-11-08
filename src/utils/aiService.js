@@ -5,7 +5,7 @@
  * Supabase Edge Function and are never available to browser code.
  */
 
-import { supabase } from '../lib/supabaseClient'
+import { supabase } from '../lib/supabaseClient.js'
 import { buildHabitContextPrompt } from './habitMemory.js'
 
 // Compatibility helpers for legacy UI settings. API credentials are server-managed.
@@ -346,7 +346,7 @@ function localAdvisorRuleEngine(question, ctx, hasApiKey = false) {
   }
 
   // 4. Quick Math & Calculations
-  const mathMatch = q.match(/(\d+(?:\.\d+)?)\s*([\+\-\*\/])\s*(\d+(?:\.\d+)?)/)
+  const mathMatch = q.match(/(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)/)
   if (mathMatch) {
     const num1 = parseFloat(mathMatch[1])
     const op = mathMatch[2]

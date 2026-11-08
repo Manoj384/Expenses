@@ -1197,7 +1197,7 @@ export default function Splitwise() {
     }
 
     return { shares: {}, isValid: false, message: '' }
-  }, [expenseForm, groups, activeGroup])
+  }, [expenseForm, activeExpenseParticipants])
 
   // --- Save Expense Handler ---
   const handleSaveExpense = (e) => {

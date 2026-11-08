@@ -3,7 +3,7 @@
  * Centralized Domain Repository for Systematic Investment Plans (SIPs) & Payments
  */
 
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient.js'
 
 export const sipRepository = {
   /**

@@ -3,7 +3,7 @@
  * Centralized Domain Repository for Financial Goals Data Access
  */
 
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient.js'
 
 function getFallbackTargetDate() {
   const d = new Date()

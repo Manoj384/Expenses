@@ -40,7 +40,6 @@ import {
   Award,
   Flame,
   Skull,
-  Radio,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
@@ -92,7 +91,6 @@ const NAV_SECTIONS = [
     items: [
       { to: '/splitwise', label: 'Splitwise & Groups', icon: Users },
       { to: '/statements', label: 'Statements (OCR)', icon: FileSpreadsheet },
-      { to: '/emc', label: 'EMC Standards (ISO/CISPR)', icon: Radio },
     ],
   },
 ]

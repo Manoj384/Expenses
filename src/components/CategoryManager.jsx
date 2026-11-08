@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAdmin } from '../context/AdminContext'
@@ -28,7 +28,7 @@ export default function CategoryManager({ onAdminRequest }) {
   const [deleting, setDeleting] = useState(false)
   const [expanded, setExpanded] = useState({ expense: true, income: true, sip: true, debt: true })
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     if (!user) return
     setLoading(true)
     const { data } = await supabase
@@ -39,11 +39,11 @@ export default function CategoryManager({ onAdminRequest }) {
       .order('name')
     setCategories(data || [])
     setLoading(false)
-  }
+  }, [user])
 
   useEffect(() => {
     fetchCategories()
-  }, [user])
+  }, [fetchCategories])
 
   const flash = (msg) => {
     setSuccess(msg)

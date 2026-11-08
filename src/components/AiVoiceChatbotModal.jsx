@@ -6,6 +6,7 @@ import { playWakeChime, playSuccessChime, enrollVoice, getVoiceProfile, deleteVo
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { queryGeminiAi } from '../utils/geminiAiService'
+import { evaluateConversationalQuery } from '../utils/conversationalVoiceCompanion'
 import {
   Mic,
   MicOff,
@@ -59,6 +60,7 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
 
   const recognitionRef = useRef(null)
   const chatEndRef = useRef(null)
+  const handleProcessQueryRef = useRef(null)
 
   // Fetch contextual user data
   useEffect(() => {
@@ -67,7 +69,7 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
       try {
         if (user) {
           const [{ data: txns }, { data: bills }, { data: funds }] = await Promise.all([
-            supabase.from('transactions').select('amount, date, type').eq('user_id', user.id).limit(100),
+            supabase.from('transactions').select('amount, date, type, note, categories(name)').eq('user_id', user.id).limit(100),
             supabase.from('bills').select('name, amount, due_day, is_paid').eq('user_id', user.id),
             supabase.from('mutual_funds').select('invested_amount, current_value').eq('user_id', user.id),
           ])
@@ -88,6 +90,9 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
             monthlyExpense: monthlyExpense || 32500,
             monthlyIncome: monthlyIncome || 95000,
             upcomingBills: (bills || []).filter(b => !b.is_paid),
+            transactions: txns || [],
+            mutualFunds: funds || [],
+            bills: bills || [],
           })
         }
       } catch {}
@@ -121,7 +126,9 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript
       setIsListening(false)
-      handleProcessQuery(transcript)
+      if (handleProcessQueryRef.current) {
+        handleProcessQueryRef.current(transcript)
+      }
     }
 
     recognition.onerror = () => {
@@ -138,13 +145,14 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
   // Auto start if triggered via wake word
   useEffect(() => {
     if (isOpen && autoStartListening && recognitionRef.current && !isListening) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         try {
           recognitionRef.current.start()
         } catch {}
       }, 200)
+      return () => clearTimeout(timer)
     }
-  }, [isOpen, autoStartListening])
+  }, [isOpen, autoStartListening, isListening])
 
   // Speak text back (Boosted 1.22x speed for instant, snappy Alexa-grade responses)
   const speakResponse = useCallback((text) => {
@@ -217,6 +225,7 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
 
   // Handle Query Execution
   const handleProcessQuery = async (userText) => {
+    handleProcessQueryRef.current = handleProcessQuery
     if (!userText || !userText.trim()) return
 
     const userMessage = { id: `user-${Date.now()}`, role: 'user', text: userText }
@@ -271,17 +280,24 @@ export default function AiVoiceChatbotModal({ isOpen, onClose, onTransactionCrea
 
     let finalDisplayText = localResponse.displayText
     let finalSpeechText = localResponse.speechText
+    let messageIntent = localResponse.intent
 
     if (geminiRes.success && geminiRes.text) {
       finalDisplayText = `✨ ${geminiRes.text}`
       finalSpeechText = geminiRes.speechText
+      messageIntent = 'GEMINI_AI'
+    } else if (localResponse.intent === 'UNKNOWN') {
+      const companionRes = evaluateConversationalQuery(userText, contextData)
+      finalDisplayText = `🎙️ ${companionRes.text}`
+      finalSpeechText = companionRes.spoken
+      messageIntent = 'CONVERSATIONAL_VOICE'
     }
 
     const aiMessage = {
       id: `ai-${Date.now()}`,
       role: 'assistant',
       text: finalDisplayText,
-      intent: geminiRes.success ? 'GEMINI_AI' : localResponse.intent,
+      intent: messageIntent,
     }
     setHistory(prev => [...prev, aiMessage])
     setIsAiThinking(false)

@@ -3,7 +3,7 @@
  * Centralized Domain Repository for Budgets & Alert Thresholds
  */
 
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient.js'
 
 export const budgetRepository = {
   /**

@@ -7,6 +7,8 @@ import CreditCardSmartPayerModal from '../components/CreditCardSmartPayerModal'
 import AiAnomalySentinelModal from '../components/AiAnomalySentinelModal'
 import TelegramWhatsAppBotModal from '../components/TelegramWhatsAppBotModal'
 import AiMaintenanceWidget from '../components/AiMaintenanceWidget'
+import FinancialAdvisorsModal from '../components/FinancialAdvisorsModal'
+import QuickIngestModal from '../components/QuickIngestModal'
 import {
   SunMedium,
   Mic,
@@ -16,6 +18,7 @@ import {
   Sparkles,
   Zap,
   Brain,
+  MessageSquare,
 } from 'lucide-react'
 
 export default function AiCopilotPage() {
@@ -28,7 +31,7 @@ export default function AiCopilotPage() {
     if (tabFromUrl && tabFromUrl !== activeTab) {
       setActiveTab(tabFromUrl)
     }
-  }, [searchParams])
+  }, [searchParams, activeTab])
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId)
@@ -49,6 +52,20 @@ export default function AiCopilotPage() {
       icon: Mic,
       color: 'text-cyan-500',
       description: 'Alexa-style 2-way speech-to-speech voice companion ("Hey Manoj")',
+    },
+    {
+      id: 'advisors',
+      label: 'Board of Advisors',
+      icon: MessageSquare,
+      color: 'text-amber-400',
+      description: 'Multi-Agent financial council (Marcus: Risk, Aria: Wealth, Leo: Lifestyle)',
+    },
+    {
+      id: 'quick-ingest',
+      label: 'SMS & Quick Ingest',
+      icon: Zap,
+      color: 'text-emerald-400',
+      description: 'Zero-friction bank SMS & natural language expense parser and webhooks',
     },
     {
       id: 'cards',
@@ -106,7 +123,7 @@ export default function AiCopilotPage() {
           </div>
 
           {/* Tab Navigation Buttons */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-white/10">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2 pt-2 border-t border-white/10">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -141,6 +158,14 @@ export default function AiCopilotPage() {
               onClose={() => {}}
               autoStartListening={false}
             />
+          )}
+
+          {activeTab === 'advisors' && (
+            <FinancialAdvisorsModal isOpen={true} isEmbedded={true} onClose={() => {}} />
+          )}
+
+          {activeTab === 'quick-ingest' && (
+            <QuickIngestModal isOpen={true} isEmbedded={true} onClose={() => {}} />
           )}
 
           {activeTab === 'cards' && (

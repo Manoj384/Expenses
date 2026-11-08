@@ -7,6 +7,10 @@ import SummaryCard from '../components/SummaryCard'
 import SkeletonPage from '../components/SkeletonLoader'
 import EmptyState from '../components/EmptyState'
 import PwaInstallBanner from '../components/PwaInstallBanner'
+import TransactionDetailsModal from '../components/TransactionDetailsModal'
+import PullToRefresh from '../components/PullToRefresh'
+import SafeToSpendWidget from '../components/SafeToSpendWidget'
+import PredictiveCashflowCard from '../components/PredictiveCashflowCard'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { formatDate, formatTime, startOfMonth, endOfMonth, isOverdue, daysUntil } from '../utils/dateUtils'
 import { frequencyLabel } from '../utils/sipUtils'
@@ -29,6 +33,7 @@ const TYPE_STYLES = {
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const [selectedTx, setSelectedTx] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -170,10 +175,7 @@ export default function Dashboard() {
       // Mutual funds live sync with instant caching
       checkAndInvalidateMfCache()
       let mfRaw = (!mfRes.error && mfRes.data && mfRes.data.length > 0) ? mfRes.data : []
-      const hasHdfc = mfRaw.some((f) => (f.scheme_name || '').toLowerCase().includes('hdfc'))
-      const totalInv = mfRaw.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-      const totalCurVal = mfRaw.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
-      if (mfRaw.length !== savedGrowwData.length || hasHdfc || totalInv < 110000 || Math.abs(totalCurVal - 114335.58) > 100) {
+      if (mfRaw.length === 0) {
         mfRaw = savedGrowwData
       }
       const enriched = enrichFundsWithCachedNavs(mfRaw)
@@ -279,9 +281,19 @@ export default function Dashboard() {
       {loading ? (
         <SkeletonPage />
       ) : (
-        <>
+        <PullToRefresh onRefresh={fetchData}>
           {/* PWA Home Screen Install & Push Alert Banner */}
           <PwaInstallBanner />
+
+          {/* Daily Safe-to-Spend & Morning Briefing Widget */}
+          <div className="mb-6">
+            <SafeToSpendWidget
+              monthlyIncome={monthIncome}
+              monthlyBudget={monthIncome > 0 ? monthIncome * 0.7 : 50000}
+              totalSpent={monthExpense}
+              sips={upcomingSips}
+            />
+          </div>
 
           {/* Summary KPI Cards - Starts immediately with Monthly Income */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-4 mb-6">
@@ -316,7 +328,7 @@ export default function Dashboard() {
           title="Active SIPs"
           value={activeSips}
           icon={Wallet}
-          color="purple"
+          color="blue"
           subtitle="Running SIPs"
         />
         <SummaryCard
@@ -450,6 +462,17 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* AI 30-Day Predictive Cashflow Forecaster */}
+      <div className="mb-6">
+        <PredictiveCashflowCard
+          currentBalance={unspentSurplus > 0 ? unspentSurplus : 45000}
+          monthlyIncome={monthIncome > 0 ? monthIncome : 85000}
+          dailyBurnRate={monthExpense > 0 ? Math.round(monthExpense / 30) : 1200}
+          sips={upcomingSips}
+          debts={debtsList}
+        />
+      </div>
+
       {/* Grid: Recent Transactions & Upcoming SIPs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Transactions */}
@@ -467,20 +490,25 @@ export default function Dashboard() {
               description="Record your first income or expense to populate this dashboard."
             />
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-gray-50 dark:divide-slate-800">
               {recentTxns.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between py-2.5">
+                <div
+                  key={tx.id}
+                  onClick={() => setSelectedTx(tx)}
+                  title="Click to view full transaction details"
+                  className="flex items-center justify-between py-2.5 px-2 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors group"
+                >
                   <div className="flex items-center gap-3 min-w-0">
                     <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${TYPE_STYLES[tx.type] || 'bg-gray-100 text-gray-700'}`}>
                       {tx.type}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm text-gray-800 font-medium truncate">
+                      <p className="text-sm text-gray-800 dark:text-slate-200 font-medium truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         {tx.type === 'savings'
                           ? (tx.note?.replace(/^\[Savings\]\s*/, '') || tx.categories?.name || 'Savings Allocation')
                           : (tx.categories?.name || (tx.note ? tx.note.replace(/^\[Savings\]\s*/, '') : 'Uncategorized'))}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-400 flex-wrap">
+                      <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500 flex-wrap">
                         <span>{formatDate(tx.date)}</span>
                         {(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`)) && (
                           <span>• {formatTime(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`))}</span>
@@ -552,9 +580,17 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-      </>
+      </PullToRefresh>
       )}
 
+      {/* Transaction Details Modal */}
+      {selectedTx && (
+        <TransactionDetailsModal
+          isOpen={!!selectedTx}
+          onClose={() => setSelectedTx(null)}
+          transaction={selectedTx}
+        />
+      )}
     </Layout>
   )
 }

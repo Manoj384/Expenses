@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { useAdmin } from '../context/AdminContext'
@@ -32,7 +32,7 @@ export default function PaymentMethodManager({ onAdminRequest }) {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchMethods = async () => {
+  const fetchMethods = useCallback(async () => {
     if (!user) return
     setLoading(true)
     const { data, error } = await supabase
@@ -43,11 +43,11 @@ export default function PaymentMethodManager({ onAdminRequest }) {
       .order('name')
     if (!error) setMethods(data || [])
     setLoading(false)
-  }
+  }, [user])
 
   useEffect(() => {
     fetchMethods()
-  }, [user])
+  }, [fetchMethods])
 
   const flash = (msg) => {
     setSuccess(msg)

@@ -7,8 +7,8 @@ export default function SplitwisePrintableSummaryModal({ isOpen, onClose, group 
   const [activeTab, setActiveTab] = useState('matrix') // 'matrix' | 'members'
   const [selectedMemberId, setSelectedMemberId] = useState('all')
 
-  const members = group?.members || []
-  const rawExpenses = group?.expenses || []
+  const members = useMemo(() => group?.members || [], [group?.members])
+  const rawExpenses = useMemo(() => group?.expenses || [], [group?.expenses])
 
   // Ensure chronological order (oldest to newest for statement matrix)
   const sortedExpenses = useMemo(() => {

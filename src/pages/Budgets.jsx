@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
 import Modal from '../components/Modal'
 import LoadingSpinner from '../components/LoadingSpinner'
+import SmartBudgetVelocityCard from '../components/SmartBudgetVelocityCard'
 import { formatCurrency, formatCurrencyShort } from '../utils/formatCurrency'
 import { startOfMonth, endOfMonth } from '../utils/dateUtils'
 import {
@@ -387,6 +388,15 @@ export default function Budgets() {
           </form>
         )}
       </div>
+
+      {/* 50/30/20 Envelope Rule & Dynamic Burn Velocity Engine */}
+      <SmartBudgetVelocityCard
+        monthlyIncome={monthlyIncome}
+        categories={categories}
+        spendingMap={spendingMap}
+        totalBudget={totalBudget}
+        totalSpent={totalSpent}
+      />
 
       {/* Category Budget Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

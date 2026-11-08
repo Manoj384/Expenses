@@ -3,7 +3,7 @@
  * Centralized Domain Repository for Transaction Data Access
  */
 
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient.js'
 
 export const transactionRepository = {
   /**

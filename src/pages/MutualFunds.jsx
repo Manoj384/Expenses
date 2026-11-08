@@ -234,10 +234,7 @@ export default function MutualFunds() {
         const cached = localStorage.getItem('ft_cached_mutual_funds')
         if (cached) {
           const parsed = JSON.parse(cached)
-          const hasHdfc = parsed.some(f => (f.scheme_name || '').toLowerCase().includes('hdfc'))
-          const totalInv = parsed.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-          const totalCur = parsed.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
-          if (!hasHdfc && totalInv >= 110000 && Math.abs(totalCur - 114335.58) < 100 && Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setFunds(enrichFundsWithCachedNavs(parsed))
             return
           }
@@ -264,19 +261,13 @@ export default function MutualFunds() {
       // Clean scheme names from Supabase (stripping "(Folio ...)" discriminator suffix)
       let baseList = (data || []).map((f) => ({
         ...f,
-        scheme_name: f.scheme_name ? f.scheme_name.replace(/\s*\(Folio\s+[^\)]+\)$/i, '').trim() : f.scheme_name,
+        scheme_name: f.scheme_name ? f.scheme_name.replace(/\s*\(Folio\s+[^)]+\)$/i, '').trim() : f.scheme_name,
       }))
 
-      // Check whether user's Supabase records are stale (has HDFC, length !== 8, total < 110k, or current value mismatch)
-      const hasHdfc = baseList.some(f => (f.scheme_name || '').toLowerCase().includes('hdfc'))
-      const totalInv = baseList.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-      const totalCur = baseList.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
-      const isStaleDb = baseList.length !== savedGrowwData.length || hasHdfc || totalInv < 110000 || Math.abs(totalCur - 114335.58) > 100
-
-      if (isStaleDb) {
-        console.log('[MutualFunds] Auto-healing Supabase records to verified Groww statement (8 folios, -₹964 returns)...')
+      // Only seed default Groww holdings if the user has no mutual fund records in Supabase yet
+      if (baseList.length === 0) {
+        console.log('[MutualFunds] Initializing empty Supabase portfolio with default Groww holdings...')
         const toInsert = prepareHoldingsForSupabase(savedGrowwData, user.id)
-        await supabase.from('mutual_funds').delete().eq('user_id', user.id)
         const { data: insertedData, error: insErr } = await supabase
           .from('mutual_funds')
           .insert(toInsert)
@@ -285,7 +276,7 @@ export default function MutualFunds() {
         baseList = (!insErr && insertedData && insertedData.length > 0)
           ? insertedData.map((f) => ({
               ...f,
-              scheme_name: f.scheme_name ? f.scheme_name.replace(/\s*\(Folio\s+[^\)]+\)$/i, '').trim() : f.scheme_name,
+              scheme_name: f.scheme_name ? f.scheme_name.replace(/\s*\(Folio\s+[^)]+\)$/i, '').trim() : f.scheme_name,
             }))
           : savedGrowwData
       }
@@ -312,10 +303,7 @@ export default function MutualFunds() {
         const cached = localStorage.getItem('ft_cached_mutual_funds')
         if (cached) {
           const parsed = JSON.parse(cached)
-          const hasHdfc = parsed.some(f => (f.scheme_name || '').toLowerCase().includes('hdfc'))
-          const totalInv = parsed.reduce((s, f) => s + parseFloat(f.invested_amount || 0), 0)
-          const totalCur = parsed.reduce((s, f) => s + parseFloat(f.current_value || 0), 0)
-          if (!hasHdfc && totalInv >= 110000 && Math.abs(totalCur - 114335.58) < 100 && Array.isArray(parsed) && parsed.length >= savedGrowwData.length) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setFunds(enrichFundsWithCachedNavs(parsed))
             return
           }

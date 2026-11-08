@@ -3,7 +3,7 @@
  * Isolated Sharing & Real-Time Sync Service for Splitwise Trips / Groups
  */
 
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient.js'
 
 export const SHARED_TRIP_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 

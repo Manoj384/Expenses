@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import Sidebar from './Sidebar'
 import BottomNav from './BottomNav'
 import NetworkStatusIndicator from './NetworkStatusIndicator'
+import OfflineSyncBanner from './OfflineSyncBanner'
 import NotificationCenter from './NotificationCenter'
 import AlarmRingingModal from './AlarmRingingModal'
 import QuickAddFAB from './QuickAddFAB'
@@ -92,6 +93,29 @@ export default function Layout({ children, title }) {
     }
   }, [])
 
+  // Continuous background AI transaction review sentinel
+  useEffect(() => {
+    if (!user) return
+    const runAuditSweep = async () => {
+      try {
+        const { supabase } = await import('../lib/supabaseClient.js')
+        const { data } = await supabase
+          .from('transactions')
+          .select('*, categories(*), payment_methods(*)')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(50)
+        if (data && data.length > 0) {
+          backgroundAiWorker.runMaintenanceSweep({ transactions: data })
+        }
+      } catch {}
+    }
+
+    runAuditSweep()
+    window.addEventListener('transaction-updated', runAuditSweep)
+    return () => window.removeEventListener('transaction-updated', runAuditSweep)
+  }, [user])
+
   // Listen for global custom events and route into the 2 Super Hubs
   useEffect(() => {
     // AI Financial Copilot Hub events
@@ -164,6 +188,33 @@ export default function Layout({ children, title }) {
     window.addEventListener('open-autopilot-digest', handleOpenAutoPilot)
     window.addEventListener('open-voice-companion', handleOpenVoice)
 
+    const handleOpenBillSplitter = () => {
+      setToolkitTab('splitter')
+      setShowToolkitModal(true)
+    }
+    const handleOpenAdvisors = () => {
+      setCopilotTab('advisors')
+      setShowCopilotModal(true)
+    }
+    const handleOpenQuickIngest = () => {
+      setCopilotTab('quick-ingest')
+      setShowCopilotModal(true)
+    }
+    const handleOpenGhostHunter = () => {
+      setToolkitTab('ghost')
+      setShowToolkitModal(true)
+    }
+    const handleOpenTaxHarvesting = () => {
+      setToolkitTab('tax-harvest')
+      setShowToolkitModal(true)
+    }
+
+    window.addEventListener('open-bill-splitter', handleOpenBillSplitter)
+    window.addEventListener('open-board-of-advisors', handleOpenAdvisors)
+    window.addEventListener('open-quick-ingest', handleOpenQuickIngest)
+    window.addEventListener('open-ghost-hunter', handleOpenGhostHunter)
+    window.addEventListener('open-tax-harvesting', handleOpenTaxHarvesting)
+
     window.addEventListener('open-financial-toolkit', handleOpenToolkit)
     window.addEventListener('open-forecast-modal', handleOpenForecast)
     window.addEventListener('open-cashflow-forecast', handleOpenForecast)
@@ -177,6 +228,12 @@ export default function Layout({ children, title }) {
     window.addEventListener('open-app-lock', handleLock)
 
     return () => {
+      window.removeEventListener('open-bill-splitter', handleOpenBillSplitter)
+      window.removeEventListener('open-board-of-advisors', handleOpenAdvisors)
+      window.removeEventListener('open-quick-ingest', handleOpenQuickIngest)
+      window.removeEventListener('open-ghost-hunter', handleOpenGhostHunter)
+      window.removeEventListener('open-tax-harvesting', handleOpenTaxHarvesting)
+
       window.removeEventListener('open-ai-copilot', handleOpenCopilot)
       window.removeEventListener('open-bot-modal', handleOpenBot)
       window.removeEventListener('open-card-optimizer', handleOpenCard)
@@ -257,6 +314,9 @@ export default function Layout({ children, title }) {
             <NotificationCenter />
           </div>
         </header>
+
+        {/* True Offline Sync Queue Banner */}
+        <OfflineSyncBanner />
 
         {/* Main content */}
         <main className="flex-1 px-4 md:px-6 py-6 pb-24 md:pb-6">

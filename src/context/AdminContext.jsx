@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { setStoredPinPbkdf2, getStoredPinHashRecord, verifyPinWithHash } from '../utils/cryptoPin'
 
 const AdminContext = createContext({})
 
@@ -14,6 +15,15 @@ export function AdminProvider({ children }) {
     return localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN
   })
 
+  // Auto-upgrade legacy plain PIN to PBKDF2 salt + hash
+  useEffect(() => {
+    const rawPin = localStorage.getItem(ADMIN_PIN_KEY)
+    const existingHash = getStoredPinHashRecord()
+    if (rawPin && !existingHash) {
+      setStoredPinPbkdf2(rawPin).catch(() => {})
+    }
+  }, [])
+
   useEffect(() => {
     sessionStorage.setItem(ADMIN_STATE_KEY, isAdmin ? 'true' : 'false')
   }, [isAdmin])
@@ -21,6 +31,14 @@ export function AdminProvider({ children }) {
   const verifyPin = (inputPin) => {
     const currentPin = localStorage.getItem(ADMIN_PIN_KEY) || DEFAULT_PIN
     return Boolean(currentPin) && inputPin === currentPin
+  }
+
+  const verifyPinAsync = async (inputPin) => {
+    const hashRecord = getStoredPinHashRecord()
+    if (hashRecord) {
+      return await verifyPinWithHash(inputPin, hashRecord)
+    }
+    return verifyPin(inputPin)
   }
 
   const enterAdmin = (inputPin) => {
@@ -44,12 +62,22 @@ export function AdminProvider({ children }) {
       return { success: false, error: 'New PIN must contain 4 to 8 digits.' }
     }
     localStorage.setItem(ADMIN_PIN_KEY, newPin)
+    setStoredPinPbkdf2(newPin).catch(() => {})
     setPin(newPin)
     return { success: true }
   }
 
   return (
-    <AdminContext.Provider value={{ isAdmin, enterAdmin, exitAdmin, changePin, hasPin: Boolean(pin), currentPin: pin }}>
+    <AdminContext.Provider value={{
+      isAdmin,
+      enterAdmin,
+      exitAdmin,
+      changePin,
+      verifyPin,
+      verifyPinAsync,
+      hasPin: Boolean(pin),
+      currentPin: pin,
+    }}>
       {children}
     </AdminContext.Provider>
   )

@@ -70,7 +70,7 @@ export function NotificationProvider({ children }) {
   }, [preferences])
 
   // Request native browser push permissions
-  const requestPushPermission = async () => {
+  const requestPushPermission = useCallback(async () => {
     if (!('Notification' in window)) {
       return false
     }
@@ -89,10 +89,10 @@ export function NotificationProvider({ children }) {
       return false
     }
     return false
-  }
+  }, [])
 
   // Trigger local browser push notification
-  const sendBrowserNotification = (title, body, tag) => {
+  const sendBrowserNotification = useCallback((title, body, tag) => {
     if (
       preferences.browserPush &&
       'Notification' in window &&
@@ -110,7 +110,7 @@ export function NotificationProvider({ children }) {
         } catch {}
       }
     }
-  }
+  }, [preferences.browserPush])
 
   // Scan and generate dynamic real-time notifications
   const scanAlerts = useCallback(async () => {
@@ -344,7 +344,7 @@ export function NotificationProvider({ children }) {
 
     setNotifications(activeNotifications)
     setUnreadCount(activeNotifications.length)
-  }, [user, preferences, dismissedIds])
+  }, [user, preferences, dismissedIds, sendBrowserNotification])
 
   // Run alert scanner on mount and periodic refresh
   useEffect(() => {

@@ -19,6 +19,8 @@ import { formatDate, formatTime } from '../utils/dateUtils'
 import ConfirmDialog from './ConfirmDialog'
 import EmptyState from './EmptyState'
 import ReceiptPreviewModal from './ReceiptPreviewModal'
+import TransactionDetailsModal from './TransactionDetailsModal'
+import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics'
 
 const SWIPE_THRESHOLD = 80 // px needed to trigger delete reveal
 
@@ -40,12 +42,16 @@ function getMethodIcon(type) {
 }
 
 // Swipeable mobile card — swipe left to reveal delete, swipe right to cancel
-function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPreview, isCompact }) {
+function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPreview, onSelect, isCompact }) {
   const startX = useRef(null)
   const [offset, setOffset] = useState(0)
   const [revealed, setRevealed] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
 
-  const handleTouchStart = (e) => { startX.current = e.touches[0].clientX }
+  const handleTouchStart = (e) => {
+    startX.current = e.touches[0].clientX
+    setIsDragging(true)
+  }
 
   const handleTouchMove = (e) => {
     if (startX.current === null) return
@@ -55,9 +61,11 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
   }
 
   const handleTouchEnd = () => {
+    setIsDragging(false)
     if (offset < -SWIPE_THRESHOLD) {
       setOffset(-110)
       setRevealed(true)
+      hapticHeavy()
     } else {
       setOffset(0)
       setRevealed(false)
@@ -70,7 +78,13 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
       {/* Red delete zone behind */}
       <div className="absolute inset-y-0 right-0 w-28 bg-red-500 flex items-center justify-center rounded-2xl">
         <button
-          onClick={() => { setOffset(0); setRevealed(false); onDelete(tx) }}
+          onClick={(e) => {
+            e.stopPropagation()
+            setOffset(0)
+            setRevealed(false)
+            hapticMedium()
+            onDelete(tx)
+          }}
           className="flex flex-col items-center gap-1 text-white"
         >
           <Trash2 className="h-5 w-5" />
@@ -80,11 +94,17 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
 
       {/* Card — slides left on swipe */}
       <div
-        style={{ transform: `translateX(${offset}px)`, transition: startX.current ? 'none' : 'transform 0.25s ease' }}
+        style={{ transform: `translateX(${offset}px)`, transition: isDragging ? 'none' : 'transform 0.25s ease' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm z-10"
+        onClick={() => {
+          if (!revealed && onSelect) {
+            hapticLight()
+            onSelect(tx)
+          }
+        }}
+        className="relative bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-4 shadow-sm z-10 cursor-pointer hover:border-blue-200 dark:hover:border-slate-700 transition-all"
       >
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 flex-wrap">
@@ -130,7 +150,7 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
           }
           {receipt && (
             <button
-              onClick={() => onPreview(receipt)}
+              onClick={(e) => { e.stopPropagation(); onPreview(receipt) }}
               className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-lg text-xs font-bold"
             >
               {isPdf ? <FileText className="h-3.5 w-3.5 text-rose-500" /> : <Paperclip className="h-3.5 w-3.5" />}
@@ -140,8 +160,8 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
         </div>
 
         <div className="flex gap-2 mt-3 pt-2.5 border-t border-gray-100 dark:border-slate-800 justify-between items-center">
-          <p className="text-[10px] text-gray-400 dark:text-slate-600">← Swipe left to delete</p>
-          <button onClick={() => onEdit(tx)} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1">
+          <p className="text-[10px] text-gray-400 dark:text-slate-600">← Swipe left to delete • Tap for details</p>
+          <button onClick={(e) => { e.stopPropagation(); onEdit(tx) }} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1">
             <Pencil className="h-3 w-3" /> Edit
           </button>
         </div>
@@ -151,6 +171,7 @@ function SwipeableCard({ tx, MethodIcon, receipt, isPdf, onEdit, onDelete, onPre
 }
 
 export default function TransactionList({ transactions, onEdit, onDelete }) {
+  const [selectedTx, setSelectedTx] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [previewReceipt, setPreviewReceipt] = useState(null)
@@ -296,9 +317,17 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                   const isPdf = receipt && (receipt.toLowerCase().includes('.pdf') || receipt.includes('application/pdf'))
 
                   return (
-                    <tr key={tx.id} className="hover:bg-gray-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <tr
+                      key={tx.id}
+                      onClick={() => {
+                        hapticLight()
+                        setSelectedTx(tx)
+                      }}
+                      title="Click to view full transaction details"
+                      className="hover:bg-blue-50/60 dark:hover:bg-slate-800/60 cursor-pointer transition-colors group"
+                    >
                       <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'} text-gray-700 dark:text-slate-300 whitespace-nowrap`}>
-                        <div className="font-medium text-gray-900 dark:text-slate-100">{formatDate(tx.date)}</div>
+                        <div className="font-medium text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{formatDate(tx.date)}</div>
                         {(tx.time || tx.created_at || localStorage.getItem(`ft_tx_time_${tx.id}`)) && (
                           <div className="text-[11px] text-gray-400 dark:text-slate-500 font-mono flex items-center gap-1 mt-0.5">
                             <Clock className="h-2.5 w-2.5 text-gray-400 dark:text-slate-600 shrink-0" />
@@ -329,7 +358,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                           </span>
                           {receipt && (
                             <button
-                              onClick={() => setPreviewReceipt(receipt)}
+                              onClick={(e) => { e.stopPropagation(); setPreviewReceipt(receipt) }}
                               className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:bg-blue-100 rounded-md text-[11px] font-bold flex-shrink-0 transition-colors"
                               title="View attached bill / invoice"
                             >
@@ -351,16 +380,18 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                       <td className={`${isCompact ? 'py-2 px-3' : 'py-3 px-4'} text-right whitespace-nowrap`}>
                         <div className="flex items-center justify-end gap-1">
                           <button
-                            onClick={() => onEdit(tx)}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 text-gray-400 hover:text-blue-600 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); onEdit(tx) }}
+                            className="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-slate-700 text-gray-400 hover:text-blue-600 transition-colors"
                             aria-label="Edit transaction"
+                            title="Edit transaction"
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => setDeleteTarget(tx)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-slate-800 text-gray-400 hover:text-red-600 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(tx) }}
+                            className="p-1.5 rounded-lg hover:bg-red-100 dark:hover:bg-slate-700 text-gray-400 hover:text-red-600 transition-colors"
                             aria-label="Delete transaction"
+                            title="Delete transaction"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -391,11 +422,24 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                 onEdit={onEdit}
                 onDelete={setDeleteTarget}
                 onPreview={setPreviewReceipt}
+                onSelect={setSelectedTx}
                 isCompact={isCompact}
               />
             )
           })}
         </div>
+      )}
+
+      {/* Full Transaction Details Modal */}
+      {selectedTx && (
+        <TransactionDetailsModal
+          isOpen={!!selectedTx}
+          onClose={() => setSelectedTx(null)}
+          transaction={selectedTx}
+          onEdit={onEdit}
+          onDelete={setDeleteTarget}
+          onPreviewReceipt={setPreviewReceipt}
+        />
       )}
 
       {/* Bill / Invoice Receipt Viewer Modal */}

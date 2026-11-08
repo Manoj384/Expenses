@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import { today, currentTime } from '../utils/dateUtils'
-import { Paperclip, FileText, Image as ImageIcon, X, UploadCloud, Camera, Sparkles, Clock } from 'lucide-react'
+import { Paperclip, FileText, Image as ImageIcon, X, UploadCloud, Camera, Sparkles, Clock, AlertTriangle } from 'lucide-react'
 import AiReceiptScannerModal from './AiReceiptScannerModal'
+import { hapticSuccess } from '../utils/haptics'
 
 const TRANSACTION_TYPES = [
   { value: 'expense', label: 'Expense' },
@@ -22,6 +23,7 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showAiScanner, setShowAiScanner] = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState(null)
 
   const initialTime = (() => {
     if (editData?.time) return editData.time
@@ -111,6 +113,42 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
       ...(name === 'type' && ((value === 'income') !== (prev.type === 'income')) ? { category_id: '' } : {}),
     }))
   }
+
+  // Inline duplicate transaction check before submission
+  useEffect(() => {
+    if (!user || editData || !form.amount || Number(form.amount) <= 0 || !form.date) {
+      setDuplicateWarning(null)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('transactions')
+          .select('id, amount, date, note, type')
+          .eq('user_id', user.id)
+          .eq('date', form.date)
+          .eq('amount', Number(form.amount))
+          .limit(1)
+
+        if (data && data.length > 0) {
+          const match = data[0]
+          setDuplicateWarning({
+            id: match.id,
+            amount: match.amount,
+            date: match.date,
+            note: match.note,
+          })
+        } else {
+          setDuplicateWarning(null)
+        }
+      } catch {
+        // silent fallback
+      }
+    }, 350)
+
+    return () => clearTimeout(timer)
+  }, [user, editData, form.amount, form.date])
 
   const handleFileSelect = (e) => {
     const selected = e.target.files?.[0]
@@ -305,6 +343,7 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
       }
 
       window.dispatchEvent(new CustomEvent('transaction-updated'))
+      hapticSuccess()
       onSuccess()
     } catch (err) {
       setError(err?.message || 'Unable to save transaction. Please try again.')
@@ -491,6 +530,15 @@ export default function TransactionForm({ onSuccess, onCancel, editData = null }
           </div>
         )}
       </div>
+
+      {duplicateWarning && (
+        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5 shadow-xs">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold">Duplicate Warning:</span> An entry of ₹{duplicateWarning.amount} already exists on {duplicateWarning.date}{duplicateWarning.note ? ` ("${duplicateWarning.note}")` : ''}.
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-3 border-t border-gray-100 dark:border-slate-800">
         <button type="submit" className="btn-primary flex-1 py-2.5 font-bold" disabled={saving}>

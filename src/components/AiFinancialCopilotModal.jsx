@@ -6,6 +6,8 @@ import CreditCardSmartPayerModal from './CreditCardSmartPayerModal'
 import AiAnomalySentinelModal from './AiAnomalySentinelModal'
 import TelegramWhatsAppBotModal from './TelegramWhatsAppBotModal'
 import AiMaintenanceWidget from './AiMaintenanceWidget'
+import FinancialAdvisorsModal from './FinancialAdvisorsModal'
+import QuickIngestModal from './QuickIngestModal'
 import {
   Sparkles,
   SunMedium,
@@ -15,6 +17,7 @@ import {
   Bot,
   Zap,
   Brain,
+  MessageSquare,
 } from 'lucide-react'
 
 export default function AiFinancialCopilotModal({
@@ -34,12 +37,14 @@ export default function AiFinancialCopilotModal({
   if (!isOpen) return null
 
   const tabs = [
-    { id: 'digest',   label: 'Daily Auto-Pilot',  icon: SunMedium,   color: 'text-amber-500' },
-    { id: 'voice',    label: 'Voice Companion',   icon: Mic,         color: 'text-cyan-500' },
-    { id: 'cards',    label: 'Card Float & Perks', icon: CreditCard, color: 'text-amber-500' },
-    { id: 'sentinel', label: 'Anomaly Sentinel',  icon: ShieldAlert, color: 'text-rose-500' },
-    { id: 'bot',      label: 'Telegram & WA Bot', icon: Bot,         color: 'text-sky-500' },
-    { id: 'maintenance', label: 'Learning Engine', icon: Brain,       color: 'text-indigo-400' },
+    { id: 'digest',       label: 'Daily Auto-Pilot',  icon: SunMedium,     color: 'text-amber-500' },
+    { id: 'voice',        label: 'Voice Companion',   icon: Mic,           color: 'text-cyan-500' },
+    { id: 'advisors',     label: 'Board of Advisors', icon: MessageSquare, color: 'text-amber-400' },
+    { id: 'quick-ingest', label: 'SMS & Quick Ingest', icon: Zap,          color: 'text-emerald-400' },
+    { id: 'cards',        label: 'Card Float & Perks', icon: CreditCard,   color: 'text-amber-500' },
+    { id: 'sentinel',     label: 'Anomaly Sentinel',  icon: ShieldAlert,   color: 'text-rose-500' },
+    { id: 'bot',          label: 'Telegram & WA Bot', icon: Bot,           color: 'text-sky-500' },
+    { id: 'maintenance',  label: 'Learning Engine',   icon: Brain,         color: 'text-indigo-400' },
   ]
 
   return (
@@ -81,6 +86,18 @@ export default function AiFinancialCopilotModal({
                 onClose={onClose}
                 autoStartListening={voiceAutoStart}
               />
+            </div>
+          )}
+
+          {activeTab === 'advisors' && (
+            <div className="space-y-3">
+              <FinancialAdvisorsModal isOpen={true} isEmbedded={true} onClose={onClose} />
+            </div>
+          )}
+
+          {activeTab === 'quick-ingest' && (
+            <div className="space-y-3">
+              <QuickIngestModal isOpen={true} isEmbedded={true} onClose={onClose} />
             </div>
           )}
 

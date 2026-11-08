@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../context/AuthContext'
 import Layout from '../components/Layout'
@@ -50,7 +50,7 @@ export default function Statements() {
   const [typeFilter, setTypeFilter] = useState('all')
 
   // ─── FETCH from Supabase on login ────────────────────────────────────────
-  const fetchStatements = async () => {
+  const fetchStatements = useCallback(async () => {
     if (!user) return
     setIsLoadingData(true)
     try {
@@ -86,11 +86,11 @@ export default function Statements() {
     } finally {
       setIsLoadingData(false)
     }
-  }
+  }, [user])
 
   useEffect(() => {
     fetchStatements()
-  }, [user])
+  }, [fetchStatements])
 
   // ─── SAVE rows to Supabase statement_records table ───────────────────────
   const persistRows = async (rows) => {

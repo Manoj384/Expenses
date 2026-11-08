@@ -4,9 +4,11 @@ import CashflowForecastModal from './CashflowForecastModal'
 import IncomeTaxPlannerModal from './IncomeTaxPlannerModal'
 import FireSimulatorModal from './FireSimulatorModal'
 import FinancialHealthScoreModal from './FinancialHealthScoreModal'
-import SubscriptionLeakModal from './SubscriptionLeakModal'
 import CashFlowCalendarModal from './CashFlowCalendarModal'
 import SpendingStreakModal from './SpendingStreakModal'
+import TaxHarvestingModal from './TaxHarvestingModal'
+import ItemizedBillSplitterModal from './ItemizedBillSplitterModal'
+import SubscriptionGhostHunterModal from './SubscriptionGhostHunterModal'
 import {
   CalendarDays,
   Calculator,
@@ -14,7 +16,8 @@ import {
   Award,
   Skull,
   Calendar,
-  Zap,
+  Receipt,
+  Percent,
 } from 'lucide-react'
 
 export default function FinancialToolkitModal({
@@ -33,13 +36,15 @@ export default function FinancialToolkitModal({
   if (!isOpen) return null
 
   const tabs = [
-    { id: 'forecast', label: '90-Day Forecast',  icon: CalendarDays, color: 'text-blue-500' },
-    { id: 'tax',      label: 'Tax Planner',      icon: Calculator,   color: 'text-emerald-500' },
-    { id: 'fire',     label: 'FIRE Simulator',   icon: Flame,        color: 'text-amber-500' },
-    { id: 'health',   label: 'Health Score',     icon: Award,        color: 'text-emerald-500' },
-    { id: 'zombie',   label: 'Zombie Leaks',     icon: Skull,        color: 'text-purple-500' },
-    { id: 'calendar', label: 'Cash Calendar',    icon: Calendar,     color: 'text-indigo-500' },
-    { id: 'streaks',  label: 'Habit Streaks',    icon: Flame,        color: 'text-orange-500' },
+    { id: 'forecast',    label: '90-Day Forecast',   icon: CalendarDays, color: 'text-blue-500' },
+    { id: 'tax-harvest', label: 'Tax-Harvesting',    icon: Percent,      color: 'text-emerald-500' },
+    { id: 'splitter',    label: 'Camera Bill-Split', icon: Receipt,      color: 'text-teal-500' },
+    { id: 'ghost',       label: 'Sentinel & Ghost',  icon: Skull,        color: 'text-rose-500' },
+    { id: 'tax',         label: 'Tax Planner',       icon: Calculator,   color: 'text-emerald-500' },
+    { id: 'fire',        label: 'FIRE Simulator',    icon: Flame,        color: 'text-amber-500' },
+    { id: 'health',      label: 'Health Score',      icon: Award,        color: 'text-emerald-500' },
+    { id: 'calendar',    label: 'Cash Calendar',     icon: Calendar,     color: 'text-indigo-500' },
+    { id: 'streaks',     label: 'Habit Streaks',     icon: Flame,        color: 'text-orange-500' },
   ]
 
   return (
@@ -75,6 +80,24 @@ export default function FinancialToolkitModal({
             </div>
           )}
 
+          {activeTab === 'tax-harvest' && (
+            <div className="space-y-3">
+              <TaxHarvestingModal isOpen={true} onClose={onClose} isEmbedded={true} />
+            </div>
+          )}
+
+          {activeTab === 'splitter' && (
+            <div className="space-y-3">
+              <ItemizedBillSplitterModal isOpen={true} onClose={onClose} isEmbedded={true} />
+            </div>
+          )}
+
+          {activeTab === 'ghost' && (
+            <div className="space-y-3">
+              <SubscriptionGhostHunterModal isOpen={true} onClose={onClose} isEmbedded={true} />
+            </div>
+          )}
+
           {activeTab === 'tax' && (
             <div className="space-y-3">
               <IncomeTaxPlannerModal isOpen={true} onClose={onClose} isEmbedded={true} />
@@ -90,12 +113,6 @@ export default function FinancialToolkitModal({
           {activeTab === 'health' && (
             <div className="space-y-3">
               <FinancialHealthScoreModal isOpen={true} onClose={onClose} isEmbedded={true} />
-            </div>
-          )}
-
-          {activeTab === 'zombie' && (
-            <div className="space-y-3">
-              <SubscriptionLeakModal isOpen={true} onClose={onClose} isEmbedded={true} />
             </div>
           )}
 

@@ -3,7 +3,7 @@
  * Centralized Domain Repository for Mutual Funds & AMFI Portfolio Data
  */
 
-import { supabase } from '../../../lib/supabaseClient'
+import { supabase } from '../../../lib/supabaseClient.js'
 import { enrichFundsWithCachedNavs } from '../../../utils/mfApi'
 
 export const mutualFundRepository = {
